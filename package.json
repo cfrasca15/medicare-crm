@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "postinstall": "prisma generate",
+    "docker:start": "prisma migrate deploy && next start"
   },
   "dependencies": {
     "@prisma/adapter-libsql": "^7.9.1",

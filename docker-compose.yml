@@ -1,0 +1,14 @@
+services:
+  medicare-crm:
+    build: .
+    container_name: medicare-crm
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - docker.env
+    volumes:
+      - crm-data:/app/data
+
+volumes:
+  crm-data:
