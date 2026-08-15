@@ -1,69 +1,194 @@
-import Image from "next/image";
+import Link from "next/link";
+import { prisma } from "@/lib/prisma";
+import { STAGE_LABELS, STAGE_ORDER, STAGE_COLORS } from "@/lib/constants";
+import { formatDateOnly } from "@/lib/date";
+import { getGoogleAccount, listUpcomingEvents, type UpcomingEvent } from "@/lib/google";
 
-export default function Home() {
+export default async function DashboardPage() {
+  const [stageCounts, openTasks, recentContacts, googleAccount] = await Promise.all([
+    prisma.contact.groupBy({ by: ["stage"], _count: { stage: true } }),
+    prisma.task.findMany({
+      where: { status: "OPEN" },
+      orderBy: { dueDate: "asc" },
+      take: 8,
+      include: { contact: true },
+    }),
+    prisma.contact.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 5,
+    }),
+    getGoogleAccount(),
+  ]);
+
+  let calendarEvents: UpcomingEvent[] = [];
+  let calendarError: string | null = null;
+  if (googleAccount) {
+    try {
+      calendarEvents = await listUpcomingEvents(5);
+    } catch (err) {
+      calendarError = err instanceof Error ? err.message : "Couldn't load calendar.";
+    }
+  }
+
+  const countByStage: Record<string, number> = {};
+  for (const row of stageCounts) countByStage[row.stage] = row._count.stage;
+
+  const now = new Date();
+  const overdue = openTasks.filter((t) => t.dueDate && t.dueDate < now);
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+    <div className="max-w-5xl mx-auto flex flex-col gap-8">
+      <div>
+        <h1 className="text-2xl font-semibold">Dashboard</h1>
+        <p className="muted mt-1 text-sm">Pipeline overview and upcoming follow-ups.</p>
+      </div>
+
+      <section>
+        <h2 className="section-label mb-3">Pipeline</h2>
+        <div className="grid grid-cols-4 gap-3">
+          {STAGE_ORDER.map((stage) => (
+            <Link
+              key={stage}
+              href={`/contacts?stage=${stage}`}
+              className="surface p-4 transition-colors hover:border-indigo-300 dark:hover:border-indigo-700"
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+              <div className={`mb-2 inline-block rounded-full px-2 py-0.5 text-xs font-medium ${STAGE_COLORS[stage]}`}>
+                {STAGE_LABELS[stage]}
+              </div>
+              <div className="text-2xl font-semibold">{countByStage[stage] ?? 0}</div>
+            </Link>
+          ))}
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+      </section>
+
+      <div className="grid grid-cols-3 gap-6">
+        <section>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="section-label">Google Calendar</h2>
+            {googleAccount && (
+              <a
+                href="https://calendar.google.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="link text-sm"
+              >
+                Open
+              </a>
+            )}
+          </div>
+          {!googleAccount ? (
+            <p className="muted text-sm">
+              <Link href="/settings/google" className="link">
+                Connect Google Calendar
+              </Link>{" "}
+              to see upcoming events here.
+            </p>
+          ) : calendarError ? (
+            <p className="text-sm text-red-600 dark:text-red-400">{calendarError}</p>
+          ) : calendarEvents.length === 0 ? (
+            <p className="muted text-sm">No upcoming events.</p>
+          ) : (
+            <ul className="flex flex-col gap-2">
+              {calendarEvents.map((event) => (
+                <li key={event.id}>
+                  <a
+                    href={event.htmlLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="surface flex items-center justify-between px-3 py-2 text-sm transition-colors hover:border-indigo-300 dark:hover:border-indigo-700"
+                  >
+                    <span className="font-medium">{event.title}</span>
+                    <span className="muted text-xs whitespace-nowrap">
+                      {event.isAllDay
+                        ? formatDateOnly(new Date(event.start))
+                        : new Date(event.start).toLocaleString(undefined, {
+                            month: "numeric",
+                            day: "numeric",
+                            hour: "numeric",
+                            minute: "2-digit",
+                          })}
+                    </span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="section-label">Upcoming Tasks</h2>
+            <Link href="/tasks" className="link text-sm">
+              View all
+            </Link>
+          </div>
+          {openTasks.length === 0 ? (
+            <p className="muted text-sm">No open tasks.</p>
+          ) : (
+            <ul className="flex flex-col gap-2">
+              {openTasks.map((task) => (
+                <li
+                  key={task.id}
+                  className="surface flex items-center justify-between px-3 py-2 text-sm"
+                >
+                  <div>
+                    <div className="font-medium">{task.title}</div>
+                    {task.contact && (
+                      <Link
+                        href={`/contacts/${task.contact.id}`}
+                        className="muted hover:underline"
+                      >
+                        {task.contact.firstName} {task.contact.lastName}
+                      </Link>
+                    )}
+                  </div>
+                  {task.dueDate && (
+                    <span
+                      className={
+                        overdue.includes(task)
+                          ? "text-xs font-medium text-red-600 dark:text-red-400"
+                          : "muted text-xs"
+                      }
+                    >
+                      {formatDateOnly(task.dueDate)}
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="section-label">Recent Contacts</h2>
+            <Link href="/contacts" className="link text-sm">
+              View all
+            </Link>
+          </div>
+          {recentContacts.length === 0 ? (
+            <p className="muted text-sm">No contacts yet.</p>
+          ) : (
+            <ul className="flex flex-col gap-2">
+              {recentContacts.map((c) => (
+                <li key={c.id}>
+                  <Link
+                    href={`/contacts/${c.id}`}
+                    className="surface flex items-center justify-between px-3 py-2 text-sm transition-colors hover:border-indigo-300 dark:hover:border-indigo-700"
+                  >
+                    <span className="font-medium">
+                      {c.firstName} {c.lastName}
+                    </span>
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STAGE_COLORS[c.stage]}`}>
+                      {STAGE_LABELS[c.stage]}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
     </div>
   );
 }

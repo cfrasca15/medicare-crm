@@ -1,36 +1,41 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Medicare CRM
 
-## Getting Started
+A CRM for Medicare health insurance brokers, with contacts/pipeline, policy &
+commission tracking, tasks/reminders, and an Integrity API integration layer.
 
-First, run the development server:
+## Running locally
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Visit http://localhost:3000.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Environment variables
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Copy `.env.example` to `.env.local` and fill in:
 
-## Learn More
+- `DATABASE_URL` — local SQLite file (defaults to `file:./dev.db`)
+- `INTEGRITY_AUTH_URL` — Integrity's OAuth2 token endpoint
+- `INTEGRITY_CLIENT_ID` / `INTEGRITY_CLIENT_SECRET` — Integrity API credentials
+  (currently pointed at Integrity's **sandbox** environment)
 
-To learn more about Next.js, take a look at the following resources:
+## Database
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Prisma + SQLite (via the libsql driver adapter, required by Prisma 7).
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+npx prisma migrate dev   # apply schema changes
+npx prisma studio        # browse the local database
+```
 
-## Deploy on Vercel
+## Integrity integration
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+`src/lib/integrity.ts` handles OAuth2 client_credentials auth against
+Integrity's partner API (token caching + auto-refresh included, verified
+working against the sandbox endpoint). `integrityFetch()` is a fetch wrapper
+that attaches a valid bearer token to any request.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Data sync (pulling contacts, policies, commissions from Integrity) isn't
+wired up yet — that needs the endpoint docs for those resources beyond auth.
