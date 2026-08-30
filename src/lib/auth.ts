@@ -48,7 +48,11 @@ export async function setSessionCookie(userId: string): Promise<void> {
   const cookieStore = await cookies();
   cookieStore.set(SESSION_COOKIE, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    // Deliberately NOT tied to NODE_ENV — "production" doesn't mean "served
+    // over HTTPS". Browsers silently drop Secure cookies over plain HTTP,
+    // which would break login entirely until a reverse proxy with real TLS
+    // is in front of this. Flip via COOKIE_SECURE=true once that's set up.
+    secure: process.env.COOKIE_SECURE === "true",
     sameSite: "lax",
     path: "/",
     maxAge: SESSION_DURATION_SECONDS,
