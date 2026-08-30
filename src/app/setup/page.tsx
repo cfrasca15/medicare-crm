@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { SetupForm } from "@/components/SetupForm";
 
+export const dynamic = "force-dynamic";
+
 export default async function SetupPage() {
   const existingUser = await prisma.user.findFirst();
   if (existingUser) {

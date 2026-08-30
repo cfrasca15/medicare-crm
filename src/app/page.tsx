@@ -4,6 +4,11 @@ import { STAGE_LABELS, STAGE_ORDER, STAGE_COLORS } from "@/lib/constants";
 import { formatDateOnly } from "@/lib/date";
 import { getGoogleAccount, listUpcomingEvents, type UpcomingEvent } from "@/lib/google";
 
+// Always render fresh (queries the database) — without this, Next.js tries
+// to statically pre-render this page at build time, which fails since no
+// database is available during the Docker image build.
+export const dynamic = "force-dynamic";
+
 export default async function DashboardPage() {
   const [stageCounts, openTasks, recentContacts, googleAccount] = await Promise.all([
     prisma.contact.groupBy({ by: ["stage"], _count: { stage: true } }),

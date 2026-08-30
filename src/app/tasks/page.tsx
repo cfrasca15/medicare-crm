@@ -7,6 +7,8 @@ import { formatDateOnly } from "@/lib/date";
 import { CalendarSyncButton } from "@/components/CalendarSyncButton";
 import { CalendlySyncButton } from "@/components/CalendlySyncButton";
 
+export const dynamic = "force-dynamic";
+
 export default async function TasksPage() {
   const [openTasks, doneTasks, contacts] = await Promise.all([
     prisma.task.findMany({

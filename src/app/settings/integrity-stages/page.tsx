@@ -2,6 +2,8 @@ import { prisma } from "@/lib/prisma";
 import { STAGE_LABELS, STAGE_ORDER } from "@/lib/constants";
 import { upsertStageMapping, deleteStageMapping } from "@/lib/actions/stageMappings";
 
+export const dynamic = "force-dynamic";
+
 export default async function IntegrityStagesPage() {
   const mappings = await prisma.integrityStageMapping.findMany({
     orderBy: { code: "asc" },
