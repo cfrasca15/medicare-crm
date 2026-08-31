@@ -6,7 +6,13 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get("code");
   const error = searchParams.get("error");
 
-  const settingsUrl = new URL("/settings/google", request.url);
+  // Deliberately NOT built from request.url's origin — behind Docker (no
+  // reverse proxy forwarding the real Host), Next.js resolves it to
+  // localhost instead of the actual public address, silently sending
+  // users to a dead link after Google auth completes. GOOGLE_REDIRECT_URI
+  // is guaranteed correct: it's the exact URL Google just used to reach us.
+  const appOrigin = new URL(process.env.GOOGLE_REDIRECT_URI!).origin;
+  const settingsUrl = new URL("/settings/google", appOrigin);
 
   if (error) {
     settingsUrl.searchParams.set("error", error);
