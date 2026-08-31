@@ -39,33 +39,49 @@ export async function syncIntegrityLeads(): Promise<{
     const existing = await prisma.contact.findUnique({
       where: { integrityContactId },
     });
+
+    // Auto-fill the stage mapping's label from Integrity's own status name
+    // the first time we see a given code, so Chris doesn't have to guess
+    // what each numeric code means — he can still assign it a local
+    // pipeline stage manually afterward via /settings/integrity-stages.
+    if (!mappingByCode.has(lead.stage) && lead.stageName) {
+      const created = await prisma.integrityStageMapping.create({
+        data: { code: lead.stage, label: lead.stageName },
+      });
+      mappingByCode.set(lead.stage, created);
+    }
+
     // Only apply the mapped pipeline stage on first import — once a broker
     // starts working a lead in the CRM, re-syncing shouldn't clobber
     // their manual stage progression.
     const mappedStage = mappingByCode.get(lead.stage)?.pipelineStage ?? undefined;
 
+    const sharedFields = {
+      firstName: lead.firstName,
+      lastName: lead.lastName,
+      email: lead.email ?? undefined,
+      phone: lead.phone ?? undefined,
+      address: lead.address1 ?? undefined,
+      city: lead.city ?? undefined,
+      state: lead.stateCode ?? undefined,
+      zip: lead.postalCode ?? undefined,
+      dateOfBirth: lead.birthdate ? new Date(lead.birthdate) : undefined,
+      medicareId: lead.medicareBeneficiaryId ?? undefined,
+      integrityLeadStage: lead.stage,
+    };
+
     if (existing) {
       await prisma.contact.update({
         where: { id: existing.id },
-        data: {
-          firstName: lead.firstName,
-          lastName: lead.lastName,
-          email: lead.email ?? undefined,
-          phone: lead.phone ?? undefined,
-          integrityLeadStage: lead.stage,
-        },
+        data: sharedFields,
       });
       updated++;
     } else {
       await prisma.contact.create({
         data: {
-          firstName: lead.firstName,
-          lastName: lead.lastName,
-          email: lead.email ?? undefined,
-          phone: lead.phone ?? undefined,
+          ...sharedFields,
           stage: mappedStage,
           integrityContactId,
-          integrityLeadStage: lead.stage,
         },
       });
       imported++;

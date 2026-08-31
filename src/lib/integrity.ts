@@ -94,11 +94,45 @@ export interface IntegrityLead {
   email: string | null;
   phone: string | null;
   stage: number;
+  stageName: string | null;
   createdDate: string;
+  address1: string | null;
+  address2: string | null;
+  city: string | null;
+  stateCode: string | null;
+  postalCode: string | null;
+  birthdate: string | null;
+  medicareBeneficiaryId: string | null;
+}
+
+// Real production shape — confirmed against Integrity's production API
+// (2026-08-31). Meaningfully different from the docs' example response
+// (which only showed leadId/firstName/lastName/email/phone/stage/
+// createdDate as flat fields): real leads nest emails/phones/addresses as
+// arrays, use `leadsId` not `leadId`, and carry a real `statusName` instead
+// of just a numeric code. Only the fields we use are typed here.
+interface RawIntegrityLead {
+  leadsId: number;
+  firstName: string;
+  lastName: string;
+  leadStatusId: number;
+  statusName: string | null;
+  createDate: string;
+  birthdate: string | null;
+  medicareBeneficiaryId: string | null;
+  emails: { leadEmail: string; inactive: boolean }[];
+  phones: { leadPhone: string; inactive: boolean }[];
+  addresses: {
+    address1: string;
+    address2: string | null;
+    city: string;
+    stateCode: string;
+    postalCode: string;
+  }[];
 }
 
 interface IntegrityLeadsResponse {
-  result: IntegrityLead[];
+  result: RawIntegrityLead[];
   pageResult: {
     total: number;
     pageSize: number;
@@ -106,8 +140,41 @@ interface IntegrityLeadsResponse {
   };
 }
 
+function firstActive<T extends { inactive: boolean }>(items: T[]): T | undefined {
+  return items.find((i) => !i.inactive) ?? items[0];
+}
+
+function mapLead(raw: RawIntegrityLead): IntegrityLead {
+  const email = firstActive(raw.emails ?? []);
+  const phone = firstActive(raw.phones ?? []);
+  const address = raw.addresses?.[0];
+
+  return {
+    leadId: raw.leadsId,
+    firstName: raw.firstName,
+    lastName: raw.lastName,
+    email: email?.leadEmail ?? null,
+    phone: phone?.leadPhone ?? null,
+    stage: raw.leadStatusId,
+    stageName: raw.statusName,
+    createdDate: raw.createDate,
+    address1: address?.address1 ?? null,
+    address2: address?.address2 ?? null,
+    city: address?.city ?? null,
+    stateCode: address?.stateCode ?? null,
+    postalCode: address?.postalCode ?? null,
+    birthdate: raw.birthdate,
+    medicareBeneficiaryId: raw.medicareBeneficiaryId,
+  };
+}
+
 export async function getIntegrityLeads(): Promise<IntegrityLead[]> {
-  const res = await integrityFetch("/partners/leads");
+  // NOTE: the page-offset parameter is unconfirmed as of 2026-08-31 (tried
+  // page/Page/pageNumber/skip against production, none advanced past the
+  // first page) — but pageSize itself IS honored, so we sidestep pagination
+  // entirely by requesting a page large enough to cover every lead in one
+  // call. Revisit if the account ever exceeds this.
+  const res = await integrityFetch("/partners/leads?pageSize=5000");
 
   if (!res.ok) {
     const body = await res.text().catch(() => "");
@@ -117,7 +184,7 @@ export async function getIntegrityLeads(): Promise<IntegrityLead[]> {
   }
 
   const data: IntegrityLeadsResponse = await res.json();
-  return data.result;
+  return data.result.map(mapLead);
 }
 
 export interface IntegrityLeadAddressInput {
