@@ -5,7 +5,11 @@ import { StageSelect } from "@/components/StageSelect";
 import { TaskCheckbox } from "@/components/TaskCheckbox";
 import { createPolicy, deletePolicy } from "@/lib/actions/policies";
 import { createTask, deleteTask } from "@/lib/actions/tasks";
-import { updateContactNotes, deleteContact } from "@/lib/actions/contacts";
+import {
+  updateContactNotes,
+  updateContactDoctorInfo,
+  deleteContact,
+} from "@/lib/actions/contacts";
 import { PushAddressForm } from "@/components/PushAddressForm";
 import { PushEmailPhoneForm } from "@/components/PushEmailPhoneForm";
 import { HealthProfilePanel } from "@/components/HealthProfilePanel";
@@ -39,6 +43,7 @@ export default async function ContactDetailPage({
 
   const createPolicyForContact = createPolicy.bind(null, contact.id);
   const updateNotesForContact = updateContactNotes.bind(null, contact.id);
+  const updateDoctorInfoForContact = updateContactDoctorInfo.bind(null, contact.id);
   const deleteContactBound = deleteContact.bind(null, contact.id);
 
   return (
@@ -76,6 +81,44 @@ export default async function ContactDetailPage({
         <InfoRow label="City / State / ZIP" value={[contact.city, contact.state, contact.zip].filter(Boolean).join(", ")} />
         <InfoRow label="Date of birth" value={contact.dateOfBirth ? formatDateOnly(contact.dateOfBirth) : undefined} />
         <InfoRow label="Medicare ID" value={contact.medicareId} />
+      </section>
+
+      <section>
+        <h2 className="section-label mb-3">Doctor / Medical Group</h2>
+        <p className="muted -mt-2 mb-3 text-sm">
+          Worth confirming this is in-network before selling a policy — this
+          is separate from a policy&apos;s own doctor/medical group, which
+          records what was actually verified for the plan sold.
+        </p>
+        <form action={updateDoctorInfoForContact} className="grid grid-cols-2 gap-3">
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium" htmlFor="doctor">
+              Doctor
+            </label>
+            <input
+              id="doctor"
+              name="doctor"
+              defaultValue={contact.doctor ?? ""}
+              className="field"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium" htmlFor="medicalGroup">
+              Medical Group
+            </label>
+            <input
+              id="medicalGroup"
+              name="medicalGroup"
+              defaultValue={contact.medicalGroup ?? ""}
+              className="field"
+            />
+          </div>
+          <div className="col-span-2">
+            <button type="submit" className="btn-secondary">
+              Save
+            </button>
+          </div>
+        </form>
       </section>
 
       {contact.integrityContactId && (

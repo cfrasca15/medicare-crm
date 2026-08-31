@@ -24,6 +24,8 @@ export async function createContact(formData: FormData) {
       zip: emptyToNull(formData.get("zip")),
       dateOfBirth: toDate(formData.get("dateOfBirth")),
       notes: emptyToNull(formData.get("notes")),
+      doctor: emptyToNull(formData.get("doctor")),
+      medicalGroup: emptyToNull(formData.get("medicalGroup")),
     },
   });
 
@@ -46,6 +48,17 @@ export async function updateContactNotes(contactId: string, formData: FormData) 
   await prisma.contact.update({
     where: { id: contactId },
     data: { notes },
+  });
+  revalidatePath(`/contacts/${contactId}`);
+}
+
+export async function updateContactDoctorInfo(contactId: string, formData: FormData) {
+  await prisma.contact.update({
+    where: { id: contactId },
+    data: {
+      doctor: emptyToNull(formData.get("doctor")),
+      medicalGroup: emptyToNull(formData.get("medicalGroup")),
+    },
   });
   revalidatePath(`/contacts/${contactId}`);
 }

@@ -239,8 +239,9 @@ function PrescriptionSearch({ contactId }: { contactId: string }) {
       {message && <p className="muted mt-2 text-xs">{message}</p>}
 
       <p className="muted mt-2 text-xs">
-        Note: dosage data isn&apos;t populated in this sandbox account, so saving a
-        prescription (which requires a dosageId) can&apos;t be fully tested yet.
+        Note: Integrity isn&apos;t returning dosage data for these drugs right
+        now, so saving (which requires a dosageId) isn&apos;t available yet —
+        flagged with Integrity support.
       </p>
 
       <div className="flex flex-col gap-2 mt-3">

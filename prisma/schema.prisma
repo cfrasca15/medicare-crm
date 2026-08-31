@@ -41,6 +41,12 @@ model Contact {
   stage             PipelineStage @default(NEW_LEAD)
   notes             String?
 
+  // Prospect's doctor/medical group — tracked here so it can be verified
+  // against a plan's network BEFORE enrollment, not just recorded after
+  // (Policy has its own doctor/medicalGroup for the plan actually sold).
+  doctor            String?
+  medicalGroup      String?
+
   // Integrity linkage
   integrityContactId String?      @unique // Integrity's leadId
   integrityLeadStage Int?         // raw numeric stage code from Integrity; meaning not yet documented

@@ -21,6 +21,10 @@ export default function NewContactPage() {
           <Field label="ZIP" name="zip" />
         </div>
         <Field label="Date of birth" name="dateOfBirth" type="date" />
+        <div className="grid grid-cols-2 gap-4">
+          <Field label="Doctor" name="doctor" />
+          <Field label="Medical Group" name="medicalGroup" />
+        </div>
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium">Notes</label>
           <textarea name="notes" rows={3} className="field" />
