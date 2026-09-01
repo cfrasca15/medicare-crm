@@ -11,13 +11,12 @@ import {
   searchIntegrityProviders,
   saveIntegrityLeadProviders,
   searchIntegrityPrescriptions,
-  saveIntegrityLeadPrescriptions,
   type IntegrityLeadAddressInput,
   type IntegrityPharmacySearchParams,
-  type IntegrityPharmacySaveRequest,
+  type IntegrityPharmacySearchItem,
   type IntegrityProviderSearchParams,
-  type IntegrityProviderSaveRequest,
-  type IntegrityPrescriptionSaveRequest,
+  type IntegrityProviderSearchItem,
+  type IntegrityDrug,
 } from "@/lib/integrity";
 import { revalidatePath } from "next/cache";
 
@@ -137,49 +136,144 @@ export async function searchPharmacies(params: IntegrityPharmacySearchParams) {
   return searchIntegrityPharmacies(params);
 }
 
-export async function saveContactPharmacyToIntegrity(
+// Integrity's save endpoints are POST-only — there's no way to read back what's
+// already on a lead (confirmed via a live 405 on the read side), so every
+// pharmacy/provider/prescription added here is also kept in our own database.
+// The Integrity push is best-effort: if the contact isn't linked yet, or the
+// push fails, the local record is still saved so it shows up in the CRM.
+export async function addContactPharmacy(
   contactId: string,
-  pharmacy: IntegrityPharmacySaveRequest
+  pharmacy: IntegrityPharmacySearchItem
 ): Promise<void> {
   const contact = await prisma.contact.findUnique({ where: { id: contactId } });
   if (!contact) throw new Error("Contact not found");
-  if (!contact.integrityContactId) {
-    throw new Error("Contact isn't linked to an Integrity lead");
+
+  let syncedToIntegrity = false;
+  if (contact.integrityContactId) {
+    try {
+      await saveIntegrityLeadPharmacies(contact.integrityContactId, [
+        {
+          pharmacyId: pharmacy.pharmacyNpi,
+          isMailOrder: false,
+          isPrimary: true,
+          name: pharmacy.name,
+          address1: pharmacy.address1,
+          address2: pharmacy.address2 || undefined,
+          city: pharmacy.city,
+          zip: pharmacy.zip,
+          state: pharmacy.state,
+          pharmacyPhone: pharmacy.pharmacyPhone,
+          isDigital: pharmacy.isDigital,
+        },
+      ]);
+      syncedToIntegrity = true;
+    } catch {
+      // fall through — still keep the local record
+    }
   }
 
-  await saveIntegrityLeadPharmacies(contact.integrityContactId, [pharmacy]);
+  await prisma.contactPharmacy.create({
+    data: {
+      contactId,
+      name: pharmacy.name,
+      address1: pharmacy.address1,
+      city: pharmacy.city,
+      state: pharmacy.state,
+      zip: pharmacy.zip,
+      phone: pharmacy.pharmacyPhone,
+      syncedToIntegrity,
+    },
+  });
+
+  revalidatePath(`/contacts/${contactId}`);
+}
+
+export async function deleteContactPharmacy(contactId: string, id: string): Promise<void> {
+  await prisma.contactPharmacy.delete({ where: { id } });
+  revalidatePath(`/contacts/${contactId}`);
 }
 
 export async function searchProviders(params: IntegrityProviderSearchParams) {
   return searchIntegrityProviders(params);
 }
 
-export async function saveContactProviderToIntegrity(
+export async function addContactProvider(
   contactId: string,
-  provider: IntegrityProviderSaveRequest
+  provider: IntegrityProviderSearchItem
 ): Promise<void> {
   const contact = await prisma.contact.findUnique({ where: { id: contactId } });
   if (!contact) throw new Error("Contact not found");
-  if (!contact.integrityContactId) {
-    throw new Error("Contact isn't linked to an Integrity lead");
+
+  const address = provider.addresses?.[0];
+
+  let syncedToIntegrity = false;
+  if (contact.integrityContactId) {
+    try {
+      await saveIntegrityLeadProviders(contact.integrityContactId, [
+        {
+          npi: String(provider.npi),
+          addressId: address?.id,
+          isPrimary: true,
+        },
+      ]);
+      syncedToIntegrity = true;
+    } catch {
+      // fall through — still keep the local record
+    }
   }
 
-  await saveIntegrityLeadProviders(contact.integrityContactId, [provider]);
+  await prisma.contactProvider.create({
+    data: {
+      contactId,
+      npi: String(provider.npi),
+      name: provider.presentationName,
+      specialty: provider.specialty,
+      address1: address?.streetLine1,
+      city: address?.city,
+      state: address?.state,
+      zip: address?.zipCode,
+      phone: provider.phone ?? address?.phoneNumbers?.[0],
+      syncedToIntegrity,
+    },
+  });
+
+  revalidatePath(`/contacts/${contactId}`);
+}
+
+export async function deleteContactProvider(contactId: string, id: string): Promise<void> {
+  await prisma.contactProvider.delete({ where: { id } });
+  revalidatePath(`/contacts/${contactId}`);
 }
 
 export async function searchPrescriptions(params: { ndc?: string; drugName?: string }) {
   return searchIntegrityPrescriptions(params);
 }
 
-export async function saveContactPrescriptionToIntegrity(
+// Integrity's prescription save requires a dosageId, but its dosage catalog
+// comes back empty/null for every drug in production (confirmed with
+// Integrity support) — so this is local-only tracking, no push attempt.
+export async function addContactPrescription(
   contactId: string,
-  prescription: IntegrityPrescriptionSaveRequest
+  drug: IntegrityDrug,
+  details?: { dosage?: string; quantity?: string }
 ): Promise<void> {
   const contact = await prisma.contact.findUnique({ where: { id: contactId } });
   if (!contact) throw new Error("Contact not found");
-  if (!contact.integrityContactId) {
-    throw new Error("Contact isn't linked to an Integrity lead");
-  }
 
-  await saveIntegrityLeadPrescriptions(contact.integrityContactId, [prescription]);
+  await prisma.contactPrescription.create({
+    data: {
+      contactId,
+      drugName: drug.drugName,
+      chemicalName: drug.chemicalName,
+      dosage: details?.dosage || undefined,
+      quantity: details?.quantity || undefined,
+    },
+  });
+
+  revalidatePath(`/contacts/${contactId}`);
+}
+
+export async function deleteContactPrescription(contactId: string, id: string): Promise<void> {
+  await prisma.contactPrescription.delete({ where: { id } });
+  revalidatePath(`/contacts/${contactId}`);
 }

@@ -29,6 +29,9 @@ export default async function ContactDetailPage({
     include: {
       policies: { orderBy: { createdAt: "desc" } },
       tasks: { orderBy: { dueDate: "asc" } },
+      providers: { orderBy: { createdAt: "desc" } },
+      pharmacies: { orderBy: { createdAt: "desc" } },
+      prescriptions: { orderBy: { createdAt: "desc" } },
     },
   });
 
@@ -152,7 +155,12 @@ export default async function ContactDetailPage({
             />
             <div>
               <h3 className="mb-2 text-sm font-medium">Health Profile</h3>
-              <HealthProfilePanel contactId={contact.id} />
+              <HealthProfilePanel
+                contactId={contact.id}
+                providers={contact.providers}
+                pharmacies={contact.pharmacies}
+                prescriptions={contact.prescriptions}
+              />
             </div>
           </div>
         </section>

@@ -53,12 +53,75 @@ model Contact {
 
   policies          Policy[]
   tasks             Task[]
+  providers         ContactProvider[]
+  pharmacies        ContactPharmacy[]
+  prescriptions     ContactPrescription[]
 
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
 
   @@index([stage])
   @@index([lastName, firstName])
+}
+
+// Providers/pharmacies/prescriptions are tracked locally because Integrity's
+// partner API only supports POSTing new ones to a lead (confirmed via a live
+// 405 on the read side) — there's no way to fetch back what's already saved,
+// so the CRM has to keep its own copy to show/edit this data at all.
+model ContactProvider {
+  id          String   @id @default(cuid())
+  contact     Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  contactId   String
+
+  npi         String?
+  name        String
+  specialty   String?
+  address1    String?
+  city        String?
+  state       String?
+  zip         String?
+  phone       String?
+
+  syncedToIntegrity Boolean @default(false)
+
+  createdAt   DateTime @default(now())
+
+  @@index([contactId])
+}
+
+model ContactPharmacy {
+  id          String   @id @default(cuid())
+  contact     Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  contactId   String
+
+  name        String
+  address1    String?
+  city        String?
+  state       String?
+  zip         String?
+  phone       String?
+  isMailOrder Boolean  @default(false)
+
+  syncedToIntegrity Boolean @default(false)
+
+  createdAt   DateTime @default(now())
+
+  @@index([contactId])
+}
+
+model ContactPrescription {
+  id          String   @id @default(cuid())
+  contact     Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  contactId   String
+
+  drugName     String
+  chemicalName String?
+  dosage       String?  // free-text — Integrity's dosage catalog isn't exposed via the API
+  quantity     String?
+
+  createdAt   DateTime @default(now())
+
+  @@index([contactId])
 }
 
 model Policy {

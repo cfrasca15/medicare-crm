@@ -3,11 +3,14 @@
 import { useState, useTransition } from "react";
 import {
   searchPharmacies,
-  saveContactPharmacyToIntegrity,
+  addContactPharmacy,
+  deleteContactPharmacy,
   searchProviders,
-  saveContactProviderToIntegrity,
+  addContactProvider,
+  deleteContactProvider,
   searchPrescriptions,
-  saveContactPrescriptionToIntegrity,
+  addContactPrescription,
+  deleteContactPrescription,
 } from "@/lib/actions/integritySync";
 import type {
   IntegrityPharmacySearchItem,
@@ -15,24 +18,77 @@ import type {
   IntegrityDrug,
 } from "@/lib/integrity";
 
-export function HealthProfilePanel({ contactId }: { contactId: string }) {
+interface SavedProvider {
+  id: string;
+  name: string;
+  specialty: string | null;
+  city: string | null;
+  state: string | null;
+  syncedToIntegrity: boolean;
+}
+
+interface SavedPharmacy {
+  id: string;
+  name: string;
+  city: string | null;
+  state: string | null;
+  syncedToIntegrity: boolean;
+}
+
+interface SavedPrescription {
+  id: string;
+  drugName: string;
+  dosage: string | null;
+  quantity: string | null;
+}
+
+export function HealthProfilePanel({
+  contactId,
+  providers,
+  pharmacies,
+  prescriptions,
+}: {
+  contactId: string;
+  providers: SavedProvider[];
+  pharmacies: SavedPharmacy[];
+  prescriptions: SavedPrescription[];
+}) {
   return (
     <div className="flex flex-col gap-4">
-      <PharmacySearch contactId={contactId} />
-      <ProviderSearch contactId={contactId} />
-      <PrescriptionSearch contactId={contactId} />
+      <PharmacySearch contactId={contactId} saved={pharmacies} />
+      <ProviderSearch contactId={contactId} saved={providers} />
+      <PrescriptionSearch contactId={contactId} saved={prescriptions} />
     </div>
   );
 }
 
-function PharmacySearch({ contactId }: { contactId: string }) {
+function PharmacySearch({
+  contactId,
+  saved,
+}: {
+  contactId: string;
+  saved: SavedPharmacy[];
+}) {
   const [isPending, startTransition] = useTransition();
   const [results, setResults] = useState<IntegrityPharmacySearchItem[]>([]);
   const [message, setMessage] = useState<string | null>(null);
 
   return (
-    <details className="surface p-3">
-      <summary className="cursor-pointer text-sm font-medium">Pharmacies</summary>
+    <details className="surface p-3" open={saved.length > 0}>
+      <summary className="cursor-pointer text-sm font-medium">
+        Pharmacies {saved.length > 0 && `(${saved.length})`}
+      </summary>
+
+      <SavedList
+        items={saved.map((p) => ({
+          id: p.id,
+          primary: p.name,
+          secondary: [p.city, p.state].filter(Boolean).join(", "),
+          synced: p.syncedToIntegrity,
+        }))}
+        onDelete={(id) => deleteContactPharmacy(contactId, id)}
+      />
+
       <form
         className="flex gap-2 mt-3"
         onSubmit={(e) => {
@@ -89,23 +145,7 @@ function PharmacySearch({ contactId }: { contactId: string }) {
                 {p.address1}, {p.city}, {p.state} {p.zip} · {p.distance.toFixed(1)} mi
               </div>
             </div>
-            <SaveButton
-              onSave={() =>
-                saveContactPharmacyToIntegrity(contactId, {
-                  pharmacyId: p.pharmacyNpi,
-                  isMailOrder: false,
-                  isPrimary: true,
-                  name: p.name,
-                  address1: p.address1,
-                  address2: p.address2 || undefined,
-                  city: p.city,
-                  zip: p.zip,
-                  state: p.state,
-                  pharmacyPhone: p.pharmacyPhone,
-                  isDigital: p.isDigital,
-                })
-              }
-            />
+            <SaveButton onSave={() => addContactPharmacy(contactId, p)} />
           </div>
         ))}
       </div>
@@ -113,14 +153,35 @@ function PharmacySearch({ contactId }: { contactId: string }) {
   );
 }
 
-function ProviderSearch({ contactId }: { contactId: string }) {
+function ProviderSearch({
+  contactId,
+  saved,
+}: {
+  contactId: string;
+  saved: SavedProvider[];
+}) {
   const [isPending, startTransition] = useTransition();
   const [results, setResults] = useState<IntegrityProviderSearchItem[]>([]);
   const [message, setMessage] = useState<string | null>(null);
 
   return (
-    <details className="surface p-3">
-      <summary className="cursor-pointer text-sm font-medium">Providers</summary>
+    <details className="surface p-3" open={saved.length > 0}>
+      <summary className="cursor-pointer text-sm font-medium">
+        Providers {saved.length > 0 && `(${saved.length})`}
+      </summary>
+
+      <SavedList
+        items={saved.map((p) => ({
+          id: p.id,
+          primary: p.name,
+          secondary: [p.specialty, [p.city, p.state].filter(Boolean).join(", ")]
+            .filter(Boolean)
+            .join(" · "),
+          synced: p.syncedToIntegrity,
+        }))}
+        onDelete={(id) => deleteContactProvider(contactId, id)}
+      />
+
       <form
         className="flex gap-2 mt-3"
         onSubmit={(e) => {
@@ -180,15 +241,7 @@ function ProviderSearch({ contactId }: { contactId: string }) {
                   {address && ` · ${address.city}, ${address.state}`}
                 </div>
               </div>
-              <SaveButton
-                onSave={() =>
-                  saveContactProviderToIntegrity(contactId, {
-                    npi: String(p.npi),
-                    addressId: address?.id,
-                    isPrimary: true,
-                  })
-                }
-              />
+              <SaveButton onSave={() => addContactProvider(contactId, p)} />
             </div>
           );
         })}
@@ -197,14 +250,33 @@ function ProviderSearch({ contactId }: { contactId: string }) {
   );
 }
 
-function PrescriptionSearch({ contactId }: { contactId: string }) {
+function PrescriptionSearch({
+  contactId,
+  saved,
+}: {
+  contactId: string;
+  saved: SavedPrescription[];
+}) {
   const [isPending, startTransition] = useTransition();
   const [results, setResults] = useState<IntegrityDrug[]>([]);
   const [message, setMessage] = useState<string | null>(null);
 
   return (
-    <details className="surface p-3">
-      <summary className="cursor-pointer text-sm font-medium">Prescriptions</summary>
+    <details className="surface p-3" open={saved.length > 0}>
+      <summary className="cursor-pointer text-sm font-medium">
+        Prescriptions {saved.length > 0 && `(${saved.length})`}
+      </summary>
+
+      <SavedList
+        items={saved.map((p) => ({
+          id: p.id,
+          primary: p.drugName,
+          secondary: [p.dosage, p.quantity].filter(Boolean).join(" · "),
+          synced: false,
+        }))}
+        onDelete={(id) => deleteContactPrescription(contactId, id)}
+      />
+
       <form
         className="flex gap-2 mt-3"
         onSubmit={(e) => {
@@ -239,38 +311,102 @@ function PrescriptionSearch({ contactId }: { contactId: string }) {
       {message && <p className="muted mt-2 text-xs">{message}</p>}
 
       <p className="muted mt-2 text-xs">
-        Note: Integrity isn&apos;t returning dosage data for these drugs right
-        now, so saving (which requires a dosageId) isn&apos;t available yet —
-        flagged with Integrity support.
+        Note: Integrity isn&apos;t returning dosage catalog data for these
+        drugs, so this only tracks the drug locally in the CRM (dosage/
+        quantity below are free text) — it isn&apos;t pushed to Integrity.
+        Flagged with Integrity support.
       </p>
 
       <div className="flex flex-col gap-2 mt-3">
         {results.map((d) => (
-          <div
-            key={d.drugId}
-            className="surface flex items-center justify-between px-3 py-2 text-sm"
-          >
-            <div>
-              <div className="font-medium">{d.drugName}</div>
-              <div className="muted">
-                {d.drugType} · {d.chemicalName} · NDC {d.referenceNdc}
-              </div>
-            </div>
-            <SaveButton
-              disabled={!d.dosages || d.dosages.length === 0}
-              onSave={() =>
-                saveContactPrescriptionToIntegrity(contactId, {
-                  dosageId: "",
-                  ndc: d.referenceNdc,
-                  quantity: 30,
-                  daysOfSupply: 30,
-                })
-              }
-            />
-          </div>
+          <PrescriptionResultRow key={d.drugId} drug={d} contactId={contactId} />
         ))}
       </div>
     </details>
+  );
+}
+
+function PrescriptionResultRow({
+  drug,
+  contactId,
+}: {
+  drug: IntegrityDrug;
+  contactId: string;
+}) {
+  const [dosage, setDosage] = useState("");
+  const [quantity, setQuantity] = useState("");
+
+  return (
+    <div className="surface flex items-center justify-between gap-3 px-3 py-2 text-sm">
+      <div>
+        <div className="font-medium">{drug.drugName}</div>
+        <div className="muted">
+          {drug.drugType} · {drug.chemicalName} · NDC {drug.referenceNdc}
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <input
+          value={dosage}
+          onChange={(e) => setDosage(e.target.value)}
+          placeholder="Dosage"
+          className="field w-28 text-xs"
+        />
+        <input
+          value={quantity}
+          onChange={(e) => setQuantity(e.target.value)}
+          placeholder="Quantity"
+          className="field w-24 text-xs"
+        />
+        <SaveButton
+          onSave={() => addContactPrescription(contactId, drug, { dosage, quantity })}
+        />
+      </div>
+    </div>
+  );
+}
+
+function SavedList({
+  items,
+  onDelete,
+}: {
+  items: { id: string; primary: string; secondary: string; synced: boolean }[];
+  onDelete: (id: string) => Promise<void>;
+}) {
+  if (items.length === 0) return null;
+
+  return (
+    <div className="flex flex-col gap-2 mb-3">
+      {items.map((item) => (
+        <SavedRow key={item.id} item={item} onDelete={onDelete} />
+      ))}
+    </div>
+  );
+}
+
+function SavedRow({
+  item,
+  onDelete,
+}: {
+  item: { id: string; primary: string; secondary: string; synced: boolean };
+  onDelete: (id: string) => Promise<void>;
+}) {
+  const [isPending, startTransition] = useTransition();
+
+  return (
+    <div className="flex items-center justify-between rounded border border-black/10 px-3 py-2 text-sm dark:border-white/10">
+      <div>
+        <div className="font-medium">{item.primary}</div>
+        {item.secondary && <div className="muted">{item.secondary}</div>}
+      </div>
+      <button
+        type="button"
+        disabled={isPending}
+        onClick={() => startTransition(() => onDelete(item.id))}
+        className="btn-danger-text text-xs"
+      >
+        Remove
+      </button>
+    </div>
   );
 }
 
