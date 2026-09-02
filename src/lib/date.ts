@@ -18,3 +18,25 @@ export function dateInputValue(date: Date): string {
   const day = String(date.getUTCDate()).padStart(2, "0");
   return `${date.getUTCFullYear()}-${month}-${day}`;
 }
+
+// Accepts either M/D/YYYY (formatDateOnly's output) or yyyy-mm-dd
+// (dateInputValue's/date input's output) — the two shapes a broker is
+// likely to have in a spreadsheet cell.
+export function parseDateCell(value: string): Date | undefined {
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+
+  const slashMatch = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (slashMatch) {
+    const [, month, day, year] = slashMatch;
+    return new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
+  }
+
+  const isoMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (isoMatch) {
+    const [, year, month, day] = isoMatch;
+    return new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
+  }
+
+  return undefined;
+}

@@ -49,6 +49,9 @@ export default async function ContactsPage({
           >
             Export CSV
           </a>
+          <Link href="/contacts/import" className="btn-secondary">
+            Import CSV
+          </Link>
           <Link href="/contacts/new" className="btn-primary">
             + New Contact
           </Link>

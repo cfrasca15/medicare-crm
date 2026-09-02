@@ -30,6 +30,7 @@ export async function GET(request: NextRequest) {
 
   const csv = toCsv(
     [
+      "Integrity Lead ID",
       "First Name",
       "Last Name",
       "Phone",
@@ -40,10 +41,15 @@ export async function GET(request: NextRequest) {
       "ZIP",
       "Date of Birth",
       "Medicare ID",
+      "Part A Effective",
+      "Part B Effective",
+      "Doctor",
+      "Medical Group",
       "Stage",
       "Notes",
     ],
     contacts.map((c) => [
+      c.integrityContactId,
       c.firstName,
       c.lastName,
       c.phone,
@@ -54,6 +60,10 @@ export async function GET(request: NextRequest) {
       c.zip,
       c.dateOfBirth ? formatDateOnly(c.dateOfBirth) : "",
       c.medicareId,
+      c.partAEffectiveDate ? formatDateOnly(c.partAEffectiveDate) : "",
+      c.partBEffectiveDate ? formatDateOnly(c.partBEffectiveDate) : "",
+      c.doctor,
+      c.medicalGroup,
       STAGE_LABELS[c.stage],
       c.notes,
     ])
