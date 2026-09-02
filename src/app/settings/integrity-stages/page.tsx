@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { STAGE_LABELS, STAGE_ORDER } from "@/lib/constants";
 import { upsertStageMapping, deleteStageMapping } from "@/lib/actions/stageMappings";
+import { ReapplyMappingsButton } from "@/components/ReapplyMappingsButton";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +21,20 @@ export default async function IntegrityStagesPage() {
           that stage automatically. Re-syncing an existing contact never
           overwrites a stage you&apos;ve already set manually.
         </p>
+      </div>
+
+      <div className="surface flex flex-col gap-2 p-4">
+        <h2 className="text-sm font-medium">Apply to existing contacts</h2>
+        <p className="muted text-sm">
+          Mappings only apply automatically when a lead is first imported —
+          contacts synced before a mapping existed are stuck at New Lead.
+          This updates any contact still sitting at New Lead whose Integrity
+          stage now has a mapping. Anything you&apos;ve already moved
+          manually is left alone.
+        </p>
+        <div>
+          <ReapplyMappingsButton />
+        </div>
       </div>
 
       <div className="flex flex-col gap-2">
