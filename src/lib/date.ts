@@ -11,3 +11,10 @@ export function formatDateOnly(date: Date): string {
 export function dateOnlyYear(date: Date): number {
   return date.getUTCFullYear();
 }
+
+// yyyy-mm-dd, for populating an <input type="date"> defaultValue.
+export function dateInputValue(date: Date): string {
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  return `${date.getUTCFullYear()}-${month}-${day}`;
+}

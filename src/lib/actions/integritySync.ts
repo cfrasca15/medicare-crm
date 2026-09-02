@@ -6,6 +6,8 @@ import {
   pushIntegrityLeadAddress,
   pushIntegrityLeadEmail,
   pushIntegrityLeadPhone,
+  pushIntegrityLeadMedicareInfo,
+  type IntegrityLeadMedicareInfoInput,
   searchIntegrityPharmacies,
   saveIntegrityLeadPharmacies,
   searchIntegrityProviders,
@@ -66,6 +68,8 @@ export async function syncIntegrityLeads(): Promise<{
       zip: lead.postalCode ?? undefined,
       dateOfBirth: lead.birthdate ? new Date(lead.birthdate) : undefined,
       medicareId: lead.medicareBeneficiaryId ?? undefined,
+      partAEffectiveDate: lead.partAEffectiveDate ? new Date(lead.partAEffectiveDate) : undefined,
+      partBEffectiveDate: lead.partBEffectiveDate ? new Date(lead.partBEffectiveDate) : undefined,
       integrityLeadStage: lead.stage,
     };
 
@@ -130,6 +134,19 @@ export async function pushContactPhoneToIntegrity(
   }
 
   await pushIntegrityLeadPhone(contact.integrityContactId, phoneNumber);
+}
+
+export async function pushContactMedicareInfoToIntegrity(
+  contactId: string,
+  info: IntegrityLeadMedicareInfoInput
+): Promise<void> {
+  const contact = await prisma.contact.findUnique({ where: { id: contactId } });
+  if (!contact) throw new Error("Contact not found");
+  if (!contact.integrityContactId) {
+    throw new Error("Contact isn't linked to an Integrity lead");
+  }
+
+  await pushIntegrityLeadMedicareInfo(contact.integrityContactId, info);
 }
 
 export async function searchPharmacies(params: IntegrityPharmacySearchParams) {

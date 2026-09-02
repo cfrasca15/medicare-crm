@@ -21,6 +21,11 @@ export default function NewContactPage() {
           <Field label="ZIP" name="zip" />
         </div>
         <Field label="Date of birth" name="dateOfBirth" type="date" />
+        <div className="grid grid-cols-3 gap-4">
+          <Field label="Medicare Number" name="medicareId" />
+          <Field label="Part A Effective" name="partAEffectiveDate" type="date" />
+          <Field label="Part B Effective" name="partBEffectiveDate" type="date" />
+        </div>
         <div className="grid grid-cols-2 gap-4">
           <Field label="Doctor" name="doctor" />
           <Field label="Medical Group" name="medicalGroup" />

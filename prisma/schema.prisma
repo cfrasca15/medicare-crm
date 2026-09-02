@@ -38,6 +38,8 @@ model Contact {
   zip               String?
   dateOfBirth       DateTime?
   medicareId        String?
+  partAEffectiveDate DateTime?
+  partBEffectiveDate DateTime?
   stage             PipelineStage @default(NEW_LEAD)
   notes             String?
 

@@ -103,6 +103,8 @@ export interface IntegrityLead {
   postalCode: string | null;
   birthdate: string | null;
   medicareBeneficiaryId: string | null;
+  partAEffectiveDate: string | null;
+  partBEffectiveDate: string | null;
 }
 
 // Real production shape — confirmed against Integrity's production API
@@ -120,6 +122,8 @@ interface RawIntegrityLead {
   createDate: string;
   birthdate: string | null;
   medicareBeneficiaryId: string | null;
+  partA: string | null;
+  partB: string | null;
   emails: { leadEmail: string; inactive: boolean }[];
   phones: { leadPhone: string; inactive: boolean }[];
   addresses: {
@@ -165,6 +169,8 @@ function mapLead(raw: RawIntegrityLead): IntegrityLead {
     postalCode: address?.postalCode ?? null,
     birthdate: raw.birthdate,
     medicareBeneficiaryId: raw.medicareBeneficiaryId,
+    partAEffectiveDate: raw.partA,
+    partBEffectiveDate: raw.partB,
   };
 }
 
@@ -511,6 +517,36 @@ export async function saveIntegrityLeadPrescriptions(
     const body = await res.text().catch(() => "");
     throw new Error(
       `Integrity save prescriptions failed: ${res.status} ${res.statusText} ${body}`
+    );
+  }
+
+  return res.json().catch(() => null);
+}
+
+// PATCH on the lead resource itself — confirmed live against production
+// (2026-09-02): a PATCH with only agentNpn returns 200 with the full lead
+// record (including medicareBeneficiaryId/partA/partB), and a validation
+// error on an incomplete body names AgentNpn specifically, so this accepts
+// a partial update rather than requiring the whole lead.
+export interface IntegrityLeadMedicareInfoInput {
+  medicareBeneficiaryId?: string;
+  partA?: string; // ISO date
+  partB?: string; // ISO date
+}
+
+export async function pushIntegrityLeadMedicareInfo(
+  leadId: string | number,
+  info: IntegrityLeadMedicareInfoInput
+): Promise<unknown> {
+  const res = await integrityFetch(`/partners/leads/${leadId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ agentNpn: AGENT_NPN, ...info }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(
+      `Integrity medicare info push failed: ${res.status} ${res.statusText} ${body}`
     );
   }
 

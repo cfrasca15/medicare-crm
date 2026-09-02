@@ -8,12 +8,14 @@ import { createTask, deleteTask } from "@/lib/actions/tasks";
 import {
   updateContactNotes,
   updateContactDoctorInfo,
+  updateContactMedicareInfo,
   deleteContact,
 } from "@/lib/actions/contacts";
 import { PushAddressForm } from "@/components/PushAddressForm";
 import { PushEmailPhoneForm } from "@/components/PushEmailPhoneForm";
+import { PushMedicareInfoForm } from "@/components/PushMedicareInfoForm";
 import { HealthProfilePanel } from "@/components/HealthProfilePanel";
-import { formatDateOnly } from "@/lib/date";
+import { formatDateOnly, dateInputValue } from "@/lib/date";
 import { CallButton } from "@/components/CallButton";
 import { CalendarSyncButton } from "@/components/CalendarSyncButton";
 
@@ -47,6 +49,7 @@ export default async function ContactDetailPage({
   const createPolicyForContact = createPolicy.bind(null, contact.id);
   const updateNotesForContact = updateContactNotes.bind(null, contact.id);
   const updateDoctorInfoForContact = updateContactDoctorInfo.bind(null, contact.id);
+  const updateMedicareInfoForContact = updateContactMedicareInfo.bind(null, contact.id);
   const deleteContactBound = deleteContact.bind(null, contact.id);
 
   return (
@@ -83,7 +86,56 @@ export default async function ContactDetailPage({
         <InfoRow label="Address" value={contact.address} />
         <InfoRow label="City / State / ZIP" value={[contact.city, contact.state, contact.zip].filter(Boolean).join(", ")} />
         <InfoRow label="Date of birth" value={contact.dateOfBirth ? formatDateOnly(contact.dateOfBirth) : undefined} />
-        <InfoRow label="Medicare ID" value={contact.medicareId} />
+      </section>
+
+      <section>
+        <h2 className="section-label mb-3">Medicare Info</h2>
+        <form action={updateMedicareInfoForContact} className="grid grid-cols-3 gap-3">
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium" htmlFor="medicareId">
+              Medicare Number
+            </label>
+            <input
+              id="medicareId"
+              name="medicareId"
+              defaultValue={contact.medicareId ?? ""}
+              className="field"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium" htmlFor="partAEffectiveDate">
+              Part A Effective
+            </label>
+            <input
+              id="partAEffectiveDate"
+              name="partAEffectiveDate"
+              type="date"
+              defaultValue={
+                contact.partAEffectiveDate ? dateInputValue(contact.partAEffectiveDate) : ""
+              }
+              className="field"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium" htmlFor="partBEffectiveDate">
+              Part B Effective
+            </label>
+            <input
+              id="partBEffectiveDate"
+              name="partBEffectiveDate"
+              type="date"
+              defaultValue={
+                contact.partBEffectiveDate ? dateInputValue(contact.partBEffectiveDate) : ""
+              }
+              className="field"
+            />
+          </div>
+          <div className="col-span-3">
+            <button type="submit" className="btn-secondary">
+              Save
+            </button>
+          </div>
+        </form>
       </section>
 
       <section>
@@ -152,6 +204,16 @@ export default async function ContactDetailPage({
               contactId={contact.id}
               defaultEmail={contact.email ?? undefined}
               defaultPhone={contact.phone ?? undefined}
+            />
+            <PushMedicareInfoForm
+              contactId={contact.id}
+              defaultMedicareId={contact.medicareId ?? undefined}
+              defaultPartADate={
+                contact.partAEffectiveDate ? dateInputValue(contact.partAEffectiveDate) : undefined
+              }
+              defaultPartBDate={
+                contact.partBEffectiveDate ? dateInputValue(contact.partBEffectiveDate) : undefined
+              }
             />
             <div>
               <h3 className="mb-2 text-sm font-medium">Health Profile</h3>
