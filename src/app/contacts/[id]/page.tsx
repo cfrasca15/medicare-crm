@@ -15,6 +15,8 @@ import { PushAddressForm } from "@/components/PushAddressForm";
 import { PushEmailPhoneForm } from "@/components/PushEmailPhoneForm";
 import { PushMedicareInfoForm } from "@/components/PushMedicareInfoForm";
 import { HealthProfilePanel } from "@/components/HealthProfilePanel";
+import { EmailPanel } from "@/components/EmailPanel";
+import { getGoogleAccount, listGmailMessagesForContact, type GmailMessageSummary } from "@/lib/google";
 import { formatDateOnly, dateInputValue } from "@/lib/date";
 import { CallButton } from "@/components/CallButton";
 import { CalendarSyncButton } from "@/components/CalendarSyncButton";
@@ -45,6 +47,18 @@ export default async function ContactDetailPage({
           where: { code: contact.integrityLeadStage },
         })
       : null;
+
+  const googleAccount = await getGoogleAccount();
+  let emailHistory: GmailMessageSummary[] = [];
+  let emailHistoryError: string | null = null;
+  if (googleAccount && contact.email) {
+    try {
+      emailHistory = await listGmailMessagesForContact(contact.email);
+    } catch (err) {
+      emailHistoryError =
+        err instanceof Error ? err.message : "Failed to load email history.";
+    }
+  }
 
   const createPolicyForContact = createPolicy.bind(null, contact.id);
   const updateNotesForContact = updateContactNotes.bind(null, contact.id);
@@ -238,6 +252,35 @@ export default async function ContactDetailPage({
             </button>
           </div>
         </form>
+      </section>
+
+      <section>
+        <h2 className="section-label mb-3">Email</h2>
+        {!contact.email && (
+          <p className="muted text-sm">Add an email address to send or track email.</p>
+        )}
+        {contact.email && !googleAccount && (
+          <p className="muted text-sm">
+            Connect your Google account on the{" "}
+            <Link href="/settings/google" className="link">
+              Google
+            </Link>{" "}
+            settings page to send and track email here.
+          </p>
+        )}
+        {contact.email && googleAccount && emailHistoryError && (
+          <p className="text-sm text-red-600 dark:text-red-400">
+            Couldn&apos;t load email history: {emailHistoryError}. If you
+            connected Google before Gmail access was added, reconnect on the{" "}
+            <Link href="/settings/google" className="link">
+              Google
+            </Link>{" "}
+            settings page to grant it.
+          </p>
+        )}
+        {contact.email && googleAccount && !emailHistoryError && (
+          <EmailPanel contactId={contact.id} history={emailHistory} />
+        )}
       </section>
 
       <section>

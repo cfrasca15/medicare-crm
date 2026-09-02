@@ -6,6 +6,8 @@ const REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI!;
 
 const SCOPES = [
   "https://www.googleapis.com/auth/calendar.events",
+  "https://www.googleapis.com/auth/gmail.send",
+  "https://www.googleapis.com/auth/gmail.readonly",
   "https://www.googleapis.com/auth/userinfo.email",
 ].join(" ");
 
@@ -268,4 +270,120 @@ export async function listEventsInRange(
       orderBy: "startTime",
     })
   );
+}
+
+async function gmailFetch(path: string, init: RequestInit = {}): Promise<Response> {
+  const token = await getValidAccessToken();
+  return fetch(`https://gmail.googleapis.com/gmail/v1${path}`, {
+    ...init,
+    headers: {
+      ...init.headers,
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+}
+
+export interface GmailMessageSummary {
+  id: string;
+  threadId: string;
+  subject: string;
+  from: string;
+  date: string; // ISO
+  snippet: string;
+  isFromMe: boolean;
+}
+
+// Gmail's list endpoint only returns {id, threadId} — the subject/from/date
+// shown in history requires a follow-up metadata fetch per message, so this
+// is capped at maxResults to keep it fast.
+export async function listGmailMessagesForContact(
+  contactEmail: string,
+  maxResults = 10
+): Promise<GmailMessageSummary[]> {
+  const q = `from:${contactEmail} OR to:${contactEmail}`;
+  const listRes = await gmailFetch(
+    `/users/me/messages?q=${encodeURIComponent(q)}&maxResults=${maxResults}`
+  );
+
+  if (!listRes.ok) {
+    const body = await listRes.text().catch(() => "");
+    throw new Error(`Failed to list Gmail messages: ${listRes.status} ${body}`);
+  }
+
+  const listData = await listRes.json();
+  const ids: string[] = (listData.messages ?? []).map((m: { id: string }) => m.id);
+  if (ids.length === 0) return [];
+
+  const account = await getGoogleAccount();
+  const myEmail = account?.email.toLowerCase();
+
+  const messages = await Promise.all(
+    ids.map(async (id): Promise<GmailMessageSummary | null> => {
+      const res = await gmailFetch(
+        `/users/me/messages/${id}?format=metadata&metadataHeaders=Subject&metadataHeaders=From&metadataHeaders=Date`
+      );
+      if (!res.ok) return null;
+
+      const data = await res.json();
+      const headers: { name: string; value: string }[] = data.payload?.headers ?? [];
+      const getHeader = (name: string) =>
+        headers.find((h) => h.name.toLowerCase() === name.toLowerCase())?.value ?? "";
+      const from = getHeader("From");
+
+      return {
+        id: data.id,
+        threadId: data.threadId,
+        subject: getHeader("Subject") || "(no subject)",
+        from,
+        date: new Date(Number(data.internalDate)).toISOString(),
+        snippet: data.snippet ?? "",
+        isFromMe: myEmail ? from.toLowerCase().includes(myEmail) : false,
+      };
+    })
+  );
+
+  return messages
+    .filter((m): m is GmailMessageSummary => m !== null)
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+}
+
+export interface SendEmailInput {
+  to: string;
+  subject: string;
+  body: string;
+}
+
+function base64UrlEncode(str: string): string {
+  return Buffer.from(str, "utf-8")
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+}
+
+export async function sendGmailMessage(input: SendEmailInput): Promise<{ id: string }> {
+  const account = await getGoogleAccount();
+  if (!account) throw new Error("Google account isn't connected.");
+
+  const message = [
+    `From: ${account.email}`,
+    `To: ${input.to}`,
+    `Subject: ${input.subject}`,
+    "Content-Type: text/plain; charset=utf-8",
+    "",
+    input.body,
+  ].join("\r\n");
+
+  const res = await gmailFetch(`/users/me/messages/send`, {
+    method: "POST",
+    body: JSON.stringify({ raw: base64UrlEncode(message) }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`Failed to send email: ${res.status} ${body}`);
+  }
+
+  return res.json();
 }

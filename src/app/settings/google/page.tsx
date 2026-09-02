@@ -12,10 +12,12 @@ export default async function GoogleSettingsPage({
   return (
     <div className="max-w-2xl mx-auto flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold">Google Calendar</h1>
+        <h1 className="text-2xl font-semibold">Google</h1>
         <p className="muted mt-1 text-sm">
           Connect your Google account so tasks with a due date can be added to
-          your calendar as 30-minute reminders (9:00 AM on the due date).
+          your calendar as 30-minute reminders (9:00 AM on the due date), and
+          so you can send and track email with contacts from the CRM using
+          Gmail.
         </p>
       </div>
 
@@ -37,21 +39,34 @@ export default async function GoogleSettingsPage({
               <span className="font-medium">Connected</span>
               <span className="muted"> as {account.email}</span>
             </div>
-            <form action={disconnectGoogle}>
-              <button type="submit" className="btn-danger-text text-sm">
-                Disconnect
-              </button>
-            </form>
+            <div className="flex items-center gap-3">
+              <a href="/api/google/connect" className="btn-secondary text-sm">
+                Reconnect
+              </a>
+              <form action={disconnectGoogle}>
+                <button type="submit" className="btn-danger-text text-sm">
+                  Disconnect
+                </button>
+              </form>
+            </div>
           </div>
         ) : (
           <div className="flex items-center justify-between">
             <span className="muted text-sm">Not connected.</span>
             <a href="/api/google/connect" className="btn-primary">
-              Connect Google Calendar
+              Connect Google
             </a>
           </div>
         )}
       </div>
+
+      {account && (
+        <p className="muted text-xs">
+          If you connected Google before Gmail send/read access was added,
+          click Reconnect to grant the new permissions — it won&apos;t affect
+          your existing calendar sync.
+        </p>
+      )}
     </div>
   );
 }

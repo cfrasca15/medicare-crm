@@ -11,7 +11,7 @@ const links = [
   { href: "/tasks", label: "Tasks" },
   { href: "/calendar", label: "Calendar" },
   { href: "/settings/integrity-stages", label: "Integrity Stages" },
-  { href: "/settings/google", label: "Google Calendar" },
+  { href: "/settings/google", label: "Google" },
 ];
 
 const HIDE_NAV_PATHS = ["/login", "/setup"];
