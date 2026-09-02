@@ -348,18 +348,72 @@ export async function listGmailMessagesForContact(
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }
 
-export interface SendEmailInput {
-  to: string;
-  subject: string;
-  body: string;
-}
-
 function base64UrlEncode(str: string): string {
   return Buffer.from(str, "utf-8")
     .toString("base64")
     .replace(/\+/g, "-")
     .replace(/\//g, "_")
     .replace(/=+$/, "");
+}
+
+function base64UrlDecode(data: string): string {
+  const base64 = data.replace(/-/g, "+").replace(/_/g, "/");
+  return Buffer.from(base64, "base64").toString("utf-8");
+}
+
+interface GmailPart {
+  mimeType: string;
+  body?: { data?: string };
+  parts?: GmailPart[];
+}
+
+function findTextPart(part: GmailPart, mimeType: string): string | null {
+  if (part.mimeType === mimeType && part.body?.data) {
+    return base64UrlDecode(part.body.data);
+  }
+  if (part.parts) {
+    for (const child of part.parts) {
+      const found = findTextPart(child, mimeType);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+// The history list only fetches lightweight metadata (subject/from/date) to
+// stay fast across N messages, so the full body is a separate on-demand
+// fetch — this walks the (possibly multipart) payload for a text/plain part,
+// falling back to a stripped text/html part.
+export async function getGmailMessageBody(messageId: string): Promise<string> {
+  const res = await gmailFetch(`/users/me/messages/${messageId}?format=full`);
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`Failed to load message: ${res.status} ${body}`);
+  }
+
+  const data = await res.json();
+  const payload: GmailPart = data.payload;
+
+  const plain = payload ? findTextPart(payload, "text/plain") : null;
+  if (plain) return plain;
+
+  const html = payload ? findTextPart(payload, "text/html") : null;
+  if (html) {
+    return html
+      .replace(/<[^>]+>/g, " ")
+      .replace(/&nbsp;/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  return data.snippet ?? "(no content)";
+}
+
+export interface SendEmailInput {
+  to: string;
+  subject: string;
+  body: string;
 }
 
 export async function sendGmailMessage(input: SendEmailInput): Promise<{ id: string }> {

@@ -1,8 +1,12 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { sendGmailMessage } from "@/lib/google";
+import { sendGmailMessage, getGmailMessageBody } from "@/lib/google";
 import { revalidatePath } from "next/cache";
+
+export async function getContactEmailBody(messageId: string): Promise<string> {
+  return getGmailMessageBody(messageId);
+}
 
 export async function sendContactEmail(contactId: string, formData: FormData): Promise<void> {
   const contact = await prisma.contact.findUnique({ where: { id: contactId } });
