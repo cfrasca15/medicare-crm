@@ -32,7 +32,6 @@ const COLUMNS: { header: string; field: string; isDate: boolean }[] = [
   { header: "part b effective", field: "partBEffectiveDate", isDate: true },
   { header: "doctor", field: "doctor", isDate: false },
   { header: "medical group", field: "medicalGroup", isDate: false },
-  { header: "notes", field: "notes", isDate: false },
 ];
 
 const FIELD_LABELS: Record<string, string> = Object.fromEntries(

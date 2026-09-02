@@ -41,7 +41,6 @@ model Contact {
   partAEffectiveDate DateTime?
   partBEffectiveDate DateTime?
   stage             PipelineStage @default(NEW_LEAD)
-  notes             String?
 
   // Prospect's doctor/medical group — tracked here so it can be verified
   // against a plan's network BEFORE enrollment, not just recorded after
@@ -58,6 +57,7 @@ model Contact {
   providers         ContactProvider[]
   pharmacies        ContactPharmacy[]
   prescriptions     ContactPrescription[]
+  noteEntries       ContactNote[]
 
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
@@ -120,6 +120,18 @@ model ContactPrescription {
   chemicalName String?
   dosage       String?  // free-text — Integrity's dosage catalog isn't exposed via the API
   quantity     String?
+
+  createdAt   DateTime @default(now())
+
+  @@index([contactId])
+}
+
+model ContactNote {
+  id          String   @id @default(cuid())
+  contact     Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  contactId   String
+
+  body        String
 
   createdAt   DateTime @default(now())
 

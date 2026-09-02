@@ -6,7 +6,8 @@ import { TaskCheckbox } from "@/components/TaskCheckbox";
 import { createPolicy, deletePolicy } from "@/lib/actions/policies";
 import { createTask, deleteTask } from "@/lib/actions/tasks";
 import {
-  updateContactNotes,
+  addContactNote,
+  deleteContactNote,
   updateContactDoctorInfo,
   updateContactMedicareInfo,
   deleteContact,
@@ -17,7 +18,7 @@ import { PushMedicareInfoForm } from "@/components/PushMedicareInfoForm";
 import { HealthProfilePanel } from "@/components/HealthProfilePanel";
 import { EmailPanel } from "@/components/EmailPanel";
 import { getGoogleAccount, listGmailMessagesForContact, type GmailMessageSummary } from "@/lib/google";
-import { formatDateOnly, dateInputValue } from "@/lib/date";
+import { formatDateOnly, formatDateTime, dateInputValue } from "@/lib/date";
 import { CallButton } from "@/components/CallButton";
 import { CalendarSyncButton } from "@/components/CalendarSyncButton";
 
@@ -36,6 +37,7 @@ export default async function ContactDetailPage({
       providers: { orderBy: { createdAt: "desc" } },
       pharmacies: { orderBy: { createdAt: "desc" } },
       prescriptions: { orderBy: { createdAt: "desc" } },
+      noteEntries: { orderBy: { createdAt: "desc" } },
     },
   });
 
@@ -61,7 +63,7 @@ export default async function ContactDetailPage({
   }
 
   const createPolicyForContact = createPolicy.bind(null, contact.id);
-  const updateNotesForContact = updateContactNotes.bind(null, contact.id);
+  const addNoteForContact = addContactNote.bind(null, contact.id);
   const updateDoctorInfoForContact = updateContactDoctorInfo.bind(null, contact.id);
   const updateMedicareInfoForContact = updateContactMedicareInfo.bind(null, contact.id);
   const deleteContactBound = deleteContact.bind(null, contact.id);
@@ -244,14 +246,39 @@ export default async function ContactDetailPage({
 
       <section>
         <h2 className="section-label mb-3">Notes</h2>
-        <form action={updateNotesForContact} className="flex flex-col gap-2">
-          <textarea name="notes" defaultValue={contact.notes ?? ""} rows={4} className="field" />
+        <form action={addNoteForContact} className="mb-4 flex flex-col gap-2">
+          <textarea name="body" placeholder="Add a note…" rows={3} required className="field" />
           <div>
             <button type="submit" className="btn-secondary">
-              Save Notes
+              Add Note
             </button>
           </div>
         </form>
+
+        <div className="flex flex-col gap-2">
+          {contact.noteEntries.length === 0 && (
+            <p className="muted text-sm">No notes yet.</p>
+          )}
+          {contact.noteEntries.map((n) => {
+            const deleteNoteForContact = deleteContactNote.bind(null, contact.id, n.id);
+            return (
+              <div
+                key={n.id}
+                className="surface flex items-start justify-between gap-3 p-3 text-sm"
+              >
+                <div>
+                  <div className="muted text-xs">{formatDateTime(n.createdAt)}</div>
+                  <div className="mt-1 whitespace-pre-wrap">{n.body}</div>
+                </div>
+                <form action={deleteNoteForContact}>
+                  <button type="submit" className="btn-danger-text text-xs">
+                    Remove
+                  </button>
+                </form>
+              </div>
+            );
+          })}
+        </div>
       </section>
 
       <section>

@@ -94,7 +94,7 @@ export function ContactImportForm() {
         <p className="muted mt-2 text-xs">
           Columns recognized: Integrity Lead ID, First Name, Last Name, Email,
           Phone, Address, City, State, ZIP, Date of Birth, Medicare ID, Part A
-          Effective, Part B Effective, Doctor, Medical Group, Notes. A row is
+          Effective, Part B Effective, Doctor, Medical Group. A row is
           matched by Lead ID first, then Email, then Name — export contacts to
           CSV first for the most reliable Lead ID matching. Blank cells never
           clear an existing value.

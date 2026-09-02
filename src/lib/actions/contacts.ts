@@ -12,6 +12,8 @@ export async function createContact(formData: FormData) {
     throw new Error("First and last name are required");
   }
 
+  const notes = emptyToNull(formData.get("notes"));
+
   const contact = await prisma.contact.create({
     data: {
       firstName,
@@ -23,12 +25,12 @@ export async function createContact(formData: FormData) {
       state: emptyToNull(formData.get("state")),
       zip: emptyToNull(formData.get("zip")),
       dateOfBirth: toDate(formData.get("dateOfBirth")),
-      notes: emptyToNull(formData.get("notes")),
       doctor: emptyToNull(formData.get("doctor")),
       medicalGroup: emptyToNull(formData.get("medicalGroup")),
       medicareId: emptyToNull(formData.get("medicareId")),
       partAEffectiveDate: toDate(formData.get("partAEffectiveDate")),
       partBEffectiveDate: toDate(formData.get("partBEffectiveDate")),
+      noteEntries: notes ? { create: [{ body: notes }] } : undefined,
     },
   });
 
@@ -46,12 +48,18 @@ export async function updateContactStage(contactId: string, stage: PipelineStage
   revalidatePath("/");
 }
 
-export async function updateContactNotes(contactId: string, formData: FormData) {
-  const notes = String(formData.get("notes") ?? "");
-  await prisma.contact.update({
-    where: { id: contactId },
-    data: { notes },
+export async function addContactNote(contactId: string, formData: FormData) {
+  const body = String(formData.get("body") ?? "").trim();
+  if (!body) return;
+
+  await prisma.contactNote.create({
+    data: { contactId, body },
   });
+  revalidatePath(`/contacts/${contactId}`);
+}
+
+export async function deleteContactNote(contactId: string, noteId: string) {
+  await prisma.contactNote.delete({ where: { id: noteId } });
   revalidatePath(`/contacts/${contactId}`);
 }
 

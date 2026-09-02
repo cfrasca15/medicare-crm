@@ -12,6 +12,19 @@ export function dateOnlyYear(date: Date): number {
   return date.getUTCFullYear();
 }
 
+// Unlike the calendar-date fields above, createdAt-style timestamps are a
+// real instant in time, so this deliberately uses the viewer's local
+// timezone rather than the UTC-safe approach.
+export function formatDateTime(date: Date): string {
+  return date.toLocaleString(undefined, {
+    month: "numeric",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 // yyyy-mm-dd, for populating an <input type="date"> defaultValue.
 export function dateInputValue(date: Date): string {
   const month = String(date.getUTCMonth() + 1).padStart(2, "0");

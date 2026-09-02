@@ -46,7 +46,6 @@ export async function GET(request: NextRequest) {
       "Doctor",
       "Medical Group",
       "Stage",
-      "Notes",
     ],
     contacts.map((c) => [
       c.integrityContactId,
@@ -65,7 +64,6 @@ export async function GET(request: NextRequest) {
       c.doctor,
       c.medicalGroup,
       STAGE_LABELS[c.stage],
-      c.notes,
     ])
   );
 
