@@ -25,6 +25,8 @@ export async function createContact(formData: FormData) {
       state: emptyToNull(formData.get("state")),
       zip: emptyToNull(formData.get("zip")),
       dateOfBirth: toDate(formData.get("dateOfBirth")),
+      insuranceCompany: emptyToNull(formData.get("insuranceCompany")),
+      planName: emptyToNull(formData.get("planName")),
       doctor: emptyToNull(formData.get("doctor")),
       medicalGroup: emptyToNull(formData.get("medicalGroup")),
       medicareId: emptyToNull(formData.get("medicareId")),
@@ -60,6 +62,17 @@ export async function addContactNote(contactId: string, formData: FormData) {
 
 export async function deleteContactNote(contactId: string, noteId: string) {
   await prisma.contactNote.delete({ where: { id: noteId } });
+  revalidatePath(`/contacts/${contactId}`);
+}
+
+export async function updateContactPlanInfo(contactId: string, formData: FormData) {
+  await prisma.contact.update({
+    where: { id: contactId },
+    data: {
+      insuranceCompany: emptyToNull(formData.get("insuranceCompany")),
+      planName: emptyToNull(formData.get("planName")),
+    },
+  });
   revalidatePath(`/contacts/${contactId}`);
 }
 

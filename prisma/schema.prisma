@@ -42,6 +42,11 @@ model Contact {
   partBEffectiveDate DateTime?
   stage             PipelineStage @default(NEW_LEAD)
 
+  // Plan being considered for this prospect — tracked here, separate from
+  // Policy's own carrier/planName, which records what was actually sold.
+  insuranceCompany  String?
+  planName          String?
+
   // Prospect's doctor/medical group — tracked here so it can be verified
   // against a plan's network BEFORE enrollment, not just recorded after
   // (Policy has its own doctor/medicalGroup for the plan actually sold).

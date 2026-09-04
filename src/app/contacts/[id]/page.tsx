@@ -8,6 +8,7 @@ import { createTask, deleteTask } from "@/lib/actions/tasks";
 import {
   addContactNote,
   deleteContactNote,
+  updateContactPlanInfo,
   updateContactDoctorInfo,
   updateContactMedicareInfo,
   deleteContact,
@@ -64,6 +65,7 @@ export default async function ContactDetailPage({
 
   const createPolicyForContact = createPolicy.bind(null, contact.id);
   const addNoteForContact = addContactNote.bind(null, contact.id);
+  const updatePlanInfoForContact = updateContactPlanInfo.bind(null, contact.id);
   const updateDoctorInfoForContact = updateContactDoctorInfo.bind(null, contact.id);
   const updateMedicareInfoForContact = updateContactMedicareInfo.bind(null, contact.id);
   const deleteContactBound = deleteContact.bind(null, contact.id);
@@ -102,6 +104,44 @@ export default async function ContactDetailPage({
         <InfoRow label="Address" value={contact.address} />
         <InfoRow label="City / State / ZIP" value={[contact.city, contact.state, contact.zip].filter(Boolean).join(", ")} />
         <InfoRow label="Date of birth" value={contact.dateOfBirth ? formatDateOnly(contact.dateOfBirth) : undefined} />
+      </section>
+
+      <section>
+        <h2 className="section-label mb-3">Plan / Insurance Company</h2>
+        <p className="muted -mt-2 mb-3 text-sm">
+          The plan being considered for this prospect — separate from a
+          policy&apos;s own carrier/plan name, which records what was
+          actually sold.
+        </p>
+        <form action={updatePlanInfoForContact} className="grid grid-cols-2 gap-3">
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium" htmlFor="insuranceCompany">
+              Insurance Company
+            </label>
+            <input
+              id="insuranceCompany"
+              name="insuranceCompany"
+              defaultValue={contact.insuranceCompany ?? ""}
+              className="field"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium" htmlFor="planName">
+              Plan Name
+            </label>
+            <input
+              id="planName"
+              name="planName"
+              defaultValue={contact.planName ?? ""}
+              className="field"
+            />
+          </div>
+          <div className="col-span-2">
+            <button type="submit" className="btn-secondary">
+              Save
+            </button>
+          </div>
+        </form>
       </section>
 
       <section>
