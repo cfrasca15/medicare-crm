@@ -27,6 +27,8 @@ const COLUMNS: { header: string; field: string; isDate: boolean }[] = [
   { header: "state", field: "state", isDate: false },
   { header: "zip", field: "zip", isDate: false },
   { header: "date of birth", field: "dateOfBirth", isDate: true },
+  { header: "insurance company", field: "insuranceCompany", isDate: false },
+  { header: "plan name", field: "planName", isDate: false },
   { header: "medicare id", field: "medicareId", isDate: false },
   { header: "part a effective", field: "partAEffectiveDate", isDate: true },
   { header: "part b effective", field: "partBEffectiveDate", isDate: true },
