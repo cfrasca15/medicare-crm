@@ -143,6 +143,19 @@ model ContactNote {
   @@index([contactId])
 }
 
+// One record per CSV import "Apply" click — a permanent log of what a
+// bulk upload actually changed, since a spreadsheet touching many
+// contacts at once is exactly the kind of action worth being able to
+// look back on later ("when did this get updated, and from what?").
+model ImportBatch {
+  id           String   @id @default(cuid())
+  rowCount     Int      // rows selected for apply
+  updatedCount Int      // contacts actually updated
+  detailsJson  String   // JSON: per-contact { contactId, contactName, changes, pushResults }
+
+  createdAt    DateTime @default(now())
+}
+
 model Policy {
   id                  String    @id @default(cuid())
   contact             Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)

@@ -201,6 +201,19 @@ export async function previewContactImport(csvText: string): Promise<{
   return { rows: results };
 }
 
+function formatFieldValue(value: unknown): string {
+  if (value == null || value === "") return "—";
+  if (value instanceof Date) return formatDateOnly(value);
+  return String(value);
+}
+
+export interface ImportBatchContactLog {
+  contactId: string;
+  contactName: string;
+  changes: { field: string; label: string; oldValue: string; newValue: string }[];
+  pushResults: { label: string; ok: boolean; error?: string }[];
+}
+
 export async function applyContactImport(
   rows: { contactId: string; updates: Record<string, string> }[]
 ): Promise<{
@@ -208,9 +221,13 @@ export async function applyContactImport(
   pushResults: { name: string; ok: boolean; error?: string }[];
 }> {
   const pushResults: { name: string; ok: boolean; error?: string }[] = [];
+  const batchDetails: ImportBatchContactLog[] = [];
   let updated = 0;
 
   for (const row of rows) {
+    const before = await prisma.contact.findUnique({ where: { id: row.contactId } });
+    if (!before) continue;
+
     const data: Record<string, unknown> = {};
     for (const [field, value] of Object.entries(row.updates)) {
       if (DATE_FIELDS.has(field)) {
@@ -230,84 +247,88 @@ export async function applyContactImport(
     }
     updated++;
 
-    if (!contact.integrityContactId) continue;
-
-    const changed = new Set(Object.keys(row.updates));
     const name = `${contact.firstName} ${contact.lastName}`;
+    const changed = new Set(Object.keys(row.updates));
+    const changes = Array.from(changed).map((field) => ({
+      field,
+      label: FIELD_LABELS[field] ?? field,
+      oldValue: formatFieldValue((before as unknown as Record<string, unknown>)[field]),
+      newValue: formatFieldValue((contact as unknown as Record<string, unknown>)[field]),
+    }));
+    const rowPushResults: ImportBatchContactLog["pushResults"] = [];
 
-    if (
-      ["address", "city", "state", "zip"].some((f) => changed.has(f)) &&
-      contact.address &&
-      contact.city &&
-      contact.state &&
-      contact.zip
-    ) {
+    async function runPush(label: string, fn: () => Promise<unknown>) {
       try {
-        await pushIntegrityLeadAddress(contact.integrityContactId, {
-          address1: contact.address,
-          city: contact.city,
-          stateCode: contact.state,
-          postalCode: contact.zip,
-        });
+        await fn();
         pushResults.push({ name, ok: true });
+        rowPushResults.push({ label, ok: true });
       } catch (err) {
-        pushResults.push({
-          name,
-          ok: false,
-          error: err instanceof Error ? err.message : "Address push failed",
-        });
+        const error = err instanceof Error ? err.message : `${label} push failed`;
+        pushResults.push({ name, ok: false, error });
+        rowPushResults.push({ label, ok: false, error });
       }
     }
 
-    if (changed.has("email") && contact.email) {
-      try {
-        await pushIntegrityLeadEmail(contact.integrityContactId, contact.email);
-        pushResults.push({ name, ok: true });
-      } catch (err) {
-        pushResults.push({
-          name,
-          ok: false,
-          error: err instanceof Error ? err.message : "Email push failed",
-        });
+    if (contact.integrityContactId) {
+      const leadId = contact.integrityContactId;
+
+      if (
+        ["address", "city", "state", "zip"].some((f) => changed.has(f)) &&
+        contact.address &&
+        contact.city &&
+        contact.state &&
+        contact.zip
+      ) {
+        await runPush("Address", () =>
+          pushIntegrityLeadAddress(leadId, {
+            address1: contact.address!,
+            city: contact.city!,
+            stateCode: contact.state!,
+            postalCode: contact.zip!,
+          })
+        );
+      }
+
+      if (changed.has("email") && contact.email) {
+        await runPush("Email", () => pushIntegrityLeadEmail(leadId, contact.email!));
+      }
+
+      if (changed.has("phone") && contact.phone) {
+        await runPush("Phone", () => pushIntegrityLeadPhone(leadId, contact.phone!));
+      }
+
+      if (
+        ["medicareId", "partAEffectiveDate", "partBEffectiveDate"].some((f) => changed.has(f))
+      ) {
+        await runPush("Medicare Info", () =>
+          pushIntegrityLeadMedicareInfo(leadId, {
+            medicareBeneficiaryId: contact.medicareId ?? undefined,
+            partA: contact.partAEffectiveDate
+              ? contact.partAEffectiveDate.toISOString().slice(0, 10)
+              : undefined,
+            partB: contact.partBEffectiveDate
+              ? contact.partBEffectiveDate.toISOString().slice(0, 10)
+              : undefined,
+          })
+        );
       }
     }
 
-    if (changed.has("phone") && contact.phone) {
-      try {
-        await pushIntegrityLeadPhone(contact.integrityContactId, contact.phone);
-        pushResults.push({ name, ok: true });
-      } catch (err) {
-        pushResults.push({
-          name,
-          ok: false,
-          error: err instanceof Error ? err.message : "Phone push failed",
-        });
-      }
-    }
-
-    if (
-      ["medicareId", "partAEffectiveDate", "partBEffectiveDate"].some((f) => changed.has(f))
-    ) {
-      try {
-        await pushIntegrityLeadMedicareInfo(contact.integrityContactId, {
-          medicareBeneficiaryId: contact.medicareId ?? undefined,
-          partA: contact.partAEffectiveDate
-            ? contact.partAEffectiveDate.toISOString().slice(0, 10)
-            : undefined,
-          partB: contact.partBEffectiveDate
-            ? contact.partBEffectiveDate.toISOString().slice(0, 10)
-            : undefined,
-        });
-        pushResults.push({ name, ok: true });
-      } catch (err) {
-        pushResults.push({
-          name,
-          ok: false,
-          error: err instanceof Error ? err.message : "Medicare info push failed",
-        });
-      }
-    }
+    batchDetails.push({
+      contactId: contact.id,
+      contactName: name,
+      changes,
+      pushResults: rowPushResults,
+    });
   }
+
+  await prisma.importBatch.create({
+    data: {
+      rowCount: rows.length,
+      updatedCount: updated,
+      detailsJson: JSON.stringify(batchDetails),
+    },
+  });
 
   revalidatePath("/contacts");
   revalidatePath("/");
