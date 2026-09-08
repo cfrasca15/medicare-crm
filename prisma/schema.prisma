@@ -175,6 +175,13 @@ model Policy {
   doctor              String?
   medicalGroup        String?
 
+  // 30/60/90-day client check-in emails — day 0 is this policy's own
+  // effectiveDate, so a contact with multiple policies gets one sequence
+  // per policy. Null means "not sent yet"; set once, never re-sent.
+  milestone30SentAt   DateTime?
+  milestone60SentAt   DateTime?
+  milestone90SentAt   DateTime?
+
   // Integrity linkage
   integrityPolicyId   String?   @unique
 
@@ -182,6 +189,15 @@ model Policy {
   updatedAt            DateTime @updatedAt
 
   @@index([contactId])
+}
+
+// Fixed three rows (id "day30"/"day60"/"day90") edited in place — not a
+// general list, so no create/delete UI, just editing the subject/body of
+// each milestone's email.
+model MilestoneEmailTemplate {
+  id      String @id
+  subject String
+  body    String
 }
 
 model IntegrityStageMapping {

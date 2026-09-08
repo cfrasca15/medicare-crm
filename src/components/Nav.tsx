@@ -11,6 +11,7 @@ const links = [
   { href: "/tasks", label: "Tasks" },
   { href: "/calendar", label: "Calendar" },
   { href: "/settings/integrity-stages", label: "Integrity Stages" },
+  { href: "/settings/milestone-emails", label: "Milestone Emails" },
   { href: "/settings/google", label: "Google" },
 ];
 
