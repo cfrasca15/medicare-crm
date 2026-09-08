@@ -20,6 +20,7 @@ import { HealthProfilePanel } from "@/components/HealthProfilePanel";
 import { EmailPanel } from "@/components/EmailPanel";
 import { getGoogleAccount, listGmailMessagesForContact, type GmailMessageSummary } from "@/lib/google";
 import { formatDateOnly, formatDateTime, dateInputValue } from "@/lib/date";
+import { CARRIER_SEED, PLAN_TYPE_SEED } from "@/lib/constants";
 import { CallButton } from "@/components/CallButton";
 import { CalendarSyncButton } from "@/components/CalendarSyncButton";
 
@@ -50,6 +51,24 @@ export default async function ContactDetailPage({
           where: { code: contact.integrityLeadStage },
         })
       : null;
+
+  const [carrierRows, planNameRows, planTypeRows] = await Promise.all([
+    prisma.policy.findMany({ distinct: ["carrier"], select: { carrier: true }, orderBy: { carrier: "asc" } }),
+    prisma.policy.findMany({ distinct: ["planName"], select: { planName: true }, orderBy: { planName: "asc" } }),
+    prisma.policy.findMany({
+      distinct: ["planType"],
+      select: { planType: true },
+      where: { planType: { not: null } },
+      orderBy: { planType: "asc" },
+    }),
+  ]);
+  const carrierOptions = Array.from(
+    new Set([...CARRIER_SEED, ...carrierRows.map((r) => r.carrier)])
+  ).sort();
+  const planNameOptions = Array.from(new Set(planNameRows.map((r) => r.planName))).sort();
+  const planTypeOptions = Array.from(
+    new Set([...PLAN_TYPE_SEED, ...planTypeRows.map((r) => r.planType as string)])
+  ).sort();
 
   const googleAccount = await getGoogleAccount();
   let emailHistory: GmailMessageSummary[] = [];
@@ -91,7 +110,7 @@ export default async function ContactDetailPage({
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <StageSelect contactId={contact.id} stage={contact.stage} />
+          <StageSelect key={contact.stage} contactId={contact.id} stage={contact.stage} />
           <form action={deleteContactBound}>
             <button type="submit" className="btn-danger-text text-sm">
               Delete
@@ -390,9 +409,14 @@ export default async function ContactDetailPage({
         <details className="surface p-3">
           <summary className="cursor-pointer text-sm font-medium">+ Add Policy</summary>
           <form action={createPolicyForContact} className="mt-3 grid grid-cols-2 gap-3">
-            <PolicyField label="Carrier" name="carrier" required />
-            <PolicyField label="Plan Name" name="planName" required />
-            <PolicyField label="Plan Type" name="planType" placeholder="MAPD, PDP, Med Supp..." />
+            <PolicyField label="Carrier" name="carrier" required options={carrierOptions} />
+            <PolicyField label="Plan Name" name="planName" required options={planNameOptions} />
+            <PolicyField
+              label="Plan Type"
+              name="planType"
+              placeholder="MAPD, PDP, Med Supp..."
+              options={planTypeOptions}
+            />
             <PolicyField label="Policy Number" name="policyNumber" />
             <PolicyField label="Effective Date" name="effectiveDate" type="date" />
             <PolicyField label="Commission Status" name="commissionStatus" placeholder="pending, paid..." />
@@ -474,13 +498,16 @@ function PolicyField({
   type = "text",
   required = false,
   placeholder,
+  options,
 }: {
   label: string;
   name: string;
   type?: string;
   required?: boolean;
   placeholder?: string;
+  options?: string[];
 }) {
+  const listId = options ? `${name}-options` : undefined;
   return (
     <div className="flex flex-col gap-1">
       <label className="text-sm font-medium" htmlFor={name}>
@@ -494,8 +521,17 @@ function PolicyField({
         required={required}
         placeholder={placeholder}
         step={type === "number" ? "0.01" : undefined}
+        list={listId}
+        autoComplete={listId ? "off" : undefined}
         className="field"
       />
+      {options && (
+        <datalist id={listId}>
+          {options.map((o) => (
+            <option key={o} value={o} />
+          ))}
+        </datalist>
+      )}
     </div>
   );
 }

@@ -1,6 +1,8 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { PipelineStage } from "@/generated/prisma/client";
+import { STAGE_ORDER } from "@/lib/constants";
 import { revalidatePath } from "next/cache";
 
 export async function createPolicy(contactId: string, formData: FormData) {
@@ -26,8 +28,26 @@ export async function createPolicy(contactId: string, formData: FormData) {
     },
   });
 
+  // Recording a policy means an application was submitted — advance the
+  // pipeline automatically so it doesn't sit at an earlier stage until
+  // someone remembers to update it by hand. Never moves it backward: a
+  // contact already at Enrolled/Renewal/Lost (all past this point in
+  // STAGE_ORDER) is left alone.
+  const contact = await prisma.contact.findUnique({
+    where: { id: contactId },
+    select: { stage: true },
+  });
+  if (contact && STAGE_ORDER.indexOf(contact.stage) < STAGE_ORDER.indexOf("APPLICATION_SUBMITTED")) {
+    await prisma.contact.update({
+      where: { id: contactId },
+      data: { stage: "APPLICATION_SUBMITTED" as PipelineStage },
+    });
+  }
+
   revalidatePath(`/contacts/${contactId}`);
+  revalidatePath("/contacts");
   revalidatePath("/enrollments");
+  revalidatePath("/");
 }
 
 export async function updatePolicyDoctorInfo(
