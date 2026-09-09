@@ -31,8 +31,10 @@ export async function createPolicy(contactId: string, formData: FormData) {
   // Recording a policy means an application was submitted — advance the
   // pipeline automatically so it doesn't sit at an earlier stage until
   // someone remembers to update it by hand. Never moves it backward: a
-  // contact already at Enrolled/Renewal/Lost (all past this point in
-  // STAGE_ORDER) is left alone.
+  // contact already at Enrolled/Lost (both past this point in STAGE_ORDER)
+  // is left alone. The later Application Submitted -> Enrolled transition
+  // happens automatically too, once the policy's effective date arrives —
+  // see runStageAutomation in src/lib/stageAutomation.ts.
   const contact = await prisma.contact.findUnique({
     where: { id: contactId },
     select: { stage: true },
