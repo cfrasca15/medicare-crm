@@ -28,6 +28,17 @@ export const CARRIER_SEED = [
 
 export const PLAN_TYPE_SEED = ["MA", "MAPD", "PDP", "Med Supp", "HMO", "PPO", "SNP", "PFFS", "Cost Plan"];
 
+export const DOC_TYPE_LABELS: Record<string, string> = {
+  SOB: "Summary of Benefits",
+  EOC: "Evidence of Coverage",
+  RATE_SHEET: "Rate Sheet",
+  BENEFITS_HIGHLIGHT: "Benefits Highlight",
+  COMPARISON_SPREADSHEET: "Comparison Spreadsheet",
+  OTHER: "Other",
+};
+
+export const DOC_TYPE_ORDER = Object.keys(DOC_TYPE_LABELS);
+
 export const STAGE_COLORS: Record<string, string> = {
   NEW_LEAD: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
   CONTACTED: "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300",

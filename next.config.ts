@@ -15,6 +15,9 @@ const nextConfig: NextConfig = {
         "frascahomeserver.taila1ca37.ts.net",
         "192.168.86.24:3000",
       ],
+      // Default (1MB) is too small for plan documents (SOB/EOC PDFs, rate
+      // sheet spreadsheets) — raised so uploads don't get silently rejected.
+      bodySizeLimit: "25mb",
     },
   },
 };

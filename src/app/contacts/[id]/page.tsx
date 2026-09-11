@@ -396,11 +396,19 @@ export default async function ContactDetailPage({
                     {p.medicalGroup && <span>{p.medicalGroup}</span>}
                   </div>
                 </div>
-                <form action={deletePolicyForContact}>
-                  <button type="submit" className="btn-danger-text text-xs">
-                    Remove
-                  </button>
-                </form>
+                <div className="flex items-center gap-3">
+                  <Link
+                    href={`/documents?carrier=${encodeURIComponent(p.carrier)}&planName=${encodeURIComponent(p.planName)}`}
+                    className="link text-xs"
+                  >
+                    Docs
+                  </Link>
+                  <form action={deletePolicyForContact}>
+                    <button type="submit" className="btn-danger-text text-xs">
+                      Remove
+                    </button>
+                  </form>
+                </div>
               </div>
             );
           })}

@@ -24,6 +24,15 @@ enum TaskStatus {
   DONE
 }
 
+enum PlanDocumentType {
+  SOB
+  EOC
+  RATE_SHEET
+  BENEFITS_HIGHLIGHT
+  COMPARISON_SPREADSHEET
+  OTHER
+}
+
 model Contact {
   id                String        @id @default(cuid())
   firstName         String
@@ -152,6 +161,26 @@ model ImportBatch {
   detailsJson  String   // JSON: per-contact { contactId, contactName, changes, pushResults }
 
   createdAt    DateTime @default(now())
+}
+
+// Files live on disk (in the same persistent volume as the SQLite db,
+// under an "uploads" folder next to it) — this table is just the index.
+// carrier/planName are optional since a comparison spreadsheet covers
+// every plan at once, not one specific plan.
+model PlanDocument {
+  id         String           @id @default(cuid())
+  carrier    String?
+  planName   String?
+  docType    PlanDocumentType
+
+  fileName   String // original filename, shown in the UI
+  storedName String // randomized name actually used on disk
+  fileSize   Int
+  mimeType   String
+
+  createdAt  DateTime @default(now())
+
+  @@index([carrier, planName])
 }
 
 model Policy {

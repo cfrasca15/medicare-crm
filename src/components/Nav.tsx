@@ -10,6 +10,7 @@ const links = [
   { href: "/enrollments", label: "Enrollments" },
   { href: "/tasks", label: "Tasks" },
   { href: "/calendar", label: "Calendar" },
+  { href: "/documents", label: "Documents" },
   { href: "/settings/integrity-stages", label: "Integrity Stages" },
   { href: "/settings/milestone-emails", label: "Milestone Emails" },
   { href: "/settings/google", label: "Google" },
