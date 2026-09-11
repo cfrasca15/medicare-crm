@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { STAGE_LABELS, STAGE_ORDER, STAGE_COLORS } from "@/lib/constants";
 import { formatDateOnly } from "@/lib/date";
 import { getGoogleAccount, listUpcomingEvents, type UpcomingEvent } from "@/lib/google";
+import { createTask } from "@/lib/actions/tasks";
+import { TaskCheckbox } from "@/components/TaskCheckbox";
 
 // Always render fresh (queries the database) — without this, Next.js tries
 // to statically pre-render this page at build time, which fails since no
@@ -122,11 +124,22 @@ export default async function DashboardPage() {
 
         <section>
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="section-label">Upcoming Tasks</h2>
+            <h2 className="section-label">To-Do</h2>
             <Link href="/tasks" className="link text-sm">
               View all
             </Link>
           </div>
+          <form action={createTask} className="mb-3 flex gap-2">
+            <input
+              name="title"
+              placeholder="Quick add a task…"
+              required
+              className="field flex-1 text-sm"
+            />
+            <button type="submit" className="btn-secondary text-sm">
+              Add
+            </button>
+          </form>
           {openTasks.length === 0 ? (
             <p className="muted text-sm">No open tasks.</p>
           ) : (
@@ -136,16 +149,19 @@ export default async function DashboardPage() {
                   key={task.id}
                   className="surface flex items-center justify-between px-3 py-2 text-sm"
                 >
-                  <div>
-                    <div className="font-medium">{task.title}</div>
-                    {task.contact && (
-                      <Link
-                        href={`/contacts/${task.contact.id}`}
-                        className="muted hover:underline"
-                      >
-                        {task.contact.firstName} {task.contact.lastName}
-                      </Link>
-                    )}
+                  <div className="flex items-center gap-3">
+                    <TaskCheckbox taskId={task.id} done={false} />
+                    <div>
+                      <div className="font-medium">{task.title}</div>
+                      {task.contact && (
+                        <Link
+                          href={`/contacts/${task.contact.id}`}
+                          className="muted hover:underline"
+                        >
+                          {task.contact.firstName} {task.contact.lastName}
+                        </Link>
+                      )}
+                    </div>
                   </div>
                   {task.dueDate && (
                     <span
