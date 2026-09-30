@@ -1,9 +1,15 @@
 # Medicare CRM
 
-A CRM for Medicare health insurance brokers: contacts/pipeline, policy &
-commission tracking (with doctor/medical group), tasks/reminders, an
+A CRM for Medicare health insurance brokers: contacts/pipeline (with a
+pipeline stage that auto-advances as a policy moves from application to
+enrolled), policy & commission tracking (with doctor/medical group), a
+dated notes log per contact, a plan document library (SOBs/EOCs/rate
+sheets, organized by carrier and plan), bulk CSV import with a reviewed
+diff before anything applies, automatic 30/60/90-day client check-in
+emails, tasks/reminders (with a quick-add widget on the dashboard), an
 enrollments tracker, and integrations with Integrity, Google Calendar,
-Calendly, and Google Voice click-to-call.
+Gmail (send + history per contact), Calendly, and Google Voice
+click-to-call.
 
 ## Running locally
 
@@ -29,6 +35,17 @@ npx prisma migrate dev   # apply schema changes
 npx prisma studio        # browse the local database
 ```
 
+## Background jobs
+
+There's no separate worker process or job queue — `src/instrumentation.ts`
+uses Next.js's `register()` hook (runs once when the server process starts,
+in dev and in the built `next start` container alike) to schedule a daily
+`node-cron` job at 9:00 AM server time. It runs the 30/60/90-day milestone
+email check and the Application Submitted → Enrolled stage automation.
+Check container logs on startup for "Daily checks scheduled" to confirm it
+registered. A global flag guards against double-registration from dev-mode
+hot reloads.
+
 ## Deploying to a home server (Docker)
 
 1. Copy `docker.env.example` to `docker.env` and fill in real values.
@@ -36,6 +53,8 @@ npx prisma studio        # browse the local database
    volume). `GOOGLE_REDIRECT_URI` needs to match the server's real
    reachable address (e.g. a Tailscale hostname), and that same URL must
    be added as an authorized redirect URI in Google Cloud Console.
+   `ALLOWED_ORIGINS` needs every hostname/IP you'll actually type into a
+   browser to reach this server — see the gotcha below if you skip this.
 2. Build and start:
    ```bash
    docker compose up -d --build
@@ -101,14 +120,33 @@ deliberately — see gotchas below).
   dead link after a real action (e.g. Google OAuth) already succeeded.
   Derive the origin from a known-correct source instead (here,
   `GOOGLE_REDIRECT_URI`).
+- **Every hostname this app is reached through must be listed in
+  `ALLOWED_ORIGINS`.** Next.js Server Actions reject a POST whose `Origin`
+  header isn't on that list, as CSRF protection — and the failure is
+  completely silent: no error, no console output, a save button that just
+  does nothing. If a button appears to do nothing, this is the first thing
+  to check. See `next.config.ts`.
 
 ## Integrations
 
 - **Integrity** (`src/lib/integrity.ts`) — leads, addresses, emails, phones,
-  and health profile (pharmacies/providers/prescriptions) sync, via
-  OAuth2 client_credentials. Currently pointed at Integrity's sandbox.
+  Medicare number/Part A/B (via `PATCH /partners/leads/{id}`, confirmed
+  live — accepts a partial body), and health profile
+  (pharmacies/providers/prescriptions) sync, via OAuth2 client_credentials.
+  Note: Integrity's own portal has a separate Sandbox/Production toggle at
+  credential-generation time — a credential's *name* doesn't tell you which
+  one it is; check `isSandbox` on the issued token if leads aren't showing
+  up. The partner API has no read endpoint for a lead's saved
+  providers/pharmacies/prescriptions (POST-only, confirmed via a live 405),
+  so those are cached locally in this app's own database instead.
 - **Google Calendar** (`src/lib/google.ts`) — OAuth2, task-to-event sync,
   month-view calendar page.
+- **Gmail** (`src/lib/google.ts`) — same Google OAuth connection as
+  Calendar (with `gmail.send`/`gmail.readonly` scopes added); send email
+  and view history per contact. If Google was connected before these
+  scopes existed, it needs reconnecting from Settings > Google. Also
+  requires the Gmail API to be enabled on the underlying Google Cloud
+  project (Google Cloud Console > APIs > Gmail API).
 - **Calendly** (`src/lib/calendly.ts`) — Personal Access Token, pulls
   scheduled events into contacts/tasks.
 - **Google Voice** (`src/lib/phone.ts`) — click-to-call links (unofficial
