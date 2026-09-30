@@ -13,17 +13,16 @@ export const STAGE_ORDER = Object.keys(STAGE_LABELS);
 // merged with whatever's already been typed into existing policies, so the
 // list grows with real usage instead of being a fixed, ever-stale set.
 export const CARRIER_SEED = [
+  "Anthem",
   "Aetna",
+  "Alignment Healthcare",
+  "Blue Shield of CA",
   "Humana",
+  "Imperial Health Plan",
+  "SCAN",
+  "UCLA",
   "UnitedHealthcare",
-  "Cigna",
-  "Blue Cross Blue Shield",
-  "Elevance Health (Anthem)",
-  "Wellcare",
-  "Molina Healthcare",
-  "Kaiser Permanente",
-  "Devoted Health",
-  "SCAN Health Plan",
+  "WellCare",
 ];
 
 export const PLAN_TYPE_SEED = ["MA", "MAPD", "PDP", "Med Supp", "HMO", "PPO", "SNP", "PFFS", "Cost Plan"];
@@ -31,6 +30,7 @@ export const PLAN_TYPE_SEED = ["MA", "MAPD", "PDP", "Med Supp", "HMO", "PPO", "S
 export const DOC_TYPE_LABELS: Record<string, string> = {
   SOB: "Summary of Benefits",
   EOC: "Evidence of Coverage",
+  ANOC: "Annual Notice of Change",
   RATE_SHEET: "Rate Sheet",
   BENEFITS_HIGHLIGHT: "Benefits Highlight",
   COMPARISON_SPREADSHEET: "Comparison Spreadsheet",

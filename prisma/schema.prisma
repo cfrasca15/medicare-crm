@@ -27,6 +27,7 @@ enum TaskStatus {
 enum PlanDocumentType {
   SOB
   EOC
+  ANOC
   RATE_SHEET
   BENEFITS_HIGHLIGHT
   COMPARISON_SPREADSHEET
