@@ -171,6 +171,8 @@ model ImportBatch {
 model PlanDocument {
   id         String           @id @default(cuid())
   carrier    String?
+  county     String? // e.g. "Orange" — lets the same plan name exist per-county without colliding
+  planYear   Int?    // e.g. 2027
   planName   String?
   docType    PlanDocumentType
 
@@ -181,7 +183,7 @@ model PlanDocument {
 
   createdAt  DateTime @default(now())
 
-  @@index([carrier, planName])
+  @@index([carrier, county, planName])
 }
 
 model Policy {

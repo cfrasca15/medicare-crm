@@ -20,7 +20,10 @@ export async function uploadPlanDocument(formData: FormData) {
   }
 
   const carrier = emptyToNull(formData.get("carrier"));
+  const county = emptyToNull(formData.get("county"));
   const planName = emptyToNull(formData.get("planName"));
+  const planYearRaw = emptyToNull(formData.get("planYear"));
+  const planYear = planYearRaw ? Number(planYearRaw) : undefined;
 
   const dir = await ensureUploadsDir();
   const ext = path.extname(file.name);
@@ -31,6 +34,8 @@ export async function uploadPlanDocument(formData: FormData) {
   await prisma.planDocument.create({
     data: {
       carrier,
+      county,
+      planYear,
       planName,
       docType: docType as PlanDocumentType,
       fileName: file.name,

@@ -27,6 +27,10 @@ export const CARRIER_SEED = [
 
 export const PLAN_TYPE_SEED = ["MA", "MAPD", "PDP", "Med Supp", "HMO", "PPO", "SNP", "PFFS", "Cost Plan"];
 
+// Counties this book of business is currently worked in — shown as Document
+// Library folders and as the county dropdown when uploading a plan document.
+export const COUNTY_SEED = ["Orange", "Los Angeles", "Ventura", "San Diego"];
+
 export const DOC_TYPE_LABELS: Record<string, string> = {
   SOB: "Summary of Benefits",
   EOC: "Evidence of Coverage",

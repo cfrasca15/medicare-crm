@@ -8,13 +8,13 @@
 //   docker exec medicare-crm node scripts/import-documents.mjs manifest.json
 //
 // manifest.json is an array of entries, each either:
-//   { "url": "https://...", "fileName": "...", "docType": "SOB", "carrier": "...", "planName": "..." }
+//   { "url": "https://...", "fileName": "...", "docType": "SOB", "carrier": "...", "county": "...", "planYear": 2027, "planName": "..." }
 // or (for a file already placed in the same directory as the manifest):
-//   { "file": "local-name.pdf", "fileName": "...", "docType": "EOC", "carrier": "...", "planName": "..." }
+//   { "file": "local-name.pdf", "fileName": "...", "docType": "EOC", "carrier": "...", "county": "...", "planYear": 2027, "planName": "..." }
 //
-// carrier/planName may be omitted (null) for general documents like a
-// comparison spreadsheet. docType must be one of the PlanDocumentType enum
-// values in prisma/schema.prisma.
+// carrier/county/planYear/planName may be omitted (null) for general
+// documents like a comparison spreadsheet. docType must be one of the
+// PlanDocumentType enum values in prisma/schema.prisma.
 
 import { createClient } from "@libsql/client";
 import { readFile, writeFile, mkdir } from "node:fs/promises";
@@ -61,7 +61,7 @@ async function main() {
   let skipped = 0;
 
   for (const entry of manifest) {
-    const { url, file, fileName, docType, carrier, planName } = entry;
+    const { url, file, fileName, docType, carrier, county, planYear, planName } = entry;
     const displayName = fileName ?? file ?? url?.split("/").pop() ?? "document";
 
     if (!VALID_DOC_TYPES.has(docType)) {
@@ -92,11 +92,13 @@ async function main() {
     await writeFile(path.join(uploadsDir, storedName), buffer);
 
     await client.execute({
-      sql: `INSERT INTO PlanDocument (id, carrier, planName, docType, fileName, storedName, fileSize, mimeType)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      sql: `INSERT INTO PlanDocument (id, carrier, county, planYear, planName, docType, fileName, storedName, fileSize, mimeType)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [
         crypto.randomUUID(),
         carrier ?? null,
+        county ?? null,
+        planYear ?? null,
         planName ?? null,
         docType,
         displayName,
@@ -106,7 +108,9 @@ async function main() {
       ],
     });
 
-    console.log(`Imported: ${displayName} (${docType}, ${carrier ?? "—"} / ${planName ?? "—"})`);
+    console.log(
+      `Imported: ${displayName} (${docType}, ${carrier ?? "—"} / ${county ?? "—"} / ${planName ?? "—"})`
+    );
     imported++;
   }
 
