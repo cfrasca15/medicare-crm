@@ -1,8 +1,13 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { uploadPlanDocument, deletePlanDocument } from "@/lib/actions/documents";
+import {
+  uploadPlanDocument,
+  deletePlanDocument,
+  setDocumentEmbedUrl,
+} from "@/lib/actions/documents";
 import { CARRIER_SEED, COUNTY_SEED, DOC_TYPE_LABELS, DOC_TYPE_ORDER } from "@/lib/constants";
 import { formatDateOnly } from "@/lib/date";
+import { toEmbeddableUrl } from "@/lib/embed";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +29,7 @@ type Doc = {
   county: string | null;
   planYear: number | null;
   planName: string | null;
+  embedUrl: string | null;
 };
 
 export default async function DocumentsPage({
@@ -318,27 +324,71 @@ function sortByDocType(docs: Doc[]): Doc[] {
 
 function DocRow({ doc }: { doc: Doc }) {
   const deleteBound = deletePlanDocument.bind(null, doc.id);
+  const embedBound = setDocumentEmbedUrl.bind(null, doc.id);
   return (
-    <div className="surface flex items-center justify-between px-3 py-2 text-sm">
-      <a
-        href={`/api/documents/${doc.id}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="link font-medium"
-      >
-        {doc.fileName}
-      </a>
-      <div className="flex items-center gap-3">
-        <span className="muted text-xs">{DOC_TYPE_LABELS[doc.docType] ?? doc.docType}</span>
-        {doc.planYear && <span className="muted text-xs">{doc.planYear}</span>}
-        <span className="muted text-xs">{formatFileSize(doc.fileSize)}</span>
-        <span className="muted text-xs">{formatDateOnly(doc.createdAt)}</span>
-        <form action={deleteBound}>
-          <button type="submit" className="btn-danger-text text-xs">
-            Remove
-          </button>
-        </form>
+    <div className="surface flex flex-col gap-2 px-3 py-2 text-sm">
+      <div className="flex items-center justify-between">
+        <a
+          href={`/api/documents/${doc.id}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="link font-medium"
+        >
+          {doc.fileName}
+        </a>
+        <div className="flex items-center gap-3">
+          <span className="muted text-xs">{DOC_TYPE_LABELS[doc.docType] ?? doc.docType}</span>
+          {doc.planYear && <span className="muted text-xs">{doc.planYear}</span>}
+          <span className="muted text-xs">{formatFileSize(doc.fileSize)}</span>
+          <span className="muted text-xs">{formatDateOnly(doc.createdAt)}</span>
+          <form action={deleteBound}>
+            <button type="submit" className="btn-danger-text text-xs">
+              Remove
+            </button>
+          </form>
+        </div>
       </div>
+
+      {doc.embedUrl ? (
+        <details>
+          <summary className="muted cursor-pointer text-xs">
+            Preview inline (Google Sheets)
+          </summary>
+          <div className="mt-2 flex flex-col gap-2">
+            <iframe
+              src={toEmbeddableUrl(doc.embedUrl)}
+              className="h-[480px] w-full rounded border border-slate-200 dark:border-slate-800"
+            />
+            <form action={embedBound} className="flex items-center gap-2">
+              <input
+                type="url"
+                name="embedUrl"
+                defaultValue={doc.embedUrl}
+                placeholder="Google Sheets / Docs / Drive share link"
+                className="field flex-1 text-xs"
+              />
+              <button type="submit" className="btn-secondary text-xs">
+                Update link
+              </button>
+            </form>
+          </div>
+        </details>
+      ) : (
+        <details>
+          <summary className="muted cursor-pointer text-xs">+ Add inline preview link</summary>
+          <form action={embedBound} className="mt-2 flex items-center gap-2">
+            <input
+              type="url"
+              name="embedUrl"
+              placeholder="Paste a Google Sheets / Docs / Drive share link"
+              className="field flex-1 text-xs"
+            />
+            <button type="submit" className="btn-secondary text-xs">
+              Save
+            </button>
+          </form>
+        </details>
+      )}
     </div>
   );
 }

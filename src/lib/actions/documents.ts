@@ -48,6 +48,12 @@ export async function uploadPlanDocument(formData: FormData) {
   revalidatePath("/documents");
 }
 
+export async function setDocumentEmbedUrl(id: string, formData: FormData) {
+  const embedUrl = emptyToNull(formData.get("embedUrl")) ?? null;
+  await prisma.planDocument.update({ where: { id }, data: { embedUrl } });
+  revalidatePath("/documents");
+}
+
 export async function deletePlanDocument(id: string) {
   const doc = await prisma.planDocument.delete({ where: { id } });
   await unlink(path.join(getUploadsDir(), doc.storedName)).catch(() => {

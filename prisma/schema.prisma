@@ -181,6 +181,12 @@ model PlanDocument {
   fileSize   Int
   mimeType   String
 
+  // Optional link to a live Google Sheet/Doc/Drive preview of this file
+  // (pasted in manually -- e.g. after converting an uploaded xlsx via
+  // Drive's "Open with > Google Sheets"), rendered as an inline iframe
+  // instead of making the user download the file to view it.
+  embedUrl   String?
+
   createdAt  DateTime @default(now())
 
   @@index([carrier, county, planName])
