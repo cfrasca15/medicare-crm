@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "postinstall": "prisma generate",
-    "docker:start": "prisma migrate deploy && next start"
+    "docker:start": "prisma migrate deploy && (node scripts/import-formularies.mjs || echo 'Formulary import failed; continuing') && next start"
   },
   "dependencies": {
     "@prisma/adapter-libsql": "^7.9.1",

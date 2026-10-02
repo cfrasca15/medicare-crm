@@ -192,6 +192,50 @@ model PlanDocument {
   @@index([carrier, county, planName])
 }
 
+// A carrier's published Part D drug list (formulary), parsed from its PDF.
+// One formulary can be shared by many plans (SCAN uses a single California
+// formulary for every plan), hence the separate FormularyPlan mapping.
+model Formulary {
+  id         String   @id @default(cuid())
+  carrier    String
+  name       String   // e.g. "SCAN California 2027"
+  year       Int
+  sourceNote String?  // where it came from / when the carrier last updated it
+  createdAt  DateTime @default(now())
+
+  drugs      FormularyDrug[]
+  plans      FormularyPlan[]
+
+  @@index([carrier, year])
+}
+
+model FormularyDrug {
+  id          String   @id @default(cuid())
+  formulary   Formulary @relation(fields: [formularyId], references: [id], onDelete: Cascade)
+  formularyId String
+
+  name        String   // as printed, e.g. "ELIQUIS ORAL TABLET" / "metformin oral tablet"
+  isBrand     Boolean
+  tier        Int
+  limits      String   @default("") // raw requirements, e.g. "PA; QL (30 EA per 30 days); EDS"
+  category    String?
+  subcategory String?
+
+  @@index([formularyId])
+  @@index([name])
+}
+
+model FormularyPlan {
+  id          String    @id @default(cuid())
+  formulary   Formulary @relation(fields: [formularyId], references: [id], onDelete: Cascade)
+  formularyId String
+
+  planName    String
+  county      String?
+
+  @@index([formularyId])
+}
+
 model Policy {
   id                  String    @id @default(cuid())
   contact             Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
