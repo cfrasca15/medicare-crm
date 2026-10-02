@@ -1,9 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import { INFO_ONLY_CODES, LIMIT_FLAGS, parseLimits, splitDrugQuery } from "@/lib/formulary";
+import { findSameClassDrugs } from "@/lib/rxclass";
 
 export const dynamic = "force-dynamic";
 
 const MAX_PER_CELL = 6;
+const MAX_ALTERNATIVES = 8;
+
+type DrugRow = { id: string; name: string; isBrand: boolean; tier: number; limits: string };
 
 const TIER_COLORS: Record<number, string> = {
   1: "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300",
@@ -17,10 +21,11 @@ const TIER_COLORS: Record<number, string> = {
 export default async function FormularyPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; c?: string | string[]; f?: string }>;
+  searchParams: Promise<{ q?: string; c?: string | string[]; f?: string; alt?: string | string[] }>;
 }) {
-  const { q = "", c, f } = await searchParams;
+  const { q = "", c, f, alt } = await searchParams;
   const terms = splitDrugQuery(q);
+  const altTerms = new Set((alt ? (Array.isArray(alt) ? alt : [alt]) : []).map((a) => a.toLowerCase()));
 
   const formularies = await prisma.formulary.findMany({
     include: { plans: { orderBy: { planName: "asc" } }, _count: { select: { drugs: true } } },
@@ -34,15 +39,62 @@ export default async function FormularyPage({
   const shown = formularies.filter((x) => picked.includes(x.carrier));
 
   const results = await Promise.all(
-    terms.map(async (term) => ({
-      term,
-      drugs: await prisma.formularyDrug.findMany({
+    terms.map(async (term) => {
+      const drugs = await prisma.formularyDrug.findMany({
         where: { name: { contains: term }, formularyId: { in: shown.map((x) => x.id) } },
         orderBy: { name: "asc" },
         take: 400,
-      }),
-    }))
+      });
+      if (!altTerms.has(term)) return { term, drugs, alternatives: null };
+
+      // Only look for alternatives on the formularies that don't list the drug.
+      const missing = shown.filter((x) => !drugs.some((d) => d.formularyId === x.id)).map((x) => x.id);
+      try {
+        const classes = await findSameClassDrugs(term);
+        const names = Array.from(new Set(classes.flatMap((k) => k.names)))
+          .filter((n) => n.length >= 4 && !n.toLowerCase().includes(term));
+        const altDrugs =
+          missing.length && names.length
+            ? await prisma.formularyDrug.findMany({
+                where: { formularyId: { in: missing }, OR: names.map((n) => ({ name: { contains: n } })) },
+                orderBy: [{ tier: "asc" }, { name: "asc" }],
+                take: 600,
+              })
+            : [];
+        return {
+          term,
+          drugs,
+          alternatives: {
+            classNames: classes.map((k) => k.className),
+            ingredients: Array.from(new Set(classes.flatMap((k) => k.ingredients.map((i) => i.toLowerCase())))),
+            drugs: altDrugs,
+            error: null,
+          },
+        };
+      } catch {
+        return {
+          term,
+          drugs,
+          alternatives: {
+            classNames: [],
+            ingredients: [],
+            drugs: [],
+            error: "Couldn't reach the RxNorm drug database.",
+          },
+        };
+      }
+    })
   );
+
+  function altHref(term: string) {
+    const params = new URLSearchParams();
+    params.set("q", q);
+    if (f) params.set("f", f);
+    for (const name of picked) params.append("c", name);
+    for (const a of altTerms) params.append("alt", a);
+    params.append("alt", term);
+    return `/formulary?${params.toString()}`;
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -125,7 +177,7 @@ export default async function FormularyPage({
                   </tr>
                 </thead>
                 <tbody>
-                  {results.map(({ term, drugs }) => (
+                  {results.map(({ term, drugs, alternatives }) => (
                     <tr
                       key={term}
                       className="table-row-hover border-t border-slate-200 align-top dark:border-slate-800"
@@ -136,36 +188,16 @@ export default async function FormularyPage({
                         return (
                           <td key={f.id} className="px-3 py-2">
                             {hits.length === 0 ? (
-                              <span className="muted">Not listed</span>
+                              <NotListed
+                                term={term}
+                                alternatives={alternatives}
+                                formularyId={f.id}
+                                href={altHref(term)}
+                              />
                             ) : (
                               <ul className="flex flex-col gap-1.5">
                                 {hits.slice(0, MAX_PER_CELL).map((d) => (
-                                  <li key={d.id} className="flex flex-wrap items-center gap-1">
-                                    <span
-                                      className={`rounded px-1.5 py-0.5 text-xs font-semibold ${
-                                        TIER_COLORS[d.tier] ?? ""
-                                      }`}
-                                    >
-                                      Tier {d.tier}
-                                    </span>
-                                    <span className={d.isBrand ? "font-medium" : "italic"} title={d.name}>
-                                      {d.name.length > 48 ? `${d.name.slice(0, 48)}…` : d.name}
-                                    </span>
-                                    {parseLimits(d.limits)
-                                      .filter((l) => !INFO_ONLY_CODES.has(l.code))
-                                      .map((l, i) => (
-                                        <span
-                                          key={i}
-                                          title={`${LIMIT_FLAGS[l.code] ?? l.code}${
-                                            l.detail ? `: ${l.detail}` : ""
-                                          }`}
-                                          className="rounded border border-slate-300 px-1 text-xs dark:border-slate-600"
-                                        >
-                                          {l.code}
-                                          {l.detail ? ` ${l.detail}` : ""}
-                                        </span>
-                                      ))}
-                                  </li>
+                                  <DrugLine key={d.id} d={d} />
                                 ))}
                                 {hits.length > MAX_PER_CELL && (
                                   <li className="muted text-xs">
@@ -214,6 +246,104 @@ export default async function FormularyPage({
               </details>
             ))}
           </section>
+        </>
+      )}
+    </div>
+  );
+}
+
+function DrugLine({ d, sameDrug }: { d: DrugRow; sameDrug?: boolean }) {
+  return (
+    <li className="flex flex-wrap items-center gap-1">
+      {sameDrug && (
+        <span
+          title="Same active ingredient as the drug you searched (e.g. its generic)"
+          className="rounded bg-indigo-100 px-1.5 py-0.5 text-xs font-semibold text-indigo-800 dark:bg-indigo-500/20 dark:text-indigo-300"
+        >
+          Same drug
+        </span>
+      )}
+      <span className={`rounded px-1.5 py-0.5 text-xs font-semibold ${TIER_COLORS[d.tier] ?? ""}`}>
+        Tier {d.tier}
+      </span>
+      <span className={d.isBrand ? "font-medium" : "italic"} title={d.name}>
+        {d.name.length > 48 ? `${d.name.slice(0, 48)}…` : d.name}
+      </span>
+      {parseLimits(d.limits)
+        .filter((l) => !INFO_ONLY_CODES.has(l.code))
+        .map((l, i) => (
+          <span
+            key={i}
+            title={`${LIMIT_FLAGS[l.code] ?? l.code}${l.detail ? `: ${l.detail}` : ""}`}
+            className="rounded border border-slate-300 px-1 text-xs dark:border-slate-600"
+          >
+            {l.code}
+            {l.detail ? ` ${l.detail}` : ""}
+          </span>
+        ))}
+    </li>
+  );
+}
+
+function NotListed({
+  term,
+  alternatives,
+  formularyId,
+  href,
+}: {
+  term: string;
+  alternatives: {
+    classNames: string[];
+    ingredients: string[];
+    drugs: (DrugRow & { formularyId: string })[];
+    error: string | null;
+  } | null;
+  formularyId: string;
+  href: string;
+}) {
+  if (!alternatives) {
+    return (
+      <div className="flex flex-col gap-1">
+        <span className="muted">Not listed</span>
+        <a href={href} className="link text-xs">
+          Show alternatives
+        </a>
+      </div>
+    );
+  }
+  if (alternatives.error) {
+    return (
+      <div className="flex flex-col gap-1">
+        <span className="muted">Not listed</span>
+        <span className="text-xs text-red-600 dark:text-red-400">{alternatives.error}</span>
+      </div>
+    );
+  }
+  const isSame = (d: DrugRow) =>
+    alternatives.ingredients.some((i) => i.length >= 4 && d.name.toLowerCase().includes(i));
+  // Generic equivalents of the searched drug first, then the rest of the class by tier.
+  const mine = alternatives.drugs
+    .filter((d) => d.formularyId === formularyId)
+    .sort((a, b) => Number(isSame(b)) - Number(isSame(a)) || a.tier - b.tier);
+  const classLabel = alternatives.classNames.join(" / ") || "same class";
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span className="muted">Not listed</span>
+      {alternatives.classNames.length === 0 ? (
+        <span className="muted text-xs">No drug class found for &quot;{term}&quot;.</span>
+      ) : mine.length === 0 ? (
+        <span className="muted text-xs">No covered alternatives in {classLabel}.</span>
+      ) : (
+        <>
+          <span className="text-xs font-medium">Covered in {classLabel}:</span>
+          <ul className="flex flex-col gap-1.5">
+            {mine.slice(0, MAX_ALTERNATIVES).map((d) => (
+              <DrugLine key={d.id} d={d} sameDrug={isSame(d)} />
+            ))}
+            {mine.length > MAX_ALTERNATIVES && (
+              <li className="muted text-xs">+{mine.length - MAX_ALTERNATIVES} more</li>
+            )}
+          </ul>
         </>
       )}
     </div>
