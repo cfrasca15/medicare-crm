@@ -17,9 +17,9 @@ const TIER_COLORS: Record<number, string> = {
 export default async function FormularyPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; c?: string | string[]; f?: string }>;
 }) {
-  const { q = "" } = await searchParams;
+  const { q = "", c, f } = await searchParams;
   const terms = splitDrugQuery(q);
 
   const formularies = await prisma.formulary.findMany({
@@ -27,11 +27,17 @@ export default async function FormularyPage({
     orderBy: [{ carrier: "asc" }, { name: "asc" }],
   });
 
+  const carriers = Array.from(new Set(formularies.map((x) => x.carrier)));
+  // No carrier params on a fresh visit = all carriers. Once the form has been
+  // submitted (f=1), an empty selection really means none.
+  const picked = c ? (Array.isArray(c) ? c : [c]) : f === "1" ? [] : carriers;
+  const shown = formularies.filter((x) => picked.includes(x.carrier));
+
   const results = await Promise.all(
     terms.map(async (term) => ({
       term,
       drugs: await prisma.formularyDrug.findMany({
-        where: { name: { contains: term } },
+        where: { name: { contains: term }, formularyId: { in: shown.map((x) => x.id) } },
         orderBy: { name: "asc" },
         take: 400,
       }),
@@ -67,6 +73,28 @@ export default async function FormularyPage({
               placeholder={"eliquis\nmetformin\njardiance"}
               className="field"
             />
+            <input type="hidden" name="f" value="1" />
+            <fieldset className="flex flex-col gap-2">
+              <legend className="text-sm font-medium">Carriers</legend>
+              <div className="flex flex-wrap gap-x-4 gap-y-2">
+                {carriers.map((name) => (
+                  <label key={name} className="flex items-center gap-1.5 text-sm">
+                    <input
+                      type="checkbox"
+                      name="c"
+                      value={name}
+                      defaultChecked={picked.includes(name)}
+                      className="h-4 w-4 accent-indigo-600"
+                    />
+                    {name}
+                  </label>
+                ))}
+              </div>
+              <span className="muted text-xs">
+                Tip: bookmark the page after a lookup to save a carrier set (e.g. the carriers
+                contracted with Providence or Hoag).
+              </span>
+            </fieldset>
             <div className="flex items-center gap-3">
               <button type="submit" className="btn-primary">
                 Look up
@@ -78,13 +106,17 @@ export default async function FormularyPage({
             </div>
           </form>
 
-          {terms.length > 0 && (
+          {terms.length > 0 && shown.length === 0 && (
+            <p className="muted text-sm">No carriers selected — check at least one above.</p>
+          )}
+
+          {terms.length > 0 && shown.length > 0 && (
             <div className="surface overflow-x-auto">
               <table className="w-full min-w-[640px] text-sm">
                 <thead className="table-head">
                   <tr>
                     <th className="px-3 py-2 font-medium">Drug</th>
-                    {formularies.map((f) => (
+                    {shown.map((f) => (
                       <th key={f.id} className="px-3 py-2 font-medium">
                         {f.carrier}
                         <div className="muted text-xs font-normal">{f.name}</div>
@@ -99,7 +131,7 @@ export default async function FormularyPage({
                       className="table-row-hover border-t border-slate-200 align-top dark:border-slate-800"
                     >
                       <td className="px-3 py-2 font-medium">{term}</td>
-                      {formularies.map((f) => {
+                      {shown.map((f) => {
                         const hits = drugs.filter((d) => d.formularyId === f.id);
                         return (
                           <td key={f.id} className="px-3 py-2">
