@@ -19,6 +19,10 @@ export function WebsiteLeadsSyncButton() {
           startTransition(async () => {
             try {
               const r = await syncWebsiteLeads();
+              if (!r.ok) {
+                setMessage(r.error);
+                return;
+              }
               const parts = [
                 `${r.imported} new leads`,
                 `${r.matched} matched existing contacts`,

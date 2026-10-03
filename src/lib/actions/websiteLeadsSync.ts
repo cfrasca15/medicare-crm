@@ -31,7 +31,30 @@ function formatWhen(iso: string): string {
   });
 }
 
-export async function syncWebsiteLeads(): Promise<{
+export type WebsiteLeadsSyncResult =
+  | { ok: true; imported: number; matched: number; skipped: number; cleanupFailed: number }
+  | { ok: false; error: string };
+
+// Server action errors are replaced with a generic "Minified React error #441"
+// in production, so return failures as data and show the real reason in the UI.
+export async function syncWebsiteLeads(): Promise<WebsiteLeadsSyncResult> {
+  try {
+    return { ok: true, ...(await runSync()) };
+  } catch (err) {
+    console.error("syncWebsiteLeads failed:", err);
+    const msg = err instanceof Error ? err.message : String(err);
+    if (/no such column|leadSource|lastWebsiteLeadAt/i.test(msg)) {
+      return {
+        ok: false,
+        error:
+          "The database is missing the new website-lead columns. Rebuild and restart the container so the migration runs.",
+      };
+    }
+    return { ok: false, error: msg.slice(0, 300) };
+  }
+}
+
+async function runSync(): Promise<{
   imported: number;
   matched: number;
   skipped: number;
