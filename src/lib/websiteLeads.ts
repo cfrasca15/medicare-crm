@@ -5,7 +5,7 @@
 // Env (docker.env / .env.local):
 //   WEBSITE_LEADS_AIRTABLE_TOKEN   token scoped to ONLY the leads base
 //   WEBSITE_LEADS_BASE_ID          the leads base ID (starts with "app...")
-//   WEBSITE_LEADS_TABLE            optional, defaults to "Leads"
+//   WEBSITE_LEADS_TABLE            optional, defaults to "WebsiteLeads"
 
 export interface WebsiteLead {
   recordId: string;
@@ -22,7 +22,7 @@ export interface WebsiteLead {
 function config() {
   const token = process.env.WEBSITE_LEADS_AIRTABLE_TOKEN;
   const baseId = process.env.WEBSITE_LEADS_BASE_ID;
-  const table = process.env.WEBSITE_LEADS_TABLE || "Leads";
+  const table = process.env.WEBSITE_LEADS_TABLE || "WebsiteLeads";
   if (!token || !baseId) {
     throw new Error(
       "Website leads aren't configured. Set WEBSITE_LEADS_AIRTABLE_TOKEN and WEBSITE_LEADS_BASE_ID."

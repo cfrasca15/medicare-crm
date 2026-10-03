@@ -161,4 +161,4 @@ adds a note to an existing contact matched by email or phone), keeps the consent
 line in the contact's notes, then deletes the row from Airtable. The CRM only makes
 outbound requests; nothing from the website is pushed into it. Set
 `WEBSITE_LEADS_AIRTABLE_TOKEN` (scoped to that one base) and `WEBSITE_LEADS_BASE_ID`
-in `docker.env`; `WEBSITE_LEADS_TABLE` defaults to `Leads`.
+in `docker.env`; `WEBSITE_LEADS_TABLE` defaults to `WebsiteLeads`.
