@@ -14,6 +14,11 @@ export async function GET(request: NextRequest) {
   if (stage && STAGE_ORDER.includes(stage)) {
     where.stage = stage as PipelineStage;
   }
+  if (searchParams.get("source") === "website") {
+    where.AND = [
+      { OR: [{ leadSource: { startsWith: "Website" } }, { lastWebsiteLeadAt: { not: null } }] },
+    ];
+  }
   if (q) {
     where.OR = [
       { firstName: { contains: q } },
@@ -48,6 +53,7 @@ export async function GET(request: NextRequest) {
       "Doctor",
       "Medical Group",
       "Stage",
+      "Lead Source",
     ],
     contacts.map((c) => [
       c.integrityContactId,
@@ -68,6 +74,7 @@ export async function GET(request: NextRequest) {
       c.doctor,
       c.medicalGroup,
       STAGE_LABELS[c.stage],
+      c.leadSource ?? "",
     ])
   );
 

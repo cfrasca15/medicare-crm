@@ -11,13 +11,18 @@ import { formatDateOnly } from "@/lib/date";
 export default async function ContactsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ stage?: string; q?: string }>;
+  searchParams: Promise<{ stage?: string; q?: string; source?: string }>;
 }) {
-  const { stage, q } = await searchParams;
+  const { stage, q, source } = await searchParams;
 
   const where: Prisma.ContactWhereInput = {};
   if (stage && STAGE_ORDER.includes(stage)) {
     where.stage = stage as PipelineStage;
+  }
+  if (source === "website") {
+    where.AND = [
+      { OR: [{ leadSource: { startsWith: "Website" } }, { lastWebsiteLeadAt: { not: null } }] },
+    ];
   }
   if (q) {
     where.OR = [
@@ -79,6 +84,10 @@ export default async function ContactsPage({
             </option>
           ))}
         </select>
+        <select name="source" defaultValue={source ?? ""} className="field">
+          <option value="">All sources</option>
+          <option value="website">Website leads</option>
+        </select>
         <button type="submit" className="btn-secondary">
           Filter
         </button>
@@ -105,6 +114,7 @@ export default async function ContactsPage({
                   <Link href={`/contacts/${c.id}`} className="font-medium hover:underline">
                     {c.firstName} {c.lastName}
                   </Link>
+                  <WebsiteBadge leadSource={c.leadSource} lastWebsiteLeadAt={c.lastWebsiteLeadAt} />
                 </td>
                 <td className="muted px-4 py-2">
                   <div className="flex items-center gap-2">
@@ -149,5 +159,24 @@ function EffectiveCell({
       <span>{formatDateOnly(policy.effectiveDate)}</span>
       <span className="muted text-xs">{month === null ? "Not started" : `Month ${month}`}</span>
     </div>
+  );
+}
+
+function WebsiteBadge({
+  leadSource,
+  lastWebsiteLeadAt,
+}: {
+  leadSource: string | null;
+  lastWebsiteLeadAt: Date | null;
+}) {
+  if (!leadSource && !lastWebsiteLeadAt) return null;
+  const when = lastWebsiteLeadAt ? ` (latest ${lastWebsiteLeadAt.toLocaleDateString("en-US")})` : "";
+  return (
+    <span
+      className="ml-2 rounded-full bg-teal-100 px-2 py-0.5 text-xs font-medium text-teal-800 dark:bg-teal-900/40 dark:text-teal-200"
+      title={`${leadSource ?? "Website: returning contact"}${when}`}
+    >
+      {leadSource ? "Website" : "Website · returned"}
+    </span>
   );
 }

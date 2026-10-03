@@ -107,6 +107,14 @@ export default async function ContactDetailPage({
               </span>
             )}
             {contact.email && <span>{contact.email}</span>}
+            {(contact.leadSource || contact.lastWebsiteLeadAt) && (
+              <span className="rounded-full bg-teal-100 px-2 py-0.5 text-xs font-medium text-teal-800 dark:bg-teal-900/40 dark:text-teal-200">
+                {contact.leadSource ?? "Website: returning contact"}
+                {contact.lastWebsiteLeadAt
+                  ? ` · latest ${contact.lastWebsiteLeadAt.toLocaleDateString("en-US")}`
+                  : ""}
+              </span>
+            )}
           </div>
           {tracked?.effectiveDate && (
             <div className="mt-2 inline-flex flex-wrap items-center gap-2 rounded-full bg-indigo-50 px-3 py-1 text-sm font-medium text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300">

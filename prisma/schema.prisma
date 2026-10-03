@@ -65,6 +65,12 @@ model Contact {
   integrityContactId String?      @unique // Integrity's leadId
   integrityLeadStage Int?         // raw numeric stage code from Integrity; meaning not yet documented
 
+  // Website tracking: leadSource is set once, when the website created this
+  // contact (e.g. "Website: call-back request"); lastWebsiteLeadAt is bumped
+  // every time the website sends another lead for them (new or returning).
+  leadSource        String?
+  lastWebsiteLeadAt DateTime?
+
   policies          Policy[]
   tasks             Task[]
   providers         ContactProvider[]

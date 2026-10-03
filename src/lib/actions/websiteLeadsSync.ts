@@ -10,6 +10,11 @@ const SOURCE_LABEL: Record<string, string> = {
   rsvp: "event RSVP",
 };
 
+function submittedDate(iso: string): Date {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? new Date() : d;
+}
+
 // Last 10 digits, so "(949) 555-0100", "949-555-0100", and "+1 949 555 0100" match.
 function phoneKey(raw: string | null | undefined): string {
   const digits = (raw ?? "").replace(/\D/g, "");
@@ -92,6 +97,8 @@ export async function syncWebsiteLeads(): Promise<{
           email: lead.email || null,
           phone: lead.phone || null,
           stage: "NEW_LEAD",
+          leadSource: `Website: ${SOURCE_LABEL[lead.source] ?? "form"}`,
+          lastWebsiteLeadAt: submittedDate(lead.submittedAt),
         },
       });
       contactId = created.id;
@@ -100,6 +107,11 @@ export async function syncWebsiteLeads(): Promise<{
       imported++;
     } else {
       matched++;
+      // Existing contact reached out again: remember when, without changing their stage or source.
+      await prisma.contact.update({
+        where: { id: contactId },
+        data: { lastWebsiteLeadAt: submittedDate(lead.submittedAt) },
+      });
     }
 
     const label = SOURCE_LABEL[lead.source] ?? lead.source ?? "website";
