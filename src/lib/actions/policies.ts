@@ -9,7 +9,7 @@ export async function createPolicy(contactId: string, formData: FormData) {
   const carrier = String(formData.get("carrier") ?? "").trim();
   const planName = String(formData.get("planName") ?? "").trim();
   if (!carrier || !planName) {
-    throw new Error("Carrier and plan name are required");
+    return { error: "Carrier and plan name are required." };
   }
 
   await prisma.policy.create({
@@ -67,6 +67,21 @@ export async function updatePolicyDoctorInfo(
   });
 
   revalidatePath(`/contacts/${contactId}`);
+  revalidatePath("/enrollments");
+}
+
+export async function updatePolicyEffectiveDate(
+  contactId: string,
+  policyId: string,
+  formData: FormData
+) {
+  const raw = String(formData.get("effectiveDate") ?? "").trim();
+  await prisma.policy.update({
+    where: { id: policyId },
+    data: { effectiveDate: raw ? new Date(raw) : null },
+  });
+  revalidatePath(`/contacts/${contactId}`);
+  revalidatePath("/contacts");
   revalidatePath("/enrollments");
 }
 

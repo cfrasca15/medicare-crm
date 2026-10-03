@@ -3,23 +3,23 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { StageSelect } from "@/components/StageSelect";
 import { TaskCheckbox } from "@/components/TaskCheckbox";
-import { createPolicy, deletePolicy } from "@/lib/actions/policies";
+import { createPolicy, deletePolicy, updatePolicyEffectiveDate } from "@/lib/actions/policies";
 import { createTask, deleteTask } from "@/lib/actions/tasks";
 import {
   addContactNote,
   deleteContactNote,
-  updateContactPlanInfo,
-  updateContactDoctorInfo,
-  updateContactMedicareInfo,
+  updateContactInfo,
+  updateContactProspectInfo,
   deleteContact,
 } from "@/lib/actions/contacts";
-import { PushAddressForm } from "@/components/PushAddressForm";
-import { PushEmailPhoneForm } from "@/components/PushEmailPhoneForm";
-import { PushMedicareInfoForm } from "@/components/PushMedicareInfoForm";
+import { SaveForm } from "@/components/SaveForm";
+import { PushToIntegrityButton } from "@/components/PushToIntegrityButton";
+import { DeleteContactButton } from "@/components/DeleteContactButton";
 import { HealthProfilePanel } from "@/components/HealthProfilePanel";
 import { EmailPanel } from "@/components/EmailPanel";
 import { getGoogleAccount, listGmailMessagesForContact, type GmailMessageSummary } from "@/lib/google";
 import { formatDateOnly, formatDateTime, dateInputValue } from "@/lib/date";
+import { coverageLabel, coverageMonth, currentPolicy } from "@/lib/coverage";
 import { CARRIER_SEED, PLAN_TYPE_SEED } from "@/lib/constants";
 import { CallButton } from "@/components/CallButton";
 import { CalendarSyncButton } from "@/components/CalendarSyncButton";
@@ -84,14 +84,14 @@ export default async function ContactDetailPage({
 
   const createPolicyForContact = createPolicy.bind(null, contact.id);
   const addNoteForContact = addContactNote.bind(null, contact.id);
-  const updatePlanInfoForContact = updateContactPlanInfo.bind(null, contact.id);
-  const updateDoctorInfoForContact = updateContactDoctorInfo.bind(null, contact.id);
-  const updateMedicareInfoForContact = updateContactMedicareInfo.bind(null, contact.id);
+  const updateInfoForContact = updateContactInfo.bind(null, contact.id);
+  const updateProspectForContact = updateContactProspectInfo.bind(null, contact.id);
   const deleteContactBound = deleteContact.bind(null, contact.id);
+  const tracked = currentPolicy(contact.policies);
 
   return (
     <div className="max-w-4xl mx-auto flex flex-col gap-8">
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between gap-4">
         <div>
           <Link href="/contacts" className="link text-sm">
             ← All contacts
@@ -99,7 +99,7 @@ export default async function ContactDetailPage({
           <h1 className="mt-1 text-2xl font-semibold">
             {contact.firstName} {contact.lastName}
           </h1>
-          <div className="muted mt-1 flex items-center gap-4 text-sm">
+          <div className="muted mt-1 flex flex-wrap items-center gap-4 text-sm">
             {contact.phone && (
               <span className="flex items-center gap-2">
                 {contact.phone}
@@ -108,147 +108,72 @@ export default async function ContactDetailPage({
             )}
             {contact.email && <span>{contact.email}</span>}
           </div>
+          {tracked?.effectiveDate && (
+            <div className="mt-2 inline-flex flex-wrap items-center gap-2 rounded-full bg-indigo-50 px-3 py-1 text-sm font-medium text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300">
+              {coverageLabel(tracked.effectiveDate)}
+              <span className="font-normal opacity-80">
+                — {tracked.carrier} {tracked.planName}
+              </span>
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-3">
           <StageSelect key={contact.stage} contactId={contact.id} stage={contact.stage} />
-          <form action={deleteContactBound}>
-            <button type="submit" className="btn-danger-text text-sm">
-              Delete
-            </button>
-          </form>
+          <DeleteContactButton
+            name={`${contact.firstName} ${contact.lastName}`}
+            action={deleteContactBound}
+          />
         </div>
       </div>
 
-      <section className="surface grid grid-cols-2 gap-x-8 gap-y-2 p-4 text-sm">
-        <InfoRow label="Address" value={contact.address} />
-        <InfoRow label="City / State / ZIP" value={[contact.city, contact.state, contact.zip].filter(Boolean).join(", ")} />
-        <InfoRow label="Date of birth" value={contact.dateOfBirth ? formatDateOnly(contact.dateOfBirth) : undefined} />
+      <section>
+        <h2 className="section-label mb-3">Client Info</h2>
+        <SaveForm action={updateInfoForContact} className="surface grid grid-cols-6 gap-3 p-4">
+          <Field label="First Name" name="firstName" value={contact.firstName} span={3} required />
+          <Field label="Last Name" name="lastName" value={contact.lastName} span={3} required />
+          <Field label="Phone" name="phone" type="tel" value={contact.phone} span={2} />
+          <Field label="Email" name="email" type="email" value={contact.email} span={2} />
+          <Field
+            label="Date of Birth"
+            name="dateOfBirth"
+            type="date"
+            value={contact.dateOfBirth ? dateInputValue(contact.dateOfBirth) : null}
+            span={2}
+          />
+          <Field label="Address" name="address" value={contact.address} span={3} />
+          <Field label="City" name="city" value={contact.city} span={1} />
+          <Field label="State" name="state" value={contact.state} span={1} />
+          <Field label="ZIP" name="zip" value={contact.zip} span={1} />
+          <Field label="Medicare Number" name="medicareId" value={contact.medicareId} span={2} />
+          <Field
+            label="Part A Effective"
+            name="partAEffectiveDate"
+            type="date"
+            value={contact.partAEffectiveDate ? dateInputValue(contact.partAEffectiveDate) : null}
+            span={2}
+          />
+          <Field
+            label="Part B Effective"
+            name="partBEffectiveDate"
+            type="date"
+            value={contact.partBEffectiveDate ? dateInputValue(contact.partBEffectiveDate) : null}
+            span={2}
+          />
+        </SaveForm>
       </section>
 
       <section>
-        <h2 className="section-label mb-3">Plan / Insurance Company</h2>
-        <p className="muted -mt-2 mb-3 text-sm">
-          The plan being considered for this prospect — separate from a
-          policy&apos;s own carrier/plan name, which records what was
-          actually sold.
+        <h2 className="section-label mb-1">Shopping For</h2>
+        <p className="muted mb-3 text-sm">
+          The plan and doctor being considered before enrolling. What was
+          actually sold is recorded on the policy below.
         </p>
-        <form action={updatePlanInfoForContact} className="grid grid-cols-2 gap-3">
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium" htmlFor="insuranceCompany">
-              Insurance Company
-            </label>
-            <input
-              id="insuranceCompany"
-              name="insuranceCompany"
-              defaultValue={contact.insuranceCompany ?? ""}
-              className="field"
-            />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium" htmlFor="planName">
-              Plan Name
-            </label>
-            <input
-              id="planName"
-              name="planName"
-              defaultValue={contact.planName ?? ""}
-              className="field"
-            />
-          </div>
-          <div className="col-span-2">
-            <button type="submit" className="btn-secondary">
-              Save
-            </button>
-          </div>
-        </form>
-      </section>
-
-      <section>
-        <h2 className="section-label mb-3">Medicare Info</h2>
-        <form action={updateMedicareInfoForContact} className="grid grid-cols-3 gap-3">
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium" htmlFor="medicareId">
-              Medicare Number
-            </label>
-            <input
-              id="medicareId"
-              name="medicareId"
-              defaultValue={contact.medicareId ?? ""}
-              className="field"
-            />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium" htmlFor="partAEffectiveDate">
-              Part A Effective
-            </label>
-            <input
-              id="partAEffectiveDate"
-              name="partAEffectiveDate"
-              type="date"
-              defaultValue={
-                contact.partAEffectiveDate ? dateInputValue(contact.partAEffectiveDate) : ""
-              }
-              className="field"
-            />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium" htmlFor="partBEffectiveDate">
-              Part B Effective
-            </label>
-            <input
-              id="partBEffectiveDate"
-              name="partBEffectiveDate"
-              type="date"
-              defaultValue={
-                contact.partBEffectiveDate ? dateInputValue(contact.partBEffectiveDate) : ""
-              }
-              className="field"
-            />
-          </div>
-          <div className="col-span-3">
-            <button type="submit" className="btn-secondary">
-              Save
-            </button>
-          </div>
-        </form>
-      </section>
-
-      <section>
-        <h2 className="section-label mb-3">Doctor / Medical Group</h2>
-        <p className="muted -mt-2 mb-3 text-sm">
-          Worth confirming this is in-network before selling a policy — this
-          is separate from a policy&apos;s own doctor/medical group, which
-          records what was actually verified for the plan sold.
-        </p>
-        <form action={updateDoctorInfoForContact} className="grid grid-cols-2 gap-3">
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium" htmlFor="doctor">
-              Doctor
-            </label>
-            <input
-              id="doctor"
-              name="doctor"
-              defaultValue={contact.doctor ?? ""}
-              className="field"
-            />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium" htmlFor="medicalGroup">
-              Medical Group
-            </label>
-            <input
-              id="medicalGroup"
-              name="medicalGroup"
-              defaultValue={contact.medicalGroup ?? ""}
-              className="field"
-            />
-          </div>
-          <div className="col-span-2">
-            <button type="submit" className="btn-secondary">
-              Save
-            </button>
-          </div>
-        </form>
+        <SaveForm action={updateProspectForContact} className="surface grid grid-cols-2 gap-3 p-4">
+          <Field label="Insurance Company" name="insuranceCompany" value={contact.insuranceCompany} />
+          <Field label="Plan Name" name="planName" value={contact.planName} />
+          <Field label="Doctor" name="doctor" value={contact.doctor} />
+          <Field label="Medical Group" name="medicalGroup" value={contact.medicalGroup} />
+        </SaveForm>
       </section>
 
       {contact.integrityContactId && (
@@ -267,29 +192,10 @@ export default async function ContactDetailPage({
                   )
                 </>
               )}
+              . The button sends the saved Client Info above (address, email,
+              phone, Medicare info).
             </div>
-            <PushAddressForm
-              contactId={contact.id}
-              defaultAddress1={contact.address ?? undefined}
-              defaultCity={contact.city ?? undefined}
-              defaultStateCode={contact.state ?? undefined}
-              defaultPostalCode={contact.zip ?? undefined}
-            />
-            <PushEmailPhoneForm
-              contactId={contact.id}
-              defaultEmail={contact.email ?? undefined}
-              defaultPhone={contact.phone ?? undefined}
-            />
-            <PushMedicareInfoForm
-              contactId={contact.id}
-              defaultMedicareId={contact.medicareId ?? undefined}
-              defaultPartADate={
-                contact.partAEffectiveDate ? dateInputValue(contact.partAEffectiveDate) : undefined
-              }
-              defaultPartBDate={
-                contact.partBEffectiveDate ? dateInputValue(contact.partBEffectiveDate) : undefined
-              }
-            />
+            <PushToIntegrityButton contactId={contact.id} />
             <div>
               <h3 className="mb-2 text-sm font-medium">Health Profile</h3>
               <HealthProfilePanel
@@ -305,14 +211,15 @@ export default async function ContactDetailPage({
 
       <section>
         <h2 className="section-label mb-3">Notes</h2>
-        <form action={addNoteForContact} className="mb-4 flex flex-col gap-2">
+        <SaveForm
+          action={addNoteForContact}
+          submitLabel="Add Note"
+          savedLabel="Note added ✓"
+          resetOnSuccess
+          className="mb-4 flex flex-col gap-2"
+        >
           <textarea name="body" placeholder="Add a note…" rows={3} required className="field" />
-          <div>
-            <button type="submit" className="btn-secondary">
-              Add Note
-            </button>
-          </div>
-        </form>
+        </SaveForm>
 
         <div className="flex flex-col gap-2">
           {contact.noteEntries.length === 0 && (
@@ -377,17 +284,21 @@ export default async function ContactDetailPage({
           )}
           {contact.policies.map((p) => {
             const deletePolicyForContact = deletePolicy.bind(null, contact.id, p.id);
+            const setEffectiveDate = updatePolicyEffectiveDate.bind(null, contact.id, p.id);
+            const month = p.effectiveDate ? coverageMonth(p.effectiveDate) : null;
             return (
               <div key={p.id} className="surface flex items-start justify-between p-3 text-sm">
                 <div>
-                  <div className="font-medium">
+                  <div className="flex flex-wrap items-center gap-2 font-medium">
                     {p.carrier} — {p.planName} {p.planType && `(${p.planType})`}
+                    {p.effectiveDate && (
+                      <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300">
+                        {month === null ? "Not started yet" : `Month ${month}`}
+                      </span>
+                    )}
                   </div>
                   <div className="muted mt-1 flex flex-wrap gap-4">
                     {p.policyNumber && <span>Policy #{p.policyNumber}</span>}
-                    {p.effectiveDate && (
-                      <span>Effective {formatDateOnly(p.effectiveDate)}</span>
-                    )}
                     {p.commissionStatus && <span>Commission: {p.commissionStatus}</span>}
                     {p.commissionAmount != null && (
                       <span>${p.commissionAmount.toFixed(2)}</span>
@@ -395,6 +306,17 @@ export default async function ContactDetailPage({
                     {p.doctor && <span>Dr. {p.doctor}</span>}
                     {p.medicalGroup && <span>{p.medicalGroup}</span>}
                   </div>
+                  <SaveForm action={setEffectiveDate} className="mt-2 flex flex-wrap items-end gap-2">
+                    <label className="flex flex-col gap-1 text-xs font-medium">
+                      Effective date
+                      <input
+                        type="date"
+                        name="effectiveDate"
+                        defaultValue={p.effectiveDate ? dateInputValue(p.effectiveDate) : ""}
+                        className="field"
+                      />
+                    </label>
+                  </SaveForm>
                 </div>
                 <div className="flex items-center gap-3">
                   <Link
@@ -416,7 +338,14 @@ export default async function ContactDetailPage({
 
         <details className="surface p-3">
           <summary className="cursor-pointer text-sm font-medium">+ Add Policy</summary>
-          <form action={createPolicyForContact} className="mt-3 grid grid-cols-2 gap-3">
+          <SaveForm
+            action={createPolicyForContact}
+            submitLabel="Add Policy"
+            savedLabel="Policy added ✓"
+            resetOnSuccess
+            primary
+            className="mt-3 grid grid-cols-2 gap-3"
+          >
             <PolicyField label="Carrier" name="carrier" required options={carrierOptions} />
             <PolicyField label="Plan Name" name="planName" required options={planNameOptions} />
             <PolicyField
@@ -432,12 +361,7 @@ export default async function ContactDetailPage({
             <PolicyField label="Annual Premium" name="annualPremium" type="number" />
             <PolicyField label="Doctor" name="doctor" />
             <PolicyField label="Medical Group" name="medicalGroup" />
-            <div className="col-span-2">
-              <button type="submit" className="btn-primary">
-                Add Policy
-              </button>
-            </div>
-          </form>
+          </SaveForm>
         </details>
       </section>
 
@@ -473,29 +397,60 @@ export default async function ContactDetailPage({
 
         <details className="surface p-3">
           <summary className="cursor-pointer text-sm font-medium">+ Add Task</summary>
-          <form action={createTask} className="mt-3 flex flex-col gap-3">
+          <SaveForm
+            action={createTask}
+            submitLabel="Add Task"
+            savedLabel="Task added ✓"
+            resetOnSuccess
+            primary
+            className="mt-3 flex flex-col gap-3"
+          >
             <input type="hidden" name="contactId" value={contact.id} />
             <input name="title" placeholder="Task title" required className="field" />
             <input name="dueDate" type="date" className="field" />
             <textarea name="notes" placeholder="Notes" rows={2} className="field" />
-            <div>
-              <button type="submit" className="btn-primary">
-                Add Task
-              </button>
-            </div>
-          </form>
+          </SaveForm>
         </details>
       </section>
     </div>
   );
 }
 
-function InfoRow({ label, value }: { label: string; value?: string | null }) {
-  if (!value) return null;
+// Grid spans for the 6-column Client Info layout (literal class names so
+// Tailwind picks them up).
+const SPANS: Record<number, string> = { 1: "col-span-1", 2: "col-span-2", 3: "col-span-3" };
+
+function Field({
+  label,
+  name,
+  value,
+  type = "text",
+  span,
+  required = false,
+}: {
+  label: string;
+  name: string;
+  value?: string | null;
+  type?: string;
+  span?: number;
+  required?: boolean;
+}) {
+  // Prefixed so these don't collide with the Add Policy form's ids.
+  const id = `info-${name}`;
   return (
-    <div>
-      <span className="muted">{label}: </span>
-      <span>{value}</span>
+    <div className={`flex flex-col gap-1 ${span ? SPANS[span] : ""}`}>
+      <label className="text-sm font-medium" htmlFor={id}>
+        {label}
+        {required && <span className="text-red-500"> *</span>}
+      </label>
+      <input
+        id={id}
+        name={name}
+        type={type}
+        required={required}
+        defaultValue={value ?? ""}
+        className="field"
+      />
     </div>
   );
 }

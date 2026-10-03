@@ -7,13 +7,11 @@ import {
   pushIntegrityLeadEmail,
   pushIntegrityLeadPhone,
   pushIntegrityLeadMedicareInfo,
-  type IntegrityLeadMedicareInfoInput,
   searchIntegrityPharmacies,
   saveIntegrityLeadPharmacies,
   searchIntegrityProviders,
   saveIntegrityLeadProviders,
   searchIntegrityPrescriptions,
-  type IntegrityLeadAddressInput,
   type IntegrityPharmacySearchParams,
   type IntegrityPharmacySearchItem,
   type IntegrityProviderSearchParams,
@@ -95,58 +93,6 @@ export async function syncIntegrityLeads(): Promise<{
   revalidatePath("/");
 
   return { imported, updated };
-}
-
-export async function pushContactAddressToIntegrity(
-  contactId: string,
-  address: IntegrityLeadAddressInput
-): Promise<void> {
-  const contact = await prisma.contact.findUnique({ where: { id: contactId } });
-  if (!contact) throw new Error("Contact not found");
-  if (!contact.integrityContactId) {
-    throw new Error("Contact isn't linked to an Integrity lead");
-  }
-
-  await pushIntegrityLeadAddress(contact.integrityContactId, address);
-}
-
-export async function pushContactEmailToIntegrity(
-  contactId: string,
-  email: string
-): Promise<void> {
-  const contact = await prisma.contact.findUnique({ where: { id: contactId } });
-  if (!contact) throw new Error("Contact not found");
-  if (!contact.integrityContactId) {
-    throw new Error("Contact isn't linked to an Integrity lead");
-  }
-
-  await pushIntegrityLeadEmail(contact.integrityContactId, email);
-}
-
-export async function pushContactPhoneToIntegrity(
-  contactId: string,
-  phoneNumber: string
-): Promise<void> {
-  const contact = await prisma.contact.findUnique({ where: { id: contactId } });
-  if (!contact) throw new Error("Contact not found");
-  if (!contact.integrityContactId) {
-    throw new Error("Contact isn't linked to an Integrity lead");
-  }
-
-  await pushIntegrityLeadPhone(contact.integrityContactId, phoneNumber);
-}
-
-export async function pushContactMedicareInfoToIntegrity(
-  contactId: string,
-  info: IntegrityLeadMedicareInfoInput
-): Promise<void> {
-  const contact = await prisma.contact.findUnique({ where: { id: contactId } });
-  if (!contact) throw new Error("Contact not found");
-  if (!contact.integrityContactId) {
-    throw new Error("Contact isn't linked to an Integrity lead");
-  }
-
-  await pushIntegrityLeadMedicareInfo(contact.integrityContactId, info);
 }
 
 export async function searchPharmacies(params: IntegrityPharmacySearchParams) {
@@ -293,4 +239,56 @@ export async function addContactPrescription(
 export async function deleteContactPrescription(contactId: string, id: string): Promise<void> {
   await prisma.contactPrescription.delete({ where: { id } });
   revalidatePath(`/contacts/${contactId}`);
+}
+
+// Pushes whatever is saved in the contact's Client Info to its Integrity
+// lead in one go (address, email, phone, Medicare info), so nothing has to
+// be retyped. Each part reports separately; a missing field is skipped.
+export async function pushContactInfoToIntegrity(contactId: string) {
+  const contact = await prisma.contact.findUnique({ where: { id: contactId } });
+  if (!contact) return { error: "Contact not found." };
+  if (!contact.integrityContactId) return { error: "This contact isn't linked to an Integrity lead." };
+  const leadId = contact.integrityContactId;
+  const iso = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : undefined);
+
+  const pushed: string[] = [];
+  const failed: string[] = [];
+  const attempt = async (label: string, fn: () => Promise<unknown>) => {
+    try {
+      await fn();
+      pushed.push(label);
+    } catch (err) {
+      failed.push(`${label} (${err instanceof Error ? err.message : "failed"})`);
+    }
+  };
+
+  if (contact.address && contact.city && contact.state && contact.zip) {
+    await attempt("address", () =>
+      pushIntegrityLeadAddress(leadId, {
+        address1: contact.address!,
+        city: contact.city!,
+        stateCode: contact.state!,
+        postalCode: contact.zip!,
+      })
+    );
+  }
+  if (contact.email) await attempt("email", () => pushIntegrityLeadEmail(leadId, contact.email!));
+  if (contact.phone) await attempt("phone", () => pushIntegrityLeadPhone(leadId, contact.phone!));
+  if (contact.medicareId || contact.partAEffectiveDate || contact.partBEffectiveDate) {
+    await attempt("Medicare info", () =>
+      pushIntegrityLeadMedicareInfo(leadId, {
+        medicareBeneficiaryId: contact.medicareId ?? undefined,
+        partA: iso(contact.partAEffectiveDate),
+        partB: iso(contact.partBEffectiveDate),
+      })
+    );
+  }
+
+  if (pushed.length === 0 && failed.length === 0) {
+    return { error: "Nothing to push yet — fill in Client Info first." };
+  }
+  if (failed.length) {
+    return { error: `Pushed: ${pushed.join(", ") || "nothing"}. Failed: ${failed.join("; ")}` };
+  }
+  return { message: `Pushed ${pushed.join(", ")} to Integrity.` };
 }

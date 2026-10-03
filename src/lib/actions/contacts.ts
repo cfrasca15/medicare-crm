@@ -52,7 +52,7 @@ export async function updateContactStage(contactId: string, stage: PipelineStage
 
 export async function addContactNote(contactId: string, formData: FormData) {
   const body = String(formData.get("body") ?? "").trim();
-  if (!body) return;
+  if (!body) return { error: "Write a note first." };
 
   await prisma.contactNote.create({
     data: { contactId, body },
@@ -65,35 +65,44 @@ export async function deleteContactNote(contactId: string, noteId: string) {
   revalidatePath(`/contacts/${contactId}`);
 }
 
-export async function updateContactPlanInfo(contactId: string, formData: FormData) {
+// Personal + Medicare details in one form. Blank fields are saved as empty
+// (null) so clearing a field actually clears it.
+export async function updateContactInfo(contactId: string, formData: FormData) {
+  const firstName = String(formData.get("firstName") ?? "").trim();
+  const lastName = String(formData.get("lastName") ?? "").trim();
+  if (!firstName || !lastName) return { error: "First and last name are required." };
+
   await prisma.contact.update({
     where: { id: contactId },
     data: {
-      insuranceCompany: emptyToNull(formData.get("insuranceCompany")),
-      planName: emptyToNull(formData.get("planName")),
+      firstName,
+      lastName,
+      phone: orNull(formData.get("phone")),
+      email: orNull(formData.get("email")),
+      dateOfBirth: dateOrNull(formData.get("dateOfBirth")),
+      address: orNull(formData.get("address")),
+      city: orNull(formData.get("city")),
+      state: orNull(formData.get("state")),
+      zip: orNull(formData.get("zip")),
+      medicareId: orNull(formData.get("medicareId")),
+      partAEffectiveDate: dateOrNull(formData.get("partAEffectiveDate")),
+      partBEffectiveDate: dateOrNull(formData.get("partBEffectiveDate")),
     },
   });
   revalidatePath(`/contacts/${contactId}`);
+  revalidatePath("/contacts");
 }
 
-export async function updateContactDoctorInfo(contactId: string, formData: FormData) {
+// What the prospect is shopping for and who their doctor is — separate from
+// each policy's own carrier/plan/doctor, which records what was sold.
+export async function updateContactProspectInfo(contactId: string, formData: FormData) {
   await prisma.contact.update({
     where: { id: contactId },
     data: {
-      doctor: emptyToNull(formData.get("doctor")),
-      medicalGroup: emptyToNull(formData.get("medicalGroup")),
-    },
-  });
-  revalidatePath(`/contacts/${contactId}`);
-}
-
-export async function updateContactMedicareInfo(contactId: string, formData: FormData) {
-  await prisma.contact.update({
-    where: { id: contactId },
-    data: {
-      medicareId: emptyToNull(formData.get("medicareId")),
-      partAEffectiveDate: toDate(formData.get("partAEffectiveDate")),
-      partBEffectiveDate: toDate(formData.get("partBEffectiveDate")),
+      insuranceCompany: orNull(formData.get("insuranceCompany")),
+      planName: orNull(formData.get("planName")),
+      doctor: orNull(formData.get("doctor")),
+      medicalGroup: orNull(formData.get("medicalGroup")),
     },
   });
   revalidatePath(`/contacts/${contactId}`);
@@ -113,4 +122,12 @@ function emptyToNull(value: FormDataEntryValue | null): string | undefined {
 function toDate(value: FormDataEntryValue | null): Date | undefined {
   const str = String(value ?? "").trim();
   return str.length ? new Date(str) : undefined;
+}
+
+function orNull(value: FormDataEntryValue | null): string | null {
+  return emptyToNull(value) ?? null;
+}
+
+function dateOrNull(value: FormDataEntryValue | null): Date | null {
+  return toDate(value) ?? null;
 }

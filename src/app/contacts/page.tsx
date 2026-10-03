@@ -4,6 +4,8 @@ import { STAGE_LABELS, STAGE_ORDER, STAGE_COLORS } from "@/lib/constants";
 import { PipelineStage, Prisma } from "@/generated/prisma/client";
 import { SyncButton } from "@/components/SyncButton";
 import { CallButton } from "@/components/CallButton";
+import { coverageMonth, currentPolicy } from "@/lib/coverage";
+import { formatDateOnly } from "@/lib/date";
 
 export default async function ContactsPage({
   searchParams,
@@ -28,6 +30,7 @@ export default async function ContactsPage({
   const contacts = await prisma.contact.findMany({
     where,
     orderBy: { lastName: "asc" },
+    include: { policies: { select: { effectiveDate: true, carrier: true, planName: true } } },
   });
 
   return (
@@ -86,6 +89,7 @@ export default async function ContactsPage({
               <th className="px-4 py-2 font-medium">Name</th>
               <th className="px-4 py-2 font-medium">Phone</th>
               <th className="px-4 py-2 font-medium">Email</th>
+              <th className="px-4 py-2 font-medium">Effective</th>
               <th className="px-4 py-2 font-medium">Stage</th>
             </tr>
           </thead>
@@ -108,6 +112,9 @@ export default async function ContactsPage({
                 </td>
                 <td className="muted px-4 py-2">{c.email ?? "—"}</td>
                 <td className="px-4 py-2">
+                  <EffectiveCell policy={currentPolicy(c.policies)} />
+                </td>
+                <td className="px-4 py-2">
                   <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STAGE_COLORS[c.stage]}`}>
                     {STAGE_LABELS[c.stage]}
                   </span>
@@ -116,7 +123,7 @@ export default async function ContactsPage({
             ))}
             {contacts.length === 0 && (
               <tr>
-                <td colSpan={4} className="muted px-4 py-8 text-center">
+                <td colSpan={5} className="muted px-4 py-8 text-center">
                   No contacts found.
                 </td>
               </tr>
@@ -124,6 +131,21 @@ export default async function ContactsPage({
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+function EffectiveCell({
+  policy,
+}: {
+  policy: { effectiveDate: Date | null; carrier: string; planName: string } | null;
+}) {
+  if (!policy?.effectiveDate) return <span className="muted">—</span>;
+  const month = coverageMonth(policy.effectiveDate);
+  return (
+    <div className="flex flex-col" title={`${policy.carrier} ${policy.planName}`}>
+      <span>{formatDateOnly(policy.effectiveDate)}</span>
+      <span className="muted text-xs">{month === null ? "Not started" : `Month ${month}`}</span>
     </div>
   );
 }
