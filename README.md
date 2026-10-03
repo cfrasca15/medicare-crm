@@ -151,3 +151,14 @@ deliberately — see gotchas below).
   scheduled events into contacts/tasks.
 - **Google Voice** (`src/lib/phone.ts`) — click-to-call links (unofficial
   web dialer URL, no public API exists for this).
+
+## Website leads
+
+The chrisfrascainsurance.com forms (contact, call-back, event RSVP) save a minimal
+record (name, phone, email, source, consent line) to a dedicated Airtable base.
+**Sync website leads** on `/contacts` pulls those rows in, creates a New Lead (or
+adds a note to an existing contact matched by email or phone), keeps the consent
+line in the contact's notes, then deletes the row from Airtable. The CRM only makes
+outbound requests; nothing from the website is pushed into it. Set
+`WEBSITE_LEADS_AIRTABLE_TOKEN` (scoped to that one base) and `WEBSITE_LEADS_BASE_ID`
+in `docker.env`; `WEBSITE_LEADS_TABLE` defaults to `Leads`.

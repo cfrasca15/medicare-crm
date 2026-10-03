@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { STAGE_LABELS, STAGE_ORDER, STAGE_COLORS } from "@/lib/constants";
 import { PipelineStage, Prisma } from "@/generated/prisma/client";
 import { SyncButton } from "@/components/SyncButton";
+import { WebsiteLeadsSyncButton } from "@/components/WebsiteLeadsSyncButton";
 import { CallButton } from "@/components/CallButton";
 import { coverageMonth, currentPolicy } from "@/lib/coverage";
 import { formatDateOnly } from "@/lib/date";
@@ -38,6 +39,7 @@ export default async function ContactsPage({
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Contacts</h1>
         <div className="flex items-center gap-3">
+          <WebsiteLeadsSyncButton />
           <SyncButton />
           <a
             href={(() => {
