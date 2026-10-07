@@ -15,6 +15,17 @@ function eventDateKey(event: UpcomingEvent): string {
   return event.isAllDay ? event.start : event.start.slice(0, 10);
 }
 
+// Read the clock time straight from Google's ISO string (already in the calendar's
+// own time zone) so the server's time zone can't shift it. "10a", "2:30p".
+function eventTime(event: UpcomingEvent): string {
+  if (event.isAllDay) return "";
+  const hour = Number(event.start.slice(11, 13));
+  const minute = event.start.slice(14, 16);
+  if (Number.isNaN(hour)) return "";
+  const hour12 = hour % 12 === 0 ? 12 : hour % 12;
+  return `${hour12}${minute === "00" ? "" : `:${minute}`}${hour < 12 ? "a" : "p"}`;
+}
+
 export default async function CalendarPage({
   searchParams,
 }: {
@@ -141,21 +152,22 @@ export default async function CalendarPage({
                       {day.getDate()}
                     </div>
                     <div className="flex flex-col gap-0.5">
-                      {dayEvents.slice(0, 3).map((event) => (
-                        <a
-                          key={event.id}
-                          href={event.htmlLink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          title={event.title}
-                          className="truncate rounded bg-indigo-50 px-1 py-0.5 text-[11px] text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-500/15 dark:text-indigo-300 dark:hover:bg-indigo-500/25"
-                        >
-                          {event.title}
-                        </a>
-                      ))}
-                      {dayEvents.length > 3 && (
-                        <span className="muted text-[11px]">+{dayEvents.length - 3} more</span>
-                      )}
+                      {dayEvents.map((event) => {
+                        const time = eventTime(event);
+                        return (
+                          <a
+                            key={event.id}
+                            href={event.htmlLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title={time ? `${time} ${event.title}` : event.title}
+                            className="truncate rounded bg-indigo-50 px-1 py-0.5 text-[11px] text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-500/15 dark:text-indigo-300 dark:hover:bg-indigo-500/25"
+                          >
+                            {time && <span className="mr-1 font-semibold">{time}</span>}
+                            {event.title}
+                          </a>
+                        );
+                      })}
                     </div>
                   </div>
                 );
