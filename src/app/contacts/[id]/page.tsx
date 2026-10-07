@@ -157,6 +157,56 @@ export default async function ContactDetailPage({
       </div>
 
       <section>
+        <h2 className="section-label mb-3">Tasks</h2>
+        <SaveForm
+          action={createTask}
+          submitLabel="Add Task"
+          savedLabel="Task added ✓"
+          resetOnSuccess
+          primary
+          className="surface mb-3 flex flex-wrap items-center gap-2 p-3"
+        >
+          <input type="hidden" name="contactId" value={contact.id} />
+          <input
+            name="title"
+            placeholder="Add a task or follow-up…"
+            aria-label="Task"
+            required
+            className="field min-w-48 flex-1"
+          />
+          <input name="dueDate" type="date" aria-label="Due date" title="Due date" className="field" />
+          <input name="notes" placeholder="Notes (optional)" aria-label="Notes" className="field min-w-40 flex-1" />
+        </SaveForm>
+        <div className="flex flex-col gap-2">
+          {contact.tasks.length === 0 && <p className="muted text-sm">No tasks yet.</p>}
+          {contact.tasks.map((t) => {
+            const deleteTaskBound = deleteTask.bind(null, t.id);
+            return (
+              <div key={t.id} className="surface flex items-center justify-between px-3 py-2 text-sm">
+                <div className="flex items-center gap-3">
+                  <TaskCheckbox taskId={t.id} done={t.status === "DONE"} />
+                  <span className={t.status === "DONE" ? "muted line-through" : ""}>
+                    {t.title}
+                  </span>
+                  {t.dueDate && <span className="muted text-xs">{formatDateOnly(t.dueDate)}</span>}
+                </div>
+                <div className="flex items-center gap-3">
+                  {t.dueDate && (
+                    <CalendarSyncButton taskId={t.id} synced={!!t.googleEventId} />
+                  )}
+                  <form action={deleteTaskBound}>
+                    <button type="submit" className="btn-danger-text text-xs">
+                      Remove
+                    </button>
+                  </form>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      <section>
         <h2 className="section-label mb-3">Client Info</h2>
         <SaveForm action={updateInfoForContact} className="surface grid grid-cols-6 gap-3 p-4">
           <Field label="First Name" name="firstName" value={contact.firstName} span={3} required />
@@ -409,54 +459,6 @@ export default async function ContactDetailPage({
             <PolicyField label="Annual Premium" name="annualPremium" type="number" />
             <PolicyField label="Doctor" name="doctor" />
             <PolicyField label="Medical Group" name="medicalGroup" />
-          </SaveForm>
-        </details>
-      </section>
-
-      <section>
-        <h2 className="section-label mb-3">Tasks</h2>
-        <div className="mb-4 flex flex-col gap-2">
-          {contact.tasks.length === 0 && <p className="muted text-sm">No tasks yet.</p>}
-          {contact.tasks.map((t) => {
-            const deleteTaskBound = deleteTask.bind(null, t.id);
-            return (
-              <div key={t.id} className="surface flex items-center justify-between px-3 py-2 text-sm">
-                <div className="flex items-center gap-3">
-                  <TaskCheckbox taskId={t.id} done={t.status === "DONE"} />
-                  <span className={t.status === "DONE" ? "muted line-through" : ""}>
-                    {t.title}
-                  </span>
-                  {t.dueDate && <span className="muted text-xs">{formatDateOnly(t.dueDate)}</span>}
-                </div>
-                <div className="flex items-center gap-3">
-                  {t.dueDate && (
-                    <CalendarSyncButton taskId={t.id} synced={!!t.googleEventId} />
-                  )}
-                  <form action={deleteTaskBound}>
-                    <button type="submit" className="btn-danger-text text-xs">
-                      Remove
-                    </button>
-                  </form>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        <details className="surface p-3">
-          <summary className="cursor-pointer text-sm font-medium">+ Add Task</summary>
-          <SaveForm
-            action={createTask}
-            submitLabel="Add Task"
-            savedLabel="Task added ✓"
-            resetOnSuccess
-            primary
-            className="mt-3 flex flex-col gap-3"
-          >
-            <input type="hidden" name="contactId" value={contact.id} />
-            <input name="title" placeholder="Task title" required className="field" />
-            <input name="dueDate" type="date" className="field" />
-            <textarea name="notes" placeholder="Notes" rows={2} className="field" />
           </SaveForm>
         </details>
       </section>
