@@ -16,7 +16,6 @@ import {
 import { SaveForm } from "@/components/SaveForm";
 import { PushToIntegrityButton } from "@/components/PushToIntegrityButton";
 import { DeleteContactButton } from "@/components/DeleteContactButton";
-import { HealthProfilePanel } from "@/components/HealthProfilePanel";
 import { EmailPanel } from "@/components/EmailPanel";
 import { getGoogleAccount, listGmailMessagesForContact, type GmailMessageSummary } from "@/lib/google";
 import { formatDateOnly, formatDateTime, dateInputValue } from "@/lib/date";
@@ -37,9 +36,6 @@ export default async function ContactDetailPage({
     include: {
       policies: { orderBy: { createdAt: "desc" } },
       tasks: { orderBy: { dueDate: "asc" } },
-      providers: { orderBy: { createdAt: "desc" } },
-      pharmacies: { orderBy: { createdAt: "desc" } },
-      prescriptions: { orderBy: { createdAt: "desc" } },
       noteEntries: { orderBy: { createdAt: "desc" } },
     },
   });
@@ -257,15 +253,6 @@ export default async function ContactDetailPage({
               phone, Medicare info).
             </div>
             <PushToIntegrityButton contactId={contact.id} />
-            <div>
-              <h3 className="mb-2 text-sm font-medium">Health Profile</h3>
-              <HealthProfilePanel
-                contactId={contact.id}
-                providers={contact.providers}
-                pharmacies={contact.pharmacies}
-                prescriptions={contact.prescriptions}
-              />
-            </div>
           </div>
         </section>
       )}
