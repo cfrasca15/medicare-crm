@@ -21,23 +21,58 @@ export async function getCalendlyUserUri(): Promise<string> {
   return data.resource.uri;
 }
 
-// The account's public booking page (e.g. https://calendly.com/yourname),
-// read from Calendly so it never has to be configured separately.
-let schedulingUrlCache: string | null = null;
+export interface CalendlyEventType {
+  name: string;
+  slug: string;
+  url: string;
+  // Which booking-link parameter carries the invitee's phone number, if this
+  // event type asks for one: "location" when Chris calls the invitee, or
+  // "a<N>" when the Nth question on the form is a phone-number question.
+  phoneParam: string | null;
+}
 
-export async function getCalendlySchedulingUrl(): Promise<string> {
-  if (schedulingUrlCache) return schedulingUrlCache;
+// The account's bookable event types, read from Calendly so nothing has to
+// be configured separately. Cached briefly; they rarely change.
+let eventTypesCache: { at: number; types: CalendlyEventType[] } | null = null;
+
+export async function listCalendlyEventTypes(): Promise<CalendlyEventType[]> {
+  if (eventTypesCache && Date.now() - eventTypesCache.at < 10 * 60 * 1000) {
+    return eventTypesCache.types;
+  }
   if (!API_TOKEN) throw new Error("Calendly isn't connected (CALENDLY_API_TOKEN is not set).");
-  const res = await calendlyFetch("/users/me");
+
+  const userUri = await getCalendlyUserUri();
+  const params = new URLSearchParams({ user: userUri, active: "true" });
+  const res = await calendlyFetch(`/event_types?${params}`);
   if (!res.ok) {
     const body = await res.text().catch(() => "");
-    throw new Error(`Calendly auth failed: ${res.status} ${body}`);
+    throw new Error(`Calendly event types fetch failed: ${res.status} ${body}`);
   }
   const data = await res.json();
-  const url: string | undefined = data.resource?.scheduling_url;
-  if (!url) throw new Error("Calendly didn't return a booking page address.");
-  schedulingUrlCache = url;
-  return url;
+  const items: Array<{
+    name: string;
+    slug: string;
+    scheduling_url: string;
+    locations?: Array<{ kind: string }> | null;
+    custom_questions?: Array<{ type: string; position: number; enabled: boolean }> | null;
+  }> = data.collection ?? [];
+
+  const types = items.map((item) => {
+    const phoneQuestion = (item.custom_questions ?? [])
+      .filter((q) => q.enabled)
+      .sort((a, b) => a.position - b.position)
+      .findIndex((q) => q.type === "phone_number");
+    const callsInvitee = (item.locations ?? []).some((l) => l.kind === "outbound_call");
+    return {
+      name: item.name.trim(),
+      slug: item.slug,
+      url: item.scheduling_url,
+      phoneParam: callsInvitee ? "location" : phoneQuestion >= 0 ? `a${phoneQuestion + 1}` : null,
+    };
+  });
+
+  eventTypesCache = { at: Date.now(), types };
+  return types;
 }
 
 export interface CalendlyEvent {
