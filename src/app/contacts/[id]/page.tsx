@@ -148,6 +148,9 @@ export default async function ContactDetailPage({
           )}
         </div>
         <div className="flex items-center gap-3">
+          <Link href={`/book?contact=${contact.id}`} className="btn-secondary whitespace-nowrap">
+            Book appointment
+          </Link>
           <StageSelect key={contact.stage} contactId={contact.id} stage={contact.stage} />
           <DeleteContactButton
             name={`${contact.firstName} ${contact.lastName}`}

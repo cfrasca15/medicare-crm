@@ -21,6 +21,25 @@ export async function getCalendlyUserUri(): Promise<string> {
   return data.resource.uri;
 }
 
+// The account's public booking page (e.g. https://calendly.com/yourname),
+// read from Calendly so it never has to be configured separately.
+let schedulingUrlCache: string | null = null;
+
+export async function getCalendlySchedulingUrl(): Promise<string> {
+  if (schedulingUrlCache) return schedulingUrlCache;
+  if (!API_TOKEN) throw new Error("Calendly isn't connected (CALENDLY_API_TOKEN is not set).");
+  const res = await calendlyFetch("/users/me");
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`Calendly auth failed: ${res.status} ${body}`);
+  }
+  const data = await res.json();
+  const url: string | undefined = data.resource?.scheduling_url;
+  if (!url) throw new Error("Calendly didn't return a booking page address.");
+  schedulingUrlCache = url;
+  return url;
+}
+
 export interface CalendlyEvent {
   uri: string;
   name: string;

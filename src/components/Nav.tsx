@@ -10,6 +10,7 @@ const links = [
   { href: "/enrollments", label: "Enrollments" },
   { href: "/tasks", label: "Tasks" },
   { href: "/calendar", label: "Calendar" },
+  { href: "/book", label: "Book" },
   { href: "/documents", label: "Documents" },
   { href: "/benefits-grid", label: "Benefits Grid" },
   { href: "/formulary", label: "Formulary" },
