@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { PipelineStage } from "@/generated/prisma/client";
-import { STAGE_ORDER } from "@/lib/constants";
+import { PRE_APPLICATION_STAGES } from "@/lib/constants";
 import { revalidatePath } from "next/cache";
 
 export async function createPolicy(contactId: string, formData: FormData) {
@@ -30,16 +30,15 @@ export async function createPolicy(contactId: string, formData: FormData) {
 
   // Recording a policy means an application was submitted — advance the
   // pipeline automatically so it doesn't sit at an earlier stage until
-  // someone remembers to update it by hand. Never moves it backward: a
-  // contact already at Enrolled/Lost (both past this point in STAGE_ORDER)
-  // is left alone. The later Application Submitted -> Enrolled transition
+  // someone remembers to update it by hand. Only leads move: a contact
+  // already at Enrolled, Retained, Current Client or Lost is left alone. The later Application Submitted -> Enrolled transition
   // happens automatically too, once the policy's effective date arrives —
   // see runStageAutomation in src/lib/stageAutomation.ts.
   const contact = await prisma.contact.findUnique({
     where: { id: contactId },
     select: { stage: true },
   });
-  if (contact && STAGE_ORDER.indexOf(contact.stage) < STAGE_ORDER.indexOf("APPLICATION_SUBMITTED")) {
+  if (contact && PRE_APPLICATION_STAGES.includes(contact.stage)) {
     await prisma.contact.update({
       where: { id: contactId },
       data: { stage: "APPLICATION_SUBMITTED" as PipelineStage },

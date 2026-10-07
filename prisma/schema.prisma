@@ -15,7 +15,9 @@ enum PipelineStage {
   CONTACTED
   APPOINTMENT_SET
   APPLICATION_SUBMITTED
-  ENROLLED
+  ENROLLED       // new client enrolled this season
+  RETAINED       // existing client kept for the coming year
+  CURRENT_CLIENT // existing client, not yet reviewed this season
   LOST
 }
 

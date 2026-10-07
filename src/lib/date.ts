@@ -53,3 +53,14 @@ export function parseDateCell(value: string): Date | undefined {
 
   return undefined;
 }
+
+// "2027-01" (from an <input type="month">) -> the UTC range covering that
+// month, matching how effective dates are stored (see date.ts).
+export function monthRange(value: string | null | undefined): { gte: Date; lt: Date } | null {
+  const match = value?.match(/^(\d{4})-(\d{2})$/);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]) - 1;
+  if (month < 0 || month > 11) return null;
+  return { gte: new Date(Date.UTC(year, month, 1)), lt: new Date(Date.UTC(year, month + 1, 1)) };
+}

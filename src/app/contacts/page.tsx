@@ -6,14 +6,14 @@ import { SyncButton } from "@/components/SyncButton";
 import { WebsiteLeadsSyncButton } from "@/components/WebsiteLeadsSyncButton";
 import { CallButton } from "@/components/CallButton";
 import { coverageMonth, currentPolicy } from "@/lib/coverage";
-import { formatDateOnly } from "@/lib/date";
+import { formatDateOnly, monthRange } from "@/lib/date";
 
 export default async function ContactsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ stage?: string; q?: string; source?: string }>;
+  searchParams: Promise<{ stage?: string; q?: string; source?: string; eff?: string }>;
 }) {
-  const { stage, q, source } = await searchParams;
+  const { stage, q, source, eff } = await searchParams;
 
   const where: Prisma.ContactWhereInput = {};
   if (stage && STAGE_ORDER.includes(stage)) {
@@ -23,6 +23,10 @@ export default async function ContactsPage({
     where.AND = [
       { OR: [{ leadSource: { startsWith: "Website" } }, { lastWebsiteLeadAt: { not: null } }] },
     ];
+  }
+  const effectiveRange = monthRange(eff);
+  if (effectiveRange) {
+    where.policies = { some: { effectiveDate: effectiveRange } };
   }
   if (q) {
     where.OR = [
@@ -51,6 +55,8 @@ export default async function ContactsPage({
               const params = new URLSearchParams({
                 ...(stage ? { stage } : {}),
                 ...(q ? { q } : {}),
+                ...(source ? { source } : {}),
+                ...(effectiveRange && eff ? { eff } : {}),
               });
               const qs = params.toString();
               return `/api/export/contacts${qs ? `?${qs}` : ""}`;
@@ -88,10 +94,26 @@ export default async function ContactsPage({
           <option value="">All sources</option>
           <option value="website">Website leads</option>
         </select>
+        <label className="muted flex items-center gap-2 text-sm whitespace-nowrap">
+          Effective
+          <input
+            type="month"
+            name="eff"
+            defaultValue={effectiveRange ? eff : ""}
+            title="Only contacts with a policy starting in this month"
+            className="field"
+          />
+        </label>
         <button type="submit" className="btn-secondary">
           Filter
         </button>
       </form>
+
+      <p className="muted -mt-3 text-sm">
+        {contacts.length} {contacts.length === 1 ? "contact" : "contacts"}
+        {stage && STAGE_LABELS[stage] ? ` · ${STAGE_LABELS[stage]}` : ""}
+        {effectiveRange ? ` · effective ${formatDateOnly(effectiveRange.gte)}` : ""}
+      </p>
 
       <div className="surface overflow-hidden">
         <table className="w-full text-sm">

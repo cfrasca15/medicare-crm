@@ -3,7 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { STAGE_LABELS, STAGE_ORDER } from "@/lib/constants";
 import { PipelineStage, Prisma } from "@/generated/prisma/client";
 import { toCsv, csvResponse } from "@/lib/csv";
-import { formatDateOnly } from "@/lib/date";
+import { formatDateOnly, monthRange } from "@/lib/date";
+import { currentPolicy } from "@/lib/coverage";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -19,6 +20,10 @@ export async function GET(request: NextRequest) {
       { OR: [{ leadSource: { startsWith: "Website" } }, { lastWebsiteLeadAt: { not: null } }] },
     ];
   }
+  const effectiveRange = monthRange(searchParams.get("eff"));
+  if (effectiveRange) {
+    where.policies = { some: { effectiveDate: effectiveRange } };
+  }
   if (q) {
     where.OR = [
       { firstName: { contains: q } },
@@ -31,6 +36,7 @@ export async function GET(request: NextRequest) {
   const contacts = await prisma.contact.findMany({
     where,
     orderBy: { lastName: "asc" },
+    include: { policies: { select: { effectiveDate: true } } },
   });
 
   const csv = toCsv(
@@ -53,6 +59,7 @@ export async function GET(request: NextRequest) {
       "Doctor",
       "Medical Group",
       "Stage",
+      "Policy Effective",
       "Lead Source",
     ],
     contacts.map((c) => [
@@ -74,6 +81,10 @@ export async function GET(request: NextRequest) {
       c.doctor,
       c.medicalGroup,
       STAGE_LABELS[c.stage],
+      (() => {
+        const policy = currentPolicy(c.policies);
+        return policy?.effectiveDate ? formatDateOnly(policy.effectiveDate) : "";
+      })(),
       c.leadSource ?? "",
     ])
   );
