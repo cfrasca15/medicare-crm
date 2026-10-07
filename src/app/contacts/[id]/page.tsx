@@ -10,6 +10,7 @@ import {
   deleteContactNote,
   updateContactInfo,
   updateContactProspectInfo,
+  updateContactPerson,
   deleteContact,
 } from "@/lib/actions/contacts";
 import { SaveForm } from "@/components/SaveForm";
@@ -86,6 +87,7 @@ export default async function ContactDetailPage({
   const addNoteForContact = addContactNote.bind(null, contact.id);
   const updateInfoForContact = updateContactInfo.bind(null, contact.id);
   const updateProspectForContact = updateContactProspectInfo.bind(null, contact.id);
+  const updatePersonForContact = updateContactPerson.bind(null, contact.id);
   const deleteContactBound = deleteContact.bind(null, contact.id);
   const tracked = currentPolicy(contact.policies);
 
@@ -116,6 +118,30 @@ export default async function ContactDetailPage({
               </span>
             )}
           </div>
+          {contact.altContactName && (
+            <div
+              className={`mt-2 flex flex-wrap items-center gap-2 text-sm ${
+                contact.altContactPreferred
+                  ? "rounded-md bg-amber-50 px-3 py-1.5 text-amber-900 dark:bg-amber-500/15 dark:text-amber-200"
+                  : "muted"
+              }`}
+            >
+              <span className="font-medium">
+                {contact.altContactPreferred ? "Call instead:" : "Contact person:"}
+              </span>
+              <span>
+                {contact.altContactName}
+                {contact.altContactRelationship ? ` (${contact.altContactRelationship})` : ""}
+              </span>
+              {contact.altContactPhone && (
+                <span className="flex items-center gap-2">
+                  {contact.altContactPhone}
+                  <CallButton phone={contact.altContactPhone} />
+                </span>
+              )}
+              {contact.altContactEmail && <span>{contact.altContactEmail}</span>}
+            </div>
+          )}
           {tracked?.effectiveDate && (
             <div className="mt-2 inline-flex flex-wrap items-center gap-2 rounded-full bg-indigo-50 px-3 py-1 text-sm font-medium text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300">
               {coverageLabel(tracked.effectiveDate)}
@@ -167,6 +193,33 @@ export default async function ContactDetailPage({
             value={contact.partBEffectiveDate ? dateInputValue(contact.partBEffectiveDate) : null}
             span={2}
           />
+        </SaveForm>
+      </section>
+
+      <section>
+        <h2 className="section-label mb-1">Contact Person</h2>
+        <p className="muted mb-3 text-sm">
+          A son, daughter, spouse or caregiver who handles things for this client.
+        </p>
+        <SaveForm action={updatePersonForContact} className="surface grid grid-cols-6 gap-3 p-4">
+          <Field label="Name" name="altContactName" value={contact.altContactName} span={2} />
+          <Field
+            label="Relationship"
+            name="altContactRelationship"
+            value={contact.altContactRelationship}
+            span={2}
+          />
+          <Field label="Phone" name="altContactPhone" type="tel" value={contact.altContactPhone} span={2} />
+          <Field label="Email" name="altContactEmail" type="email" value={contact.altContactEmail} span={3} />
+          <label className="col-span-3 flex items-center gap-2 self-end pb-2 text-sm">
+            <input
+              type="checkbox"
+              name="altContactPreferred"
+              defaultChecked={contact.altContactPreferred}
+              className="h-4 w-4 accent-indigo-600"
+            />
+            Call this person instead of the client
+          </label>
         </SaveForm>
       </section>
 

@@ -108,6 +108,28 @@ export async function updateContactProspectInfo(contactId: string, formData: For
   revalidatePath(`/contacts/${contactId}`);
 }
 
+// The person to reach on the client's behalf. Clearing the name clears
+// the "call instead" choice too, so it can't point at nobody.
+export async function updateContactPerson(contactId: string, formData: FormData) {
+  const name = orNull(formData.get("altContactName"));
+  const phone = orNull(formData.get("altContactPhone"));
+  const email = orNull(formData.get("altContactEmail"));
+  if (!name && (phone || email)) return { error: "Add the contact person's name." };
+
+  await prisma.contact.update({
+    where: { id: contactId },
+    data: {
+      altContactName: name,
+      altContactRelationship: orNull(formData.get("altContactRelationship")),
+      altContactPhone: phone,
+      altContactEmail: email,
+      altContactPreferred: Boolean(name) && formData.get("altContactPreferred") === "on",
+    },
+  });
+  revalidatePath(`/contacts/${contactId}`);
+  revalidatePath("/contacts");
+}
+
 export async function deleteContact(contactId: string) {
   await prisma.contact.delete({ where: { id: contactId } });
   revalidatePath("/contacts");

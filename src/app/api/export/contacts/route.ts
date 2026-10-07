@@ -61,6 +61,11 @@ export async function GET(request: NextRequest) {
       "Stage",
       "Policy Effective",
       "Lead Source",
+      "Contact Person",
+      "Contact Person Relationship",
+      "Contact Person Phone",
+      "Contact Person Email",
+      "Call Contact Person Instead",
     ],
     contacts.map((c) => [
       c.integrityContactId,
@@ -86,6 +91,11 @@ export async function GET(request: NextRequest) {
         return policy?.effectiveDate ? formatDateOnly(policy.effectiveDate) : "";
       })(),
       c.leadSource ?? "",
+      c.altContactName ?? "",
+      c.altContactRelationship ?? "",
+      c.altContactPhone ?? "",
+      c.altContactEmail ?? "",
+      c.altContactPreferred ? "Yes" : "",
     ])
   );
 

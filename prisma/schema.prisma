@@ -73,6 +73,14 @@ model Contact {
   leadSource        String?
   lastWebsiteLeadAt DateTime?
 
+  // Someone who speaks for the client (a son or daughter, a spouse, a
+  // caregiver). altContactPreferred means "call this person, not the client".
+  altContactName         String?
+  altContactRelationship String?
+  altContactPhone        String?
+  altContactEmail        String?
+  altContactPreferred    Boolean @default(false)
+
   policies          Policy[]
   tasks             Task[]
   providers         ContactProvider[]

@@ -34,6 +34,8 @@ export default async function ContactsPage({
       { lastName: { contains: q } },
       { email: { contains: q } },
       { phone: { contains: q } },
+      { altContactName: { contains: q } },
+      { altContactPhone: { contains: q } },
     ];
   }
 
@@ -143,6 +145,16 @@ export default async function ContactsPage({
                     <span>{c.phone ?? "—"}</span>
                     <CallButton phone={c.phone} />
                   </div>
+                  {c.altContactName && c.altContactPreferred && (
+                    <div className="mt-0.5 flex items-center gap-2 text-xs text-amber-700 dark:text-amber-300">
+                      <span>
+                        Call {c.altContactName}
+                        {c.altContactRelationship ? ` (${c.altContactRelationship})` : ""}
+                        {c.altContactPhone ? `: ${c.altContactPhone}` : ""}
+                      </span>
+                      <CallButton phone={c.altContactPhone} />
+                    </div>
+                  )}
                 </td>
                 <td className="muted px-4 py-2">{c.email ?? "—"}</td>
                 <td className="px-4 py-2">
