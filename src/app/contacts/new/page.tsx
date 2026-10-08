@@ -10,8 +10,9 @@ export default function NewContactPage() {
           <Field label="First name" name="firstName" required />
           <Field label="Last name" name="lastName" required />
         </div>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-3 gap-4">
           <Field label="Phone" name="phone" type="tel" />
+          <Field label="Cell phone" name="cellPhone" type="tel" />
           <Field label="Email" name="email" type="email" />
         </div>
         <Field label="Address" name="address" />

@@ -20,6 +20,7 @@ export async function createContact(formData: FormData) {
       lastName,
       email: emptyToNull(formData.get("email")),
       phone: emptyToNull(formData.get("phone")),
+      cellPhone: emptyToNull(formData.get("cellPhone")),
       address: emptyToNull(formData.get("address")),
       city: emptyToNull(formData.get("city")),
       state: emptyToNull(formData.get("state")),
@@ -71,6 +72,7 @@ export async function updateContactInfo(contactId: string, formData: FormData) {
   const firstName = String(formData.get("firstName") ?? "").trim();
   const lastName = String(formData.get("lastName") ?? "").trim();
   if (!firstName || !lastName) return { error: "First and last name are required." };
+  const cellPhone = orNull(formData.get("cellPhone"));
 
   await prisma.contact.update({
     where: { id: contactId },
@@ -78,6 +80,8 @@ export async function updateContactInfo(contactId: string, formData: FormData) {
       firstName,
       lastName,
       phone: orNull(formData.get("phone")),
+      cellPhone,
+      cellPreferred: Boolean(cellPhone) && formData.get("cellPreferred") === "on",
       email: orNull(formData.get("email")),
       dateOfBirth: dateOrNull(formData.get("dateOfBirth")),
       address: orNull(formData.get("address")),

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { listCalendlyEventTypes, type CalendlyEventType } from "@/lib/calendly";
 import { CalendlySyncButton } from "@/components/CalendlySyncButton";
-import { toE164 } from "@/lib/phone";
+import { primaryPhone, toE164 } from "@/lib/phone";
 
 export default async function BookPage({
   searchParams,
@@ -20,6 +20,8 @@ export default async function BookPage({
           lastName: true,
           email: true,
           phone: true,
+          cellPhone: true,
+          cellPreferred: true,
           altContactName: true,
           altContactPhone: true,
           altContactPreferred: true,
@@ -37,9 +39,13 @@ export default async function BookPage({
   const selected = eventTypes.find((t) => t.slug === typeSlug) ?? eventTypes[0] ?? null;
 
   // The number Chris should be calling: the contact person's when the client
-  // is marked "call this person instead", otherwise the client's own.
+  // is marked "call this person instead", otherwise the client's own (cell if preferred).
   const useContactPerson = Boolean(contact?.altContactPreferred && contact.altContactPhone);
-  const phone = useContactPerson ? contact?.altContactPhone : contact?.phone;
+  const phone = useContactPerson
+    ? contact?.altContactPhone
+    : contact
+      ? primaryPhone(contact)?.number
+      : null;
   const phoneDigits = phone ? toE164(phone)?.slice(1) : null;
 
   // Calendly fills in its own form from these, so the client's details

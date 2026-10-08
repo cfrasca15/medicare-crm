@@ -22,6 +22,7 @@ import { formatDateOnly, formatDateTime, dateInputValue } from "@/lib/date";
 import { coverageLabel, coverageMonth, currentPolicy } from "@/lib/coverage";
 import { CARRIER_SEED, PLAN_TYPE_SEED } from "@/lib/constants";
 import { CallButton } from "@/components/CallButton";
+import { primaryPhone } from "@/lib/phone";
 import { CalendarSyncButton } from "@/components/CalendarSyncButton";
 
 export default async function ContactDetailPage({
@@ -86,6 +87,8 @@ export default async function ContactDetailPage({
   const updatePersonForContact = updateContactPerson.bind(null, contact.id);
   const deleteContactBound = deleteContact.bind(null, contact.id);
   const tracked = currentPolicy(contact.policies);
+  const callPhone = primaryPhone(contact);
+  const otherPhone = callPhone?.isCell ? contact.phone : contact.cellPhone;
 
   return (
     <div className="max-w-4xl mx-auto flex flex-col gap-8">
@@ -98,10 +101,17 @@ export default async function ContactDetailPage({
             {contact.firstName} {contact.lastName}
           </h1>
           <div className="muted mt-1 flex flex-wrap items-center gap-4 text-sm">
-            {contact.phone && (
+            {callPhone && (
               <span className="flex items-center gap-2">
-                {contact.phone}
-                <CallButton phone={contact.phone} />
+                {callPhone.isCell ? "Cell " : ""}
+                {callPhone.number}
+                <CallButton phone={callPhone.number} />
+              </span>
+            )}
+            {callPhone && otherPhone && (
+              <span>
+                {callPhone.isCell ? "Other " : "Cell "}
+                {otherPhone}
               </span>
             )}
             {contact.email && <span>{contact.email}</span>}
@@ -212,10 +222,8 @@ export default async function ContactDetailPage({
       <section>
         <h2 className="section-label mb-3">Client Info</h2>
         <SaveForm action={updateInfoForContact} className="surface grid grid-cols-6 gap-3 p-4">
-          <Field label="First Name" name="firstName" value={contact.firstName} span={3} required />
-          <Field label="Last Name" name="lastName" value={contact.lastName} span={3} required />
-          <Field label="Phone" name="phone" type="tel" value={contact.phone} span={2} />
-          <Field label="Email" name="email" type="email" value={contact.email} span={2} />
+          <Field label="First Name" name="firstName" value={contact.firstName} span={2} required />
+          <Field label="Last Name" name="lastName" value={contact.lastName} span={2} required />
           <Field
             label="Date of Birth"
             name="dateOfBirth"
@@ -223,6 +231,29 @@ export default async function ContactDetailPage({
             value={contact.dateOfBirth ? dateInputValue(contact.dateOfBirth) : null}
             span={2}
           />
+          <Field label="Phone" name="phone" type="tel" value={contact.phone} span={2} />
+          <div className="col-span-2 flex flex-col gap-1">
+            <label className="text-sm font-medium" htmlFor="info-cellPhone">
+              Cell Phone
+            </label>
+            <input
+              id="info-cellPhone"
+              name="cellPhone"
+              type="tel"
+              defaultValue={contact.cellPhone ?? ""}
+              className="field"
+            />
+            <label className="muted flex items-center gap-2 text-xs">
+              <input
+                type="checkbox"
+                name="cellPreferred"
+                defaultChecked={contact.cellPreferred}
+                className="h-3.5 w-3.5 accent-indigo-600"
+              />
+              Preferred — Call button dials the cell
+            </label>
+          </div>
+          <Field label="Email" name="email" type="email" value={contact.email} span={2} />
           <Field label="Address" name="address" value={contact.address} span={3} />
           <Field label="City" name="city" value={contact.city} span={1} />
           <Field label="State" name="state" value={contact.state} span={1} />

@@ -11,6 +11,21 @@ export function googleVoiceCallUrl(phone: string): string | null {
   return `https://voice.google.com/u/0/calls?a=nc,${encodeURIComponent(e164)}`;
 }
 
+/**
+ * The number to dial for a contact: the cell when it's marked preferred,
+ * otherwise the main phone, falling back to whichever one exists.
+ */
+export function primaryPhone(contact: {
+  phone: string | null;
+  cellPhone: string | null;
+  cellPreferred: boolean;
+}): { number: string; isCell: boolean } | null {
+  if (contact.cellPhone && (contact.cellPreferred || !contact.phone)) {
+    return { number: contact.cellPhone, isCell: true };
+  }
+  return contact.phone ? { number: contact.phone, isCell: false } : null;
+}
+
 /** Formats a US phone number to E.164 (+1XXXXXXXXXX). Returns null if it doesn't look like a valid 10-digit US number. */
 export function toE164(phone: string): string | null {
   const digits = phone.replace(/\D/g, "");

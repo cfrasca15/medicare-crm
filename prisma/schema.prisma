@@ -42,6 +42,9 @@ model Contact {
   lastName          String
   email             String?
   phone             String?
+  // Second number. cellPreferred makes it the one the Call button dials.
+  cellPhone         String?
+  cellPreferred     Boolean       @default(false)
   address           String?
   city              String?
   state             String?
