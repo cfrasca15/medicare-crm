@@ -220,6 +220,95 @@ export default async function ContactDetailPage({
       </section>
 
       <section>
+        <h2 className="section-label mb-3">Policies</h2>
+        <div className="mb-4 flex flex-col gap-3">
+          {contact.policies.length === 0 && (
+            <p className="muted text-sm">No policies yet.</p>
+          )}
+          {contact.policies.map((p) => {
+            const deletePolicyForContact = deletePolicy.bind(null, contact.id, p.id);
+            const setEffectiveDate = updatePolicyEffectiveDate.bind(null, contact.id, p.id);
+            const month = p.effectiveDate ? coverageMonth(p.effectiveDate) : null;
+            return (
+              <div key={p.id} className="surface flex items-start justify-between p-3 text-sm">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2 font-medium">
+                    {p.carrier} — {p.planName} {p.planType && `(${p.planType})`}
+                    {p.effectiveDate && (
+                      <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300">
+                        {month === null ? "Not started yet" : `Month ${month}`}
+                      </span>
+                    )}
+                  </div>
+                  <div className="muted mt-1 flex flex-wrap gap-4">
+                    {p.policyNumber && <span>Policy #{p.policyNumber}</span>}
+                    {p.commissionStatus && <span>Commission: {p.commissionStatus}</span>}
+                    {p.commissionAmount != null && (
+                      <span>${p.commissionAmount.toFixed(2)}</span>
+                    )}
+                    {p.doctor && <span>Dr. {p.doctor}</span>}
+                    {p.medicalGroup && <span>{p.medicalGroup}</span>}
+                  </div>
+                  <SaveForm action={setEffectiveDate} className="mt-2 flex flex-wrap items-end gap-2">
+                    <label className="flex flex-col gap-1 text-xs font-medium">
+                      Effective date
+                      <input
+                        type="date"
+                        name="effectiveDate"
+                        defaultValue={p.effectiveDate ? dateInputValue(p.effectiveDate) : ""}
+                        className="field"
+                      />
+                    </label>
+                  </SaveForm>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Link
+                    href={`/documents?carrier=${encodeURIComponent(p.carrier)}&planName=${encodeURIComponent(p.planName)}`}
+                    className="link text-xs"
+                  >
+                    Docs
+                  </Link>
+                  <form action={deletePolicyForContact}>
+                    <button type="submit" className="btn-danger-text text-xs">
+                      Remove
+                    </button>
+                  </form>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <details className="surface p-3">
+          <summary className="cursor-pointer text-sm font-medium">+ Add Policy</summary>
+          <SaveForm
+            action={createPolicyForContact}
+            submitLabel="Add Policy"
+            savedLabel="Policy added ✓"
+            resetOnSuccess
+            primary
+            className="mt-3 grid grid-cols-2 gap-3"
+          >
+            <PolicyField label="Carrier" name="carrier" required options={carrierOptions} />
+            <PolicyField label="Plan Name" name="planName" required options={planNameOptions} />
+            <PolicyField
+              label="Plan Type"
+              name="planType"
+              placeholder="MAPD, PDP, Med Supp..."
+              options={planTypeOptions}
+            />
+            <PolicyField label="Policy Number" name="policyNumber" />
+            <PolicyField label="Effective Date" name="effectiveDate" type="date" />
+            <PolicyField label="Commission Status" name="commissionStatus" placeholder="pending, paid..." />
+            <PolicyField label="Commission Amount" name="commissionAmount" type="number" />
+            <PolicyField label="Annual Premium" name="annualPremium" type="number" />
+            <PolicyField label="Doctor" name="doctor" />
+            <PolicyField label="Medical Group" name="medicalGroup" />
+          </SaveForm>
+        </details>
+      </section>
+
+      <section>
         <h2 className="section-label mb-3">Client Info</h2>
         <SaveForm action={updateInfoForContact} className="surface grid grid-cols-6 gap-3 p-4">
           <Field label="First Name" name="firstName" value={contact.firstName} span={2} required />
@@ -304,10 +393,11 @@ export default async function ContactDetailPage({
       </section>
 
       <section>
-        <h2 className="section-label mb-1">Shopping For</h2>
+        <h2 className="section-label mb-1">Plan Being Considered</h2>
         <p className="muted mb-3 text-sm">
-          The plan and doctor being considered before enrolling. What was
-          actually sold is recorded on the policy below.
+          Optional, for prospects: the plan and doctor they&apos;re looking at
+          before they enroll. Once they enroll, add it under Policies above —
+          that&apos;s where the effective date goes.
         </p>
         <SaveForm action={updateProspectForContact} className="surface grid grid-cols-2 gap-3 p-4">
           <Field label="Insurance Company" name="insuranceCompany" value={contact.insuranceCompany} />
@@ -406,95 +496,6 @@ export default async function ContactDetailPage({
         {contact.email && googleAccount && !emailHistoryError && (
           <EmailPanel contactId={contact.id} history={emailHistory} />
         )}
-      </section>
-
-      <section>
-        <h2 className="section-label mb-3">Policies</h2>
-        <div className="mb-4 flex flex-col gap-3">
-          {contact.policies.length === 0 && (
-            <p className="muted text-sm">No policies yet.</p>
-          )}
-          {contact.policies.map((p) => {
-            const deletePolicyForContact = deletePolicy.bind(null, contact.id, p.id);
-            const setEffectiveDate = updatePolicyEffectiveDate.bind(null, contact.id, p.id);
-            const month = p.effectiveDate ? coverageMonth(p.effectiveDate) : null;
-            return (
-              <div key={p.id} className="surface flex items-start justify-between p-3 text-sm">
-                <div>
-                  <div className="flex flex-wrap items-center gap-2 font-medium">
-                    {p.carrier} — {p.planName} {p.planType && `(${p.planType})`}
-                    {p.effectiveDate && (
-                      <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300">
-                        {month === null ? "Not started yet" : `Month ${month}`}
-                      </span>
-                    )}
-                  </div>
-                  <div className="muted mt-1 flex flex-wrap gap-4">
-                    {p.policyNumber && <span>Policy #{p.policyNumber}</span>}
-                    {p.commissionStatus && <span>Commission: {p.commissionStatus}</span>}
-                    {p.commissionAmount != null && (
-                      <span>${p.commissionAmount.toFixed(2)}</span>
-                    )}
-                    {p.doctor && <span>Dr. {p.doctor}</span>}
-                    {p.medicalGroup && <span>{p.medicalGroup}</span>}
-                  </div>
-                  <SaveForm action={setEffectiveDate} className="mt-2 flex flex-wrap items-end gap-2">
-                    <label className="flex flex-col gap-1 text-xs font-medium">
-                      Effective date
-                      <input
-                        type="date"
-                        name="effectiveDate"
-                        defaultValue={p.effectiveDate ? dateInputValue(p.effectiveDate) : ""}
-                        className="field"
-                      />
-                    </label>
-                  </SaveForm>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Link
-                    href={`/documents?carrier=${encodeURIComponent(p.carrier)}&planName=${encodeURIComponent(p.planName)}`}
-                    className="link text-xs"
-                  >
-                    Docs
-                  </Link>
-                  <form action={deletePolicyForContact}>
-                    <button type="submit" className="btn-danger-text text-xs">
-                      Remove
-                    </button>
-                  </form>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        <details className="surface p-3">
-          <summary className="cursor-pointer text-sm font-medium">+ Add Policy</summary>
-          <SaveForm
-            action={createPolicyForContact}
-            submitLabel="Add Policy"
-            savedLabel="Policy added ✓"
-            resetOnSuccess
-            primary
-            className="mt-3 grid grid-cols-2 gap-3"
-          >
-            <PolicyField label="Carrier" name="carrier" required options={carrierOptions} />
-            <PolicyField label="Plan Name" name="planName" required options={planNameOptions} />
-            <PolicyField
-              label="Plan Type"
-              name="planType"
-              placeholder="MAPD, PDP, Med Supp..."
-              options={planTypeOptions}
-            />
-            <PolicyField label="Policy Number" name="policyNumber" />
-            <PolicyField label="Effective Date" name="effectiveDate" type="date" />
-            <PolicyField label="Commission Status" name="commissionStatus" placeholder="pending, paid..." />
-            <PolicyField label="Commission Amount" name="commissionAmount" type="number" />
-            <PolicyField label="Annual Premium" name="annualPremium" type="number" />
-            <PolicyField label="Doctor" name="doctor" />
-            <PolicyField label="Medical Group" name="medicalGroup" />
-          </SaveForm>
-        </details>
       </section>
     </div>
   );
