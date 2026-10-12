@@ -26,10 +26,6 @@ export async function createContact(formData: FormData) {
       state: emptyToNull(formData.get("state")),
       zip: emptyToNull(formData.get("zip")),
       dateOfBirth: toDate(formData.get("dateOfBirth")),
-      insuranceCompany: emptyToNull(formData.get("insuranceCompany")),
-      planName: emptyToNull(formData.get("planName")),
-      doctor: emptyToNull(formData.get("doctor")),
-      medicalGroup: emptyToNull(formData.get("medicalGroup")),
       medicareId: emptyToNull(formData.get("medicareId")),
       partAEffectiveDate: toDate(formData.get("partAEffectiveDate")),
       partBEffectiveDate: toDate(formData.get("partBEffectiveDate")),
@@ -95,21 +91,6 @@ export async function updateContactInfo(contactId: string, formData: FormData) {
   });
   revalidatePath(`/contacts/${contactId}`);
   revalidatePath("/contacts");
-}
-
-// What the prospect is shopping for and who their doctor is — separate from
-// each policy's own carrier/plan/doctor, which records what was sold.
-export async function updateContactProspectInfo(contactId: string, formData: FormData) {
-  await prisma.contact.update({
-    where: { id: contactId },
-    data: {
-      insuranceCompany: orNull(formData.get("insuranceCompany")),
-      planName: orNull(formData.get("planName")),
-      doctor: orNull(formData.get("doctor")),
-      medicalGroup: orNull(formData.get("medicalGroup")),
-    },
-  });
-  revalidatePath(`/contacts/${contactId}`);
 }
 
 // The person to reach on the client's behalf. Clearing the name clears

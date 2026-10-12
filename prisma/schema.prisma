@@ -55,8 +55,9 @@ model Contact {
   partBEffectiveDate DateTime?
   stage             PipelineStage @default(NEW_LEAD)
 
-  // Plan being considered for this prospect — tracked here, separate from
-  // Policy's own carrier/planName, which records what was actually sold.
+  // No longer shown on the contact page (it got mistaken for the client's
+  // current plan); values entered there were copied into Policy. Still filled
+  // by the CSV import and included in the CSV export.
   insuranceCompany  String?
   planName          String?
 

@@ -9,7 +9,6 @@ import {
   addContactNote,
   deleteContactNote,
   updateContactInfo,
-  updateContactProspectInfo,
   updateContactPerson,
   deleteContact,
 } from "@/lib/actions/contacts";
@@ -83,7 +82,6 @@ export default async function ContactDetailPage({
   const createPolicyForContact = createPolicy.bind(null, contact.id);
   const addNoteForContact = addContactNote.bind(null, contact.id);
   const updateInfoForContact = updateContactInfo.bind(null, contact.id);
-  const updateProspectForContact = updateContactProspectInfo.bind(null, contact.id);
   const updatePersonForContact = updateContactPerson.bind(null, contact.id);
   const deleteContactBound = deleteContact.bind(null, contact.id);
   const tracked = currentPolicy(contact.policies);
@@ -220,7 +218,7 @@ export default async function ContactDetailPage({
       </section>
 
       <section>
-        <h2 className="section-label mb-3">Policies</h2>
+        <h2 className="section-label mb-3">Current Plan &amp; Policies</h2>
         <div className="mb-4 flex flex-col gap-3">
           {contact.policies.length === 0 && (
             <p className="muted text-sm">No policies yet.</p>
@@ -389,21 +387,6 @@ export default async function ContactDetailPage({
             />
             Call this person instead of the client
           </label>
-        </SaveForm>
-      </section>
-
-      <section>
-        <h2 className="section-label mb-1">Plan Being Considered</h2>
-        <p className="muted mb-3 text-sm">
-          Optional, for prospects: the plan and doctor they&apos;re looking at
-          before they enroll. Once they enroll, add it under Policies above —
-          that&apos;s where the effective date goes.
-        </p>
-        <SaveForm action={updateProspectForContact} className="surface grid grid-cols-2 gap-3 p-4">
-          <Field label="Insurance Company" name="insuranceCompany" value={contact.insuranceCompany} />
-          <Field label="Plan Name" name="planName" value={contact.planName} />
-          <Field label="Doctor" name="doctor" value={contact.doctor} />
-          <Field label="Medical Group" name="medicalGroup" value={contact.medicalGroup} />
         </SaveForm>
       </section>
 
