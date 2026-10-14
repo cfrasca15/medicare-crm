@@ -116,7 +116,10 @@ export async function updateContactPerson(contactId: string, formData: FormData)
 }
 
 export async function deleteContact(contactId: string) {
-  await prisma.contact.delete({ where: { id: contactId } });
+  await prisma.$transaction([
+    prisma.contact.updateMany({ where: { spouseId: contactId }, data: { spouseId: null } }),
+    prisma.contact.delete({ where: { id: contactId } }),
+  ]);
   revalidatePath("/contacts");
   redirect("/contacts");
 }

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSyncExternalStore } from "react";
 import { logout } from "@/lib/actions/auth";
 
 const links = [
@@ -21,9 +22,16 @@ const links = [
 
 const HIDE_NAV_PATHS = ["/login", "/setup"];
 
+// True when this page is shown inside another page (the side-by-side view),
+// which already has its own menu.
+const subscribeNoop = () => () => {};
+const isFramed = () => window.self !== window.top;
+
 export function Nav() {
   const pathname = usePathname();
+  const framed = useSyncExternalStore(subscribeNoop, isFramed, () => false);
 
+  if (framed) return null;
   if (HIDE_NAV_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {
     return null;
   }

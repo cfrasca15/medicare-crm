@@ -23,6 +23,7 @@ import { CARRIER_SEED, PLAN_TYPE_SEED } from "@/lib/constants";
 import { CallButton } from "@/components/CallButton";
 import { primaryPhone } from "@/lib/phone";
 import { CalendarSyncButton } from "@/components/CalendarSyncButton";
+import { SpouseLink } from "@/components/SpouseLink";
 
 export default async function ContactDetailPage({
   params,
@@ -85,6 +86,12 @@ export default async function ContactDetailPage({
   const updatePersonForContact = updateContactPerson.bind(null, contact.id);
   const deleteContactBound = deleteContact.bind(null, contact.id);
   const tracked = currentPolicy(contact.policies);
+  const spouse = contact.spouseId
+    ? await prisma.contact.findUnique({
+        where: { id: contact.spouseId },
+        select: { id: true, firstName: true, lastName: true },
+      })
+    : null;
   const callPhone = primaryPhone(contact);
   const otherPhone = callPhone?.isCell ? contact.phone : contact.cellPhone;
 
@@ -154,6 +161,11 @@ export default async function ContactDetailPage({
               </span>
             </div>
           )}
+          <SpouseLink
+            key={spouse?.id ?? "none"}
+            contactId={contact.id}
+            spouse={spouse ? { id: spouse.id, name: `${spouse.firstName} ${spouse.lastName}` } : null}
+          />
         </div>
         <div className="flex items-center gap-3">
           <Link href={`/book?contact=${contact.id}`} className="btn-secondary whitespace-nowrap">

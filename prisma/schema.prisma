@@ -85,6 +85,10 @@ model Contact {
   altContactEmail        String?
   altContactPreferred    Boolean @default(false)
 
+  // The contact's husband or wife, stored on both records (kept in step by
+  // src/lib/actions/spouse.ts). A plain id rather than a relation.
+  spouseId          String?
+
   policies          Policy[]
   tasks             Task[]
   providers         ContactProvider[]
@@ -96,6 +100,7 @@ model Contact {
   updatedAt         DateTime      @updatedAt
 
   @@index([stage])
+  @@index([spouseId])
   @@index([lastName, firstName])
 }
 
