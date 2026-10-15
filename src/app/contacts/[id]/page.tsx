@@ -19,6 +19,7 @@ import { EmailPanel } from "@/components/EmailPanel";
 import { getGoogleAccount, listGmailMessagesForContact, type GmailMessageSummary } from "@/lib/google";
 import { formatDateOnly, formatDateTime, dateInputValue, upcomingFirstsOfMonth } from "@/lib/date";
 import { EffectiveDateSelect } from "@/components/EffectiveDateSelect";
+import { CommissionSelect } from "@/components/CommissionSelect";
 import { coverageLabel, coverageMonth, currentPolicy } from "@/lib/coverage";
 import { CARRIER_SEED, PLAN_TYPE_SEED } from "@/lib/constants";
 import { CallButton } from "@/components/CallButton";
@@ -308,7 +309,6 @@ export default async function ContactDetailPage({
               placeholder="MAPD, PDP, Med Supp..."
               options={planTypeOptions}
             />
-            <PolicyField label="Policy Number" name="policyNumber" />
             <div className="flex flex-col gap-1">
               <label className="text-sm font-medium" htmlFor="effectiveDate">
                 Effective Date
@@ -316,8 +316,12 @@ export default async function ContactDetailPage({
               <EffectiveDateSelect id="effectiveDate" name="effectiveDate" choices={effectiveChoices} />
             </div>
             <PolicyField label="Commission Status" name="commissionStatus" placeholder="pending, paid..." />
-            <PolicyField label="Commission Amount" name="commissionAmount" type="number" />
-            <PolicyField label="Annual Premium" name="annualPremium" type="number" />
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium" htmlFor="commissionAmount">
+                Commission Amount
+              </label>
+              <CommissionSelect id="commissionAmount" name="commissionAmount" />
+            </div>
             <PolicyField label="Doctor" name="doctor" />
             <PolicyField label="Medical Group" name="medicalGroup" />
           </SaveForm>
