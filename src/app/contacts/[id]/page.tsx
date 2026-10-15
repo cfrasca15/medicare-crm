@@ -17,7 +17,8 @@ import { PushToIntegrityButton } from "@/components/PushToIntegrityButton";
 import { DeleteContactButton } from "@/components/DeleteContactButton";
 import { EmailPanel } from "@/components/EmailPanel";
 import { getGoogleAccount, listGmailMessagesForContact, type GmailMessageSummary } from "@/lib/google";
-import { formatDateOnly, formatDateTime, dateInputValue } from "@/lib/date";
+import { formatDateOnly, formatDateTime, dateInputValue, upcomingFirstsOfMonth } from "@/lib/date";
+import { EffectiveDateSelect } from "@/components/EffectiveDateSelect";
 import { coverageLabel, coverageMonth, currentPolicy } from "@/lib/coverage";
 import { CARRIER_SEED, PLAN_TYPE_SEED } from "@/lib/constants";
 import { CallButton } from "@/components/CallButton";
@@ -86,6 +87,7 @@ export default async function ContactDetailPage({
   const updatePersonForContact = updateContactPerson.bind(null, contact.id);
   const deleteContactBound = deleteContact.bind(null, contact.id);
   const tracked = currentPolicy(contact.policies);
+  const effectiveChoices = upcomingFirstsOfMonth();
   const spouse = contact.spouseId
     ? await prisma.contact.findUnique({
         where: { id: contact.spouseId },
@@ -262,11 +264,10 @@ export default async function ContactDetailPage({
                   <SaveForm action={setEffectiveDate} className="mt-2 flex flex-wrap items-end gap-2">
                     <label className="flex flex-col gap-1 text-xs font-medium">
                       Effective date
-                      <input
-                        type="date"
+                      <EffectiveDateSelect
                         name="effectiveDate"
+                        choices={effectiveChoices}
                         defaultValue={p.effectiveDate ? dateInputValue(p.effectiveDate) : ""}
-                        className="field"
                       />
                     </label>
                   </SaveForm>
@@ -308,7 +309,12 @@ export default async function ContactDetailPage({
               options={planTypeOptions}
             />
             <PolicyField label="Policy Number" name="policyNumber" />
-            <PolicyField label="Effective Date" name="effectiveDate" type="date" />
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium" htmlFor="effectiveDate">
+                Effective Date
+              </label>
+              <EffectiveDateSelect id="effectiveDate" name="effectiveDate" choices={effectiveChoices} />
+            </div>
             <PolicyField label="Commission Status" name="commissionStatus" placeholder="pending, paid..." />
             <PolicyField label="Commission Amount" name="commissionAmount" type="number" />
             <PolicyField label="Annual Premium" name="annualPremium" type="number" />

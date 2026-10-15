@@ -32,6 +32,18 @@ export function dateInputValue(date: Date): string {
   return `${date.getUTCFullYear()}-${month}-${day}`;
 }
 
+// The 1st of each of the next `count` months, for picking a policy's
+// effective date (a plan can start the 1st of next month up to 4 months out).
+export function upcomingFirstsOfMonth(count = 4, now = new Date()): { value: string; label: string }[] {
+  return Array.from({ length: count }, (_, i) => {
+    const d = new Date(Date.UTC(now.getFullYear(), now.getMonth() + 1 + i, 1));
+    return {
+      value: dateInputValue(d),
+      label: d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" }),
+    };
+  });
+}
+
 // Accepts either M/D/YYYY (formatDateOnly's output) or yyyy-mm-dd
 // (dateInputValue's/date input's output) — the two shapes a broker is
 // likely to have in a spreadsheet cell.
