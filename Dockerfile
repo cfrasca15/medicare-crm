@@ -17,6 +17,9 @@ RUN npm run build
 FROM node:20-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production
+# Show times and run the daily 9 AM checks in Pacific time (Docker defaults
+# to UTC). Override with TZ in docker.env if needed.
+ENV TZ=America/Los_Angeles
 
 RUN groupadd -r nodejs && useradd -r -g nodejs nextjs
 COPY --from=builder /app ./
