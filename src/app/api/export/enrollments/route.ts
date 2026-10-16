@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const year = searchParams.get("year");
 
-  const where: Prisma.PolicyWhereInput = {};
+  const where: Prisma.PolicyWhereInput = { effectiveDate: { not: null } };
   if (year) {
     const y = Number(year);
     where.effectiveDate = {
@@ -32,6 +32,7 @@ export async function GET(request: NextRequest) {
       "Carrier",
       "Plan Name",
       "Plan Type",
+      "New / Current Client",
       "Policy Number",
       "Effective Date",
       "Term Date",
@@ -49,6 +50,7 @@ export async function GET(request: NextRequest) {
       p.carrier,
       p.planName,
       p.planType,
+      p.clientType === "new" ? "New" : p.clientType === "current" ? "Current" : "",
       p.policyNumber,
       p.effectiveDate ? formatDateOnly(p.effectiveDate) : "",
       p.termDate ? formatDateOnly(p.termDate) : "",
