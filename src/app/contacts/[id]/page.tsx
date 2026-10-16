@@ -412,6 +412,21 @@ export default async function ContactDetailPage({
           <Field label="City" name="city" value={contact.city} span={1} />
           <Field label="State" name="state" value={contact.state} span={1} />
           <Field label="ZIP" name="zip" value={contact.zip} span={1} />
+          <label className="col-span-6 flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              name="hasMailingAddress"
+              defaultChecked={contact.hasMailingAddress}
+              className="h-4 w-4 accent-indigo-600"
+            />
+            Different mailing address
+          </label>
+          <ShowWhen field="hasMailingAddress" value="on" initial={contact.hasMailingAddress ? "on" : ""}>
+            <Field label="Mailing Address" name="mailingAddress" value={contact.mailingAddress} span={3} />
+            <Field label="City" name="mailingCity" value={contact.mailingCity} span={1} />
+            <Field label="State" name="mailingState" value={contact.mailingState} span={1} />
+            <Field label="ZIP" name="mailingZip" value={contact.mailingZip} span={1} />
+          </ShowWhen>
           <Field label="Medicare Number" name="medicareId" value={contact.medicareId} span={2} />
           <Field
             label="Part A Effective"

@@ -69,6 +69,9 @@ export async function updateContactInfo(contactId: string, formData: FormData) {
   const lastName = String(formData.get("lastName") ?? "").trim();
   if (!firstName || !lastName) return { error: "First and last name are required." };
   const cellPhone = orNull(formData.get("cellPhone"));
+  // Unticking "different mailing address" clears it, so no stale address lingers.
+  const hasMailing = formData.get("hasMailingAddress") === "on";
+  const mailing = (name: string) => (hasMailing ? orNull(formData.get(name)) : null);
 
   await prisma.contact.update({
     where: { id: contactId },
@@ -84,6 +87,11 @@ export async function updateContactInfo(contactId: string, formData: FormData) {
       city: orNull(formData.get("city")),
       state: orNull(formData.get("state")),
       zip: orNull(formData.get("zip")),
+      hasMailingAddress: hasMailing,
+      mailingAddress: mailing("mailingAddress"),
+      mailingCity: mailing("mailingCity"),
+      mailingState: mailing("mailingState"),
+      mailingZip: mailing("mailingZip"),
       medicareId: orNull(formData.get("medicareId")),
       partAEffectiveDate: dateOrNull(formData.get("partAEffectiveDate")),
       partBEffectiveDate: dateOrNull(formData.get("partBEffectiveDate")),

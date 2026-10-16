@@ -49,6 +49,12 @@ model Contact {
   city              String?
   state             String?
   zip               String?
+  // A separate mailing address, used when hasMailingAddress is on.
+  hasMailingAddress Boolean       @default(false)
+  mailingAddress    String?
+  mailingCity       String?
+  mailingState      String?
+  mailingZip        String?
   dateOfBirth       DateTime?
   medicareId        String?
   partAEffectiveDate DateTime?
