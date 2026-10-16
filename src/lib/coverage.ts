@@ -24,6 +24,22 @@ export function coverageLabel(effective: Date, now = new Date()): string {
     : `Effective ${formatDateOnly(effective)} · Month ${month}`;
 }
 
+export type PlanGroup = "current" | "future" | "previous";
+
+// Which heading a policy goes under on the contact page: ended plans are
+// "previous"; plans starting after today (or marked future with no date yet)
+// are "future"; everything else is the current plan.
+export function planGroup(
+  p: { timing: string | null; effectiveDate: Date | null; termDate: Date | null },
+  now = new Date()
+): PlanGroup {
+  const today = todayUtc(now);
+  if (p.termDate && p.termDate < today) return "previous";
+  if (p.effectiveDate && p.effectiveDate > today) return "future";
+  if (!p.effectiveDate && p.timing === "future") return "future";
+  return "current";
+}
+
 // The policy to track: the most recent one already in force, otherwise the
 // soonest upcoming one (e.g. a January 1 start sold during AEP).
 export function currentPolicy<T extends { effectiveDate: Date | null }>(policies: T[]): T | null {

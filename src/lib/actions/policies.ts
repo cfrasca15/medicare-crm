@@ -4,12 +4,38 @@ import { prisma } from "@/lib/prisma";
 import { PipelineStage } from "@/generated/prisma/client";
 import { PRE_APPLICATION_STAGES } from "@/lib/constants";
 import { revalidatePath } from "next/cache";
+import { planGroup } from "@/lib/coverage";
 
 export async function createPolicy(contactId: string, formData: FormData) {
   const carrier = String(formData.get("carrier") ?? "").trim();
   const planName = String(formData.get("planName") ?? "").trim();
   if (!carrier || !planName) {
     return { error: "Carrier and plan name are required." };
+  }
+  const clientType = formData.get("clientType") === "current" ? "current" : formData.get("clientType") === "new" ? "new" : null;
+  const timing = formData.get("timing") === "current" ? "current" : formData.get("timing") === "future" ? "future" : null;
+  if (!clientType) return { error: "Choose New client or Current client." };
+  if (!timing) return { error: "Choose Current plan or Future plan." };
+  const effectiveDate = timing === "future" ? toDate(formData.get("effectiveDate")) : undefined;
+  const replaces = timing === "future" && formData.get("replacesCurrent") === "on";
+  if (replaces && !effectiveDate) {
+    return { error: "Pick the effective date so the current plan can end the day before." };
+  }
+
+  // A future plan that replaces the current one: end the current plan(s) the
+  // day before it starts, so the switch happens on its own.
+  if (replaces && effectiveDate) {
+    const existing = await prisma.policy.findMany({
+      where: { contactId },
+      select: { id: true, timing: true, effectiveDate: true, termDate: true },
+    });
+    const ending = existing.filter((p) => planGroup(p) === "current").map((p) => p.id);
+    if (ending.length) {
+      await prisma.policy.updateMany({
+        where: { id: { in: ending } },
+        data: { termDate: new Date(effectiveDate.getTime() - 24 * 60 * 60 * 1000) },
+      });
+    }
   }
 
   await prisma.policy.create({
@@ -18,31 +44,36 @@ export async function createPolicy(contactId: string, formData: FormData) {
       carrier,
       planName,
       planType: emptyToNull(formData.get("planType")),
-      policyNumber: emptyToNull(formData.get("policyNumber")),
-      effectiveDate: toDate(formData.get("effectiveDate")),
-      commissionStatus: emptyToNull(formData.get("commissionStatus")),
+      effectiveDate,
+      timing,
+      clientType,
       commissionAmount: toFloat(formData.get("commissionAmount")),
-      annualPremium: toFloat(formData.get("annualPremium")),
       doctor: emptyToNull(formData.get("doctor")),
       medicalGroup: emptyToNull(formData.get("medicalGroup")),
     },
   });
 
-  // Recording a policy means an application was submitted — advance the
-  // pipeline automatically so it doesn't sit at an earlier stage until
-  // someone remembers to update it by hand. Only leads move: a contact
-  // already at Enrolled, Retained, Current Client or Lost is left alone. The later Application Submitted -> Enrolled transition
-  // happens automatically too, once the policy's effective date arrives —
-  // see runStageAutomation in src/lib/stageAutomation.ts.
+  // Move the pipeline stage along so nobody has to remember to:
+  // - new client: a lead moves to Application Submitted (and to Enrolled
+  //   once the effective date arrives, see src/lib/stageAutomation.ts);
+  // - current client, current plan: a lead becomes Current Client;
+  // - current client, future plan: they've been kept, so Retained.
+  // Enrolled, Lost and later stages are never moved backward.
   const contact = await prisma.contact.findUnique({
     where: { id: contactId },
     select: { stage: true },
   });
-  if (contact && PRE_APPLICATION_STAGES.includes(contact.stage)) {
-    await prisma.contact.update({
-      where: { id: contactId },
-      data: { stage: "APPLICATION_SUBMITTED" as PipelineStage },
-    });
+  let nextStage: PipelineStage | null = null;
+  if (contact) {
+    const isLead = PRE_APPLICATION_STAGES.includes(contact.stage);
+    if (clientType === "new" && isLead) nextStage = "APPLICATION_SUBMITTED";
+    else if (clientType === "current" && timing === "current" && isLead) nextStage = "CURRENT_CLIENT";
+    else if (clientType === "current" && timing === "future" && (isLead || contact.stage === "CURRENT_CLIENT")) {
+      nextStage = "RETAINED";
+    }
+  }
+  if (nextStage) {
+    await prisma.contact.update({ where: { id: contactId }, data: { stage: nextStage } });
   }
 
   revalidatePath(`/contacts/${contactId}`);

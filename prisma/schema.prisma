@@ -272,6 +272,11 @@ model Policy {
   policyNumber        String?
   effectiveDate       DateTime?
   termDate            DateTime?
+  // "current" = the plan they have now (no effective date needed);
+  // "future" = a plan starting later. Null on older rows: decided by date.
+  timing              String?
+  // "new" = a new client, "current" = an existing client.
+  clientType          String?
 
   commissionStatus    String?   // e.g. pending, paid, chargeback
   commissionAmount    Float?

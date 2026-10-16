@@ -20,7 +20,8 @@ import { getGoogleAccount, listGmailMessagesForContact, type GmailMessageSummary
 import { formatDateOnly, formatDateTime, dateInputValue, upcomingFirstsOfMonth } from "@/lib/date";
 import { EffectiveDateSelect } from "@/components/EffectiveDateSelect";
 import { CommissionSelect } from "@/components/CommissionSelect";
-import { coverageLabel, coverageMonth, currentPolicy } from "@/lib/coverage";
+import { ShowWhen } from "@/components/ShowWhen";
+import { coverageMonth, planGroup, type PlanGroup } from "@/lib/coverage";
 import { CARRIER_SEED, PLAN_TYPE_SEED } from "@/lib/constants";
 import { CallButton } from "@/components/CallButton";
 import { primaryPhone } from "@/lib/phone";
@@ -87,8 +88,9 @@ export default async function ContactDetailPage({
   const updateInfoForContact = updateContactInfo.bind(null, contact.id);
   const updatePersonForContact = updateContactPerson.bind(null, contact.id);
   const deleteContactBound = deleteContact.bind(null, contact.id);
-  const tracked = currentPolicy(contact.policies);
   const effectiveChoices = upcomingFirstsOfMonth();
+  const plansByGroup: Record<PlanGroup, typeof contact.policies> = { current: [], future: [], previous: [] };
+  for (const p of contact.policies) plansByGroup[planGroup(p)].push(p);
   const spouse = contact.spouseId
     ? await prisma.contact.findUnique({
         where: { id: contact.spouseId },
@@ -156,12 +158,27 @@ export default async function ContactDetailPage({
               {contact.altContactEmail && <span>{contact.altContactEmail}</span>}
             </div>
           )}
-          {tracked?.effectiveDate && (
-            <div className="mt-2 inline-flex flex-wrap items-center gap-2 rounded-full bg-indigo-50 px-3 py-1 text-sm font-medium text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300">
-              {coverageLabel(tracked.effectiveDate)}
-              <span className="font-normal opacity-80">
-                — {tracked.carrier} {tracked.planName}
-              </span>
+          {(plansByGroup.current.length > 0 || plansByGroup.future.length > 0) && (
+            <div className="mt-2 flex flex-wrap gap-2 text-sm">
+              {plansByGroup.current.map((p) => (
+                <span
+                  key={p.id}
+                  className="rounded-full bg-indigo-50 px-3 py-1 font-medium text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300"
+                >
+                  Current: {p.carrier} {p.planName}
+                  {p.effectiveDate && coverageMonth(p.effectiveDate) !== null && (
+                    <span className="font-normal opacity-80"> · Month {coverageMonth(p.effectiveDate)}</span>
+                  )}
+                </span>
+              ))}
+              {plansByGroup.future.map((p) => (
+                <span
+                  key={p.id}
+                  className="rounded-full bg-emerald-50 px-3 py-1 font-medium text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
+                >
+                  {p.effectiveDate ? `Starting ${formatDateOnly(p.effectiveDate)}` : "Future"}: {p.carrier} {p.planName}
+                </span>
+              ))}
             </div>
           )}
           <SpouseLink
@@ -233,74 +250,90 @@ export default async function ContactDetailPage({
       </section>
 
       <section>
-        <h2 className="section-label mb-3">Current Plan &amp; Policies</h2>
-        <div className="mb-4 flex flex-col gap-3">
-          {contact.policies.length === 0 && (
-            <p className="muted text-sm">No policies yet.</p>
-          )}
-          {contact.policies.map((p) => {
-            const deletePolicyForContact = deletePolicy.bind(null, contact.id, p.id);
-            const setEffectiveDate = updatePolicyEffectiveDate.bind(null, contact.id, p.id);
-            const month = p.effectiveDate ? coverageMonth(p.effectiveDate) : null;
+        <h2 className="section-label mb-3">Health Plans</h2>
+        <div className="mb-4 grid gap-3 md:grid-cols-2">
+          {(["current", "future"] as const).map((group) => {
+            const list = plansByGroup[group];
             return (
-              <div key={p.id} className="surface flex items-start justify-between p-3 text-sm">
-                <div>
-                  <div className="flex flex-wrap items-center gap-2 font-medium">
-                    {p.carrier} — {p.planName} {p.planType && `(${p.planType})`}
-                    {p.effectiveDate && (
-                      <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300">
-                        {month === null ? "Not started yet" : `Month ${month}`}
-                      </span>
-                    )}
-                  </div>
-                  <div className="muted mt-1 flex flex-wrap gap-4">
-                    {p.policyNumber && <span>Policy #{p.policyNumber}</span>}
-                    {p.commissionStatus && <span>Commission: {p.commissionStatus}</span>}
-                    {p.commissionAmount != null && (
-                      <span>${p.commissionAmount.toFixed(2)}</span>
-                    )}
-                    {p.doctor && <span>Dr. {p.doctor}</span>}
-                    {p.medicalGroup && <span>{p.medicalGroup}</span>}
-                  </div>
-                  <SaveForm action={setEffectiveDate} className="mt-2 flex flex-wrap items-end gap-2">
-                    <label className="flex flex-col gap-1 text-xs font-medium">
-                      Effective date
-                      <EffectiveDateSelect
-                        name="effectiveDate"
-                        choices={effectiveChoices}
-                        defaultValue={p.effectiveDate ? dateInputValue(p.effectiveDate) : ""}
-                      />
-                    </label>
-                  </SaveForm>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Link
-                    href={`/documents?carrier=${encodeURIComponent(p.carrier)}&planName=${encodeURIComponent(p.planName)}`}
-                    className="link text-xs"
-                  >
-                    Docs
-                  </Link>
-                  <form action={deletePolicyForContact}>
-                    <button type="submit" className="btn-danger-text text-xs">
-                      Remove
-                    </button>
-                  </form>
-                </div>
+              <div key={group} className="flex flex-col gap-2">
+                <h3 className="text-sm font-semibold">{group === "current" ? "Current plan" : "Future plan"}</h3>
+                {list.length === 0 && (
+                  <p className="muted surface p-3 text-sm">
+                    {group === "current" ? "No current plan entered." : "No future plan entered."}
+                  </p>
+                )}
+                {list.map((p) => (
+                  <PolicyCard
+                    key={p.id}
+                    contactId={contact.id}
+                    policy={p}
+                    group={group}
+                    effectiveChoices={effectiveChoices}
+                  />
+                ))}
               </div>
             );
           })}
         </div>
+        {plansByGroup.previous.length > 0 && (
+          <details className="mb-4">
+            <summary className="muted cursor-pointer text-sm">
+              Previous plans ({plansByGroup.previous.length})
+            </summary>
+            <div className="mt-2 flex flex-col gap-2">
+              {plansByGroup.previous.map((p) => (
+                <PolicyCard
+                  key={p.id}
+                  contactId={contact.id}
+                  policy={p}
+                  group="previous"
+                  effectiveChoices={effectiveChoices}
+                />
+              ))}
+            </div>
+          </details>
+        )}
 
         <details className="surface p-3">
-          <summary className="cursor-pointer text-sm font-medium">+ Add Policy</summary>
+          <summary className="cursor-pointer text-sm font-medium">+ Add Health Plan</summary>
           <SaveForm
             action={createPolicyForContact}
-            submitLabel="Add Policy"
-            savedLabel="Policy added ✓"
+            submitLabel="Add Health Plan"
+            savedLabel="Health plan added ✓"
             resetOnSuccess
             primary
             className="mt-3 grid grid-cols-2 gap-3"
           >
+            <fieldset className="flex flex-col gap-1">
+              <legend className="mb-1 text-sm font-medium">
+                Client <span className="text-red-500">*</span>
+              </legend>
+              <div className="flex gap-4 text-sm">
+                <label className="flex items-center gap-2">
+                  <input type="radio" name="clientType" value="new" required className="accent-indigo-600" />
+                  New client
+                </label>
+                <label className="flex items-center gap-2">
+                  <input type="radio" name="clientType" value="current" required className="accent-indigo-600" />
+                  Current client
+                </label>
+              </div>
+            </fieldset>
+            <fieldset className="flex flex-col gap-1">
+              <legend className="mb-1 text-sm font-medium">
+                Plan <span className="text-red-500">*</span>
+              </legend>
+              <div className="flex gap-4 text-sm">
+                <label className="flex items-center gap-2">
+                  <input type="radio" name="timing" value="current" required className="accent-indigo-600" />
+                  Current plan
+                </label>
+                <label className="flex items-center gap-2">
+                  <input type="radio" name="timing" value="future" required className="accent-indigo-600" />
+                  Future plan
+                </label>
+              </div>
+            </fieldset>
             <PolicyField label="Carrier" name="carrier" required options={carrierOptions} />
             <PolicyField label="Plan Name" name="planName" required options={planNameOptions} />
             <PolicyField
@@ -309,13 +342,25 @@ export default async function ContactDetailPage({
               placeholder="MAPD, PDP, Med Supp..."
               options={planTypeOptions}
             />
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium" htmlFor="effectiveDate">
-                Effective Date
-              </label>
-              <EffectiveDateSelect id="effectiveDate" name="effectiveDate" choices={effectiveChoices} />
-            </div>
-            <PolicyField label="Commission Status" name="commissionStatus" placeholder="pending, paid..." />
+            <ShowWhen field="timing" value="future">
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium" htmlFor="effectiveDate">
+                  Effective Date
+                </label>
+                <EffectiveDateSelect id="effectiveDate" name="effectiveDate" choices={effectiveChoices} />
+                {plansByGroup.current.length > 0 && (
+                  <label className="muted mt-1 flex items-center gap-2 text-xs">
+                    <input
+                      type="checkbox"
+                      name="replacesCurrent"
+                      defaultChecked
+                      className="h-3.5 w-3.5 accent-indigo-600"
+                    />
+                    Replaces their current plan (it ends the day before this one starts)
+                  </label>
+                )}
+              </div>
+            </ShowWhen>
             <div className="flex flex-col gap-1">
               <label className="text-sm font-medium" htmlFor="commissionAmount">
                 Commission Amount
@@ -585,6 +630,76 @@ function PolicyField({
           ))}
         </datalist>
       )}
+    </div>
+  );
+}
+
+type ContactPolicy = Awaited<ReturnType<typeof prisma.policy.findMany>>[number];
+
+function PolicyCard({
+  contactId,
+  policy: p,
+  group,
+  effectiveChoices,
+}: {
+  contactId: string;
+  policy: ContactPolicy;
+  group: PlanGroup;
+  effectiveChoices: { value: string; label: string }[];
+}) {
+  const deletePolicyForContact = deletePolicy.bind(null, contactId, p.id);
+  const setEffectiveDate = updatePolicyEffectiveDate.bind(null, contactId, p.id);
+  const month = p.effectiveDate ? coverageMonth(p.effectiveDate) : null;
+  return (
+    <div className="surface flex items-start justify-between gap-3 p-3 text-sm">
+      <div>
+        <div className="flex flex-wrap items-center gap-2 font-medium">
+          {p.carrier} — {p.planName} {p.planType && `(${p.planType})`}
+          {p.clientType && (
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+              {p.clientType === "new" ? "New client" : "Current client"}
+            </span>
+          )}
+          {group === "current" && p.effectiveDate && month !== null && (
+            <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300">
+              Month {month}
+            </span>
+          )}
+        </div>
+        <div className="muted mt-1 flex flex-wrap gap-4">
+          {group !== "future" && p.effectiveDate && <span>Effective {formatDateOnly(p.effectiveDate)}</span>}
+          {p.termDate && <span>{group === "previous" ? "Ended" : "Ends"} {formatDateOnly(p.termDate)}</span>}
+          {p.policyNumber && <span>Policy #{p.policyNumber}</span>}
+          {p.commissionAmount != null && <span>Commission ${p.commissionAmount.toFixed(2)}</span>}
+          {p.doctor && <span>Dr. {p.doctor}</span>}
+          {p.medicalGroup && <span>{p.medicalGroup}</span>}
+        </div>
+        {group === "future" && (
+          <SaveForm action={setEffectiveDate} className="mt-2 flex flex-wrap items-end gap-2">
+            <label className="flex flex-col gap-1 text-xs font-medium">
+              Effective date
+              <EffectiveDateSelect
+                name="effectiveDate"
+                choices={effectiveChoices}
+                defaultValue={p.effectiveDate ? dateInputValue(p.effectiveDate) : ""}
+              />
+            </label>
+          </SaveForm>
+        )}
+      </div>
+      <div className="flex items-center gap-3">
+        <Link
+          href={`/documents?carrier=${encodeURIComponent(p.carrier)}&planName=${encodeURIComponent(p.planName)}`}
+          className="link text-xs"
+        >
+          Docs
+        </Link>
+        <form action={deletePolicyForContact}>
+          <button type="submit" className="btn-danger-text text-xs">
+            Remove
+          </button>
+        </form>
+      </div>
     </div>
   );
 }
