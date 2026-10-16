@@ -115,6 +115,29 @@ export async function updatePolicyEffectiveDate(
   revalidatePath("/enrollments");
 }
 
+// Edits a saved plan's details (from the Edit panel on its card).
+export async function updatePolicy(contactId: string, policyId: string, formData: FormData) {
+  const carrier = String(formData.get("carrier") ?? "").trim();
+  const planName = String(formData.get("planName") ?? "").trim();
+  if (!carrier || !planName) return { error: "Carrier and plan name are required." };
+  const clientType = String(formData.get("clientType") ?? "");
+  await prisma.policy.update({
+    where: { id: policyId },
+    data: {
+      carrier,
+      planName,
+      planType: emptyToNull(formData.get("planType")) ?? null,
+      clientType: clientType === "new" || clientType === "current" ? clientType : null,
+      commissionAmount: toFloat(formData.get("commissionAmount")) ?? null,
+      doctor: emptyToNull(formData.get("doctor")) ?? null,
+      medicalGroup: emptyToNull(formData.get("medicalGroup")) ?? null,
+    },
+  });
+  revalidatePath(`/contacts/${contactId}`);
+  revalidatePath("/contacts");
+  revalidatePath("/enrollments");
+}
+
 export async function deletePolicy(contactId: string, policyId: string) {
   await prisma.policy.delete({ where: { id: policyId } });
   revalidatePath(`/contacts/${contactId}`);

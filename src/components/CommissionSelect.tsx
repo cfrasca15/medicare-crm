@@ -7,10 +7,22 @@ const OTHER = "other";
 
 // Commission Amount for the Add Policy form: the 2027 amounts for whatever is
 // typed in the same form's Carrier box, or "Other amount…" for anything else.
-export function CommissionSelect({ id, name }: { id?: string; name: string }) {
+export function CommissionSelect({
+  id,
+  name,
+  initialCarrier = "",
+  defaultAmount = null,
+}: {
+  id?: string;
+  name: string;
+  initialCarrier?: string;
+  defaultAmount?: number | null;
+}) {
   const ref = useRef<HTMLDivElement>(null);
-  const [carrier, setCarrier] = useState("");
-  const [other, setOther] = useState(false);
+  const [carrier, setCarrier] = useState(initialCarrier);
+  // A saved amount that isn't on the carrier's list opens in the number box.
+  const listed = defaultAmount == null || ratesForCarrier(initialCarrier).some((r) => r.amount === defaultAmount);
+  const [other, setOther] = useState(!listed);
 
   useEffect(() => {
     const form = ref.current?.closest("form");
@@ -39,7 +51,15 @@ export function CommissionSelect({ id, name }: { id?: string; name: string }) {
     <div ref={ref}>
       {other ? (
         <div className="flex items-center gap-2">
-          <input id={id} name={name} type="number" step="0.01" placeholder="Amount" className="field w-full" />
+          <input
+            id={id}
+            name={name}
+            type="number"
+            step="0.01"
+            placeholder="Amount"
+            defaultValue={defaultAmount ?? undefined}
+            className="field w-full"
+          />
           <button type="button" onClick={() => setOther(false)} className="link text-xs whitespace-nowrap">
             Pick from list
           </button>
@@ -48,7 +68,7 @@ export function CommissionSelect({ id, name }: { id?: string; name: string }) {
         <select
           id={id}
           name={name}
-          defaultValue=""
+          defaultValue={defaultAmount != null && listed ? String(defaultAmount) : ""}
           onChange={(e) => {
             if (e.target.value === OTHER) setOther(true);
           }}

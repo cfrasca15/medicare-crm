@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { StageSelect } from "@/components/StageSelect";
 import { TaskCheckbox } from "@/components/TaskCheckbox";
-import { createPolicy, deletePolicy, updatePolicyEffectiveDate } from "@/lib/actions/policies";
+import { createPolicy, deletePolicy, updatePolicy, updatePolicyEffectiveDate } from "@/lib/actions/policies";
 import { createTask, deleteTask } from "@/lib/actions/tasks";
 import {
   addContactNote,
@@ -664,6 +664,8 @@ function PolicyCard({
 }) {
   const deletePolicyForContact = deletePolicy.bind(null, contactId, p.id);
   const setEffectiveDate = updatePolicyEffectiveDate.bind(null, contactId, p.id);
+  const savePolicy = updatePolicy.bind(null, contactId, p.id);
+  const fid = (name: string) => `policy-${p.id}-${name}`;
   const month = p.effectiveDate ? coverageMonth(p.effectiveDate) : null;
   return (
     <div className="surface flex items-start justify-between gap-3 p-3 text-sm">
@@ -686,9 +688,40 @@ function PolicyCard({
           {p.termDate && <span>{group === "previous" ? "Ended" : "Ends"} {formatDateOnly(p.termDate)}</span>}
           {p.policyNumber && <span>Policy #{p.policyNumber}</span>}
           {p.commissionAmount != null && <span>Commission ${p.commissionAmount.toFixed(2)}</span>}
-          {p.doctor && <span>Dr. {p.doctor}</span>}
+          {p.doctor && <span>{/^dr\.?\s/i.test(p.doctor) ? p.doctor : `Dr. ${p.doctor}`}</span>}
           {p.medicalGroup && <span>{p.medicalGroup}</span>}
         </div>
+        <details className="mt-2">
+          <summary className="link cursor-pointer text-xs">Edit details</summary>
+          <SaveForm action={savePolicy} className="mt-2 grid grid-cols-2 gap-2">
+            <EditPolicyField label="Carrier" id={fid("carrier")} name="carrier" value={p.carrier} required />
+            <EditPolicyField label="Plan Name" id={fid("planName")} name="planName" value={p.planName} required />
+            <EditPolicyField label="Plan Type" id={fid("planType")} name="planType" value={p.planType} />
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium" htmlFor={fid("clientType")}>
+                New / Current client
+              </label>
+              <select id={fid("clientType")} name="clientType" defaultValue={p.clientType ?? ""} className="field">
+                <option value="">Not set</option>
+                <option value="new">New client</option>
+                <option value="current">Current client</option>
+              </select>
+            </div>
+            <div className="col-span-2 flex flex-col gap-1">
+              <label className="text-xs font-medium" htmlFor={fid("commissionAmount")}>
+                Commission Amount
+              </label>
+              <CommissionSelect
+                id={fid("commissionAmount")}
+                name="commissionAmount"
+                initialCarrier={p.carrier}
+                defaultAmount={p.commissionAmount}
+              />
+            </div>
+            <EditPolicyField label="Doctor" id={fid("doctor")} name="doctor" value={p.doctor} />
+            <EditPolicyField label="Medical Group" id={fid("medicalGroup")} name="medicalGroup" value={p.medicalGroup} />
+          </SaveForm>
+        </details>
         {group === "future" && (
           <SaveForm action={setEffectiveDate} className="mt-2 flex flex-wrap items-end gap-2">
             <label className="flex flex-col gap-1 text-xs font-medium">
@@ -715,6 +748,30 @@ function PolicyCard({
           </button>
         </form>
       </div>
+    </div>
+  );
+}
+
+function EditPolicyField({
+  label,
+  id,
+  name,
+  value,
+  required = false,
+}: {
+  label: string;
+  id: string;
+  name: string;
+  value: string | null;
+  required?: boolean;
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <label className="text-xs font-medium" htmlFor={id}>
+        {label}
+        {required && <span className="text-red-500"> *</span>}
+      </label>
+      <input id={id} name={name} defaultValue={value ?? ""} required={required} className="field" />
     </div>
   );
 }
