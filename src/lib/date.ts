@@ -32,6 +32,11 @@ export function dateInputValue(date: Date): string {
   return `${date.getUTCFullYear()}-${month}-${day}`;
 }
 
+// Today's date in Pacific time as yyyy-mm-dd, for a date box's default.
+export function todayInputValue(now = new Date()): string {
+  return now.toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" });
+}
+
 // The 1st of each of the next `count` months, for picking a policy's
 // effective date (a plan can start the 1st of next month up to 4 months out).
 export function upcomingFirstsOfMonth(count = 4, now = new Date()): { value: string; label: string }[] {

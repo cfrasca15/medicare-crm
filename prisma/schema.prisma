@@ -283,6 +283,9 @@ model Policy {
   timing              String?
   // "new" = a new client, "current" = an existing client.
   clientType          String?
+  // The day the application was submitted (a calendar date, like
+  // effectiveDate). Defaults to the day the plan is added; editable.
+  submittedAt         DateTime?
 
   commissionStatus    String?   // e.g. pending, paid, chargeback
   commissionAmount    Float?

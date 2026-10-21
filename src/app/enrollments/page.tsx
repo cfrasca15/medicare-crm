@@ -12,9 +12,17 @@ function aepYear(now = new Date()): number {
   return now.getMonth() >= 9 ? now.getFullYear() + 1 : now.getFullYear();
 }
 
-// The calendar day (Pacific) a plan was added to the CRM.
-function submittedDate(d: Date): string {
-  return d.toLocaleDateString("en-US", { timeZone: "America/Los_Angeles" });
+// The submitted date entered on the plan, or else the day (Pacific) it was
+// added to the CRM. Returned as yyyy-mm-dd so it sorts as text.
+function submittedKey(p: { submittedAt: Date | null; createdAt: Date }): string {
+  return p.submittedAt
+    ? p.submittedAt.toISOString().slice(0, 10)
+    : p.createdAt.toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" });
+}
+
+function submittedLabel(p: { submittedAt: Date | null; createdAt: Date }): string {
+  const [y, m, d] = submittedKey(p).split("-").map(Number);
+  return `${m}/${d}/${y}`;
 }
 
 function money(n: number): string {
@@ -72,9 +80,12 @@ export default async function EnrollmentsPage({
     prisma.policy.findMany({
       where: { effectiveDate: new Date(Date.UTC(aep, 0, 1)) },
       include: { contact: true },
-      orderBy: { createdAt: oldestFirst ? "asc" : "desc" },
     }),
   ]);
+  aepPolicies.sort((a, b) => {
+    const byDay = submittedKey(a).localeCompare(submittedKey(b)) || a.createdAt.getTime() - b.createdAt.getTime();
+    return oldestFirst ? byDay : -byDay;
+  });
   const all = totals(policies);
   const aepTotals = totals(aepPolicies);
 
@@ -115,7 +126,7 @@ export default async function EnrollmentsPage({
         <div>
           <h2 className="section-label">AEP {aep - 1} · effective 1/1/{aep}</h2>
           <p className="muted mt-1 text-sm">
-            Every plan starting January 1, {aep}, by the date it was submitted (added to the CRM),{" "}
+            Every plan starting January 1, {aep}, by the date it was submitted,{" "}
             {oldestFirst ? "oldest first" : "newest first"}.{" "}
             <Link
               href={`/enrollments?${new URLSearchParams({ ...(year ? { year } : {}), ...(oldestFirst ? {} : { aepSort: "oldest" }) })}`}
@@ -141,7 +152,7 @@ export default async function EnrollmentsPage({
             <tbody>
               {aepPolicies.map((p) => (
                 <tr key={p.id} className="table-row-hover border-t border-slate-200 dark:border-slate-800">
-                  <td className="muted px-3 py-2 whitespace-nowrap">{submittedDate(p.createdAt)}</td>
+                  <td className="muted px-3 py-2 whitespace-nowrap">{submittedLabel(p)}</td>
                   <td className="px-3 py-2 whitespace-nowrap">
                     <Link href={`/contacts/${p.contact.id}`} className="font-medium hover:underline">
                       {p.contact.firstName} {p.contact.lastName}

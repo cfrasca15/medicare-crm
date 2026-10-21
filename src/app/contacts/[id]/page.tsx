@@ -17,7 +17,7 @@ import { PushToIntegrityButton } from "@/components/PushToIntegrityButton";
 import { DeleteContactButton } from "@/components/DeleteContactButton";
 import { EmailPanel } from "@/components/EmailPanel";
 import { getGoogleAccount, listGmailMessagesForContact, type GmailMessageSummary } from "@/lib/google";
-import { formatDateOnly, formatDateTime, dateInputValue, upcomingFirstsOfMonth } from "@/lib/date";
+import { formatDateOnly, formatDateTime, dateInputValue, todayInputValue, upcomingFirstsOfMonth } from "@/lib/date";
 import { EffectiveDateSelect } from "@/components/EffectiveDateSelect";
 import { CommissionSelect } from "@/components/CommissionSelect";
 import { ShowWhen } from "@/components/ShowWhen";
@@ -370,6 +370,18 @@ export default async function ContactDetailPage({
                   </label>
                 )}
               </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium" htmlFor="submittedAt">
+                  Date Submitted
+                </label>
+                <input
+                  id="submittedAt"
+                  name="submittedAt"
+                  type="date"
+                  defaultValue={todayInputValue()}
+                  className="field"
+                />
+              </div>
             </ShowWhen>
             <div className="flex flex-col gap-1">
               <label className="text-sm font-medium" htmlFor="commissionAmount">
@@ -695,6 +707,7 @@ function PolicyCard({
         </div>
         <div className="muted mt-1 flex flex-wrap gap-4">
           {group !== "future" && p.effectiveDate && <span>Effective {formatDateOnly(p.effectiveDate)}</span>}
+          {p.submittedAt && <span>Submitted {formatDateOnly(p.submittedAt)}</span>}
           {p.termDate && <span>{group === "previous" ? "Ended" : "Ends"} {formatDateOnly(p.termDate)}</span>}
           {p.policyNumber && <span>Policy #{p.policyNumber}</span>}
           {p.commissionAmount != null && <span>Commission ${p.commissionAmount.toFixed(2)}</span>}
@@ -730,6 +743,18 @@ function PolicyCard({
             </div>
             <EditPolicyField label="Doctor" id={fid("doctor")} name="doctor" value={p.doctor} />
             <EditPolicyField label="Medical Group" id={fid("medicalGroup")} name="medicalGroup" value={p.medicalGroup} />
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium" htmlFor={fid("submittedAt")}>
+                Date Submitted
+              </label>
+              <input
+                id={fid("submittedAt")}
+                name="submittedAt"
+                type="date"
+                defaultValue={p.submittedAt ? dateInputValue(p.submittedAt) : ""}
+                className="field"
+              />
+            </div>
           </SaveForm>
         </details>
         {group === "future" && (

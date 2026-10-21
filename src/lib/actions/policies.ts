@@ -5,6 +5,7 @@ import { PipelineStage } from "@/generated/prisma/client";
 import { PRE_APPLICATION_STAGES } from "@/lib/constants";
 import { revalidatePath } from "next/cache";
 import { planGroup } from "@/lib/coverage";
+import { todayInputValue } from "@/lib/date";
 
 export async function createPolicy(contactId: string, formData: FormData) {
   const carrier = String(formData.get("carrier") ?? "").trim();
@@ -46,6 +47,7 @@ export async function createPolicy(contactId: string, formData: FormData) {
       planType: emptyToNull(formData.get("planType")),
       effectiveDate,
       timing,
+      submittedAt: timing === "future" ? toDate(formData.get("submittedAt")) ?? toDate(todayInputValue()) : undefined,
       clientType,
       commissionAmount: toFloat(formData.get("commissionAmount")),
       doctor: emptyToNull(formData.get("doctor")),
@@ -131,6 +133,7 @@ export async function updatePolicy(contactId: string, policyId: string, formData
       commissionAmount: toFloat(formData.get("commissionAmount")) ?? null,
       doctor: emptyToNull(formData.get("doctor")) ?? null,
       medicalGroup: emptyToNull(formData.get("medicalGroup")) ?? null,
+      submittedAt: toDate(formData.get("submittedAt")) ?? null,
     },
   });
   revalidatePath(`/contacts/${contactId}`);
