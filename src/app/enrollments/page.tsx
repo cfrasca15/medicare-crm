@@ -12,6 +12,11 @@ function aepYear(now = new Date()): number {
   return now.getMonth() >= 9 ? now.getFullYear() + 1 : now.getFullYear();
 }
 
+// The calendar day (Pacific) a plan was added to the CRM.
+function submittedDate(d: Date): string {
+  return d.toLocaleDateString("en-US", { timeZone: "America/Los_Angeles" });
+}
+
 function money(n: number): string {
   return n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 }
@@ -29,9 +34,11 @@ function totals(rows: EnrollmentRow[]) {
 export default async function EnrollmentsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ year?: string }>;
+  searchParams: Promise<{ year?: string; aepSort?: string }>;
 }) {
-  const { year } = await searchParams;
+  const { year, aepSort } = await searchParams;
+  // AEP list order by the day each plan was added here (when it was submitted).
+  const oldestFirst = aepSort === "oldest";
 
   const allPolicies = await prisma.policy.findMany({
     select: { effectiveDate: true },
@@ -65,7 +72,7 @@ export default async function EnrollmentsPage({
     prisma.policy.findMany({
       where: { effectiveDate: new Date(Date.UTC(aep, 0, 1)) },
       include: { contact: true },
-      orderBy: [{ contact: { lastName: "asc" } }, { contact: { firstName: "asc" } }],
+      orderBy: { createdAt: oldestFirst ? "asc" : "desc" },
     }),
   ]);
   const all = totals(policies);
@@ -107,13 +114,23 @@ export default async function EnrollmentsPage({
       <section className="flex flex-col gap-3">
         <div>
           <h2 className="section-label">AEP {aep - 1} · effective 1/1/{aep}</h2>
-          <p className="muted mt-1 text-sm">Every plan starting January 1, {aep}.</p>
+          <p className="muted mt-1 text-sm">
+            Every plan starting January 1, {aep}, by the date it was submitted (added to the CRM),{" "}
+            {oldestFirst ? "oldest first" : "newest first"}.{" "}
+            <Link
+              href={`/enrollments?${new URLSearchParams({ ...(year ? { year } : {}), ...(oldestFirst ? {} : { aepSort: "oldest" }) })}`}
+              className="link"
+            >
+              {oldestFirst ? "Show newest first" : "Show oldest first"}
+            </Link>
+          </p>
         </div>
         <Stats t={aepTotals} />
         <div className="surface overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="table-head">
               <tr>
+                <th className="px-3 py-2 font-medium">Submitted</th>
                 <th className="px-3 py-2 font-medium">Client</th>
                 <th className="px-3 py-2 font-medium">New / Current</th>
                 <th className="px-3 py-2 font-medium">Carrier</th>
@@ -124,6 +141,7 @@ export default async function EnrollmentsPage({
             <tbody>
               {aepPolicies.map((p) => (
                 <tr key={p.id} className="table-row-hover border-t border-slate-200 dark:border-slate-800">
+                  <td className="muted px-3 py-2 whitespace-nowrap">{submittedDate(p.createdAt)}</td>
                   <td className="px-3 py-2 whitespace-nowrap">
                     <Link href={`/contacts/${p.contact.id}`} className="font-medium hover:underline">
                       {p.contact.firstName} {p.contact.lastName}
@@ -144,7 +162,7 @@ export default async function EnrollmentsPage({
               ))}
               {aepPolicies.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="muted px-4 py-6 text-center">
+                  <td colSpan={6} className="muted px-4 py-6 text-center">
                     No 1/1/{aep} plans yet. Add a future plan with a January 1, {aep} effective date on a contact.
                   </td>
                 </tr>
