@@ -53,7 +53,7 @@ export default async function ContactDetailPage({
         })
       : null;
 
-  const [carrierRows, planNameRows, planTypeRows] = await Promise.all([
+  const [carrierRows, planNameRows, planTypeRows, groupRows, doctorRows] = await Promise.all([
     prisma.policy.findMany({ distinct: ["carrier"], select: { carrier: true }, orderBy: { carrier: "asc" } }),
     prisma.policy.findMany({ distinct: ["planName"], select: { planName: true }, orderBy: { planName: "asc" } }),
     prisma.policy.findMany({
@@ -62,7 +62,17 @@ export default async function ContactDetailPage({
       where: { planType: { not: null } },
       orderBy: { planType: "asc" },
     }),
+    prisma.policy.findMany({
+      distinct: ["medicalGroup"],
+      select: { medicalGroup: true },
+      where: { medicalGroup: { not: null } },
+    }),
+    prisma.policy.findMany({ distinct: ["doctor"], select: { doctor: true }, where: { doctor: { not: null } } }),
   ]);
+  // Suggestions from what's already been typed, so the same group or doctor
+  // is spelled the same way (the Book of Business page groups on it).
+  const groupOptions = Array.from(new Set(groupRows.map((r) => (r.medicalGroup as string).trim()))).sort();
+  const doctorOptions = Array.from(new Set(doctorRows.map((r) => (r.doctor as string).trim()))).sort();
   const carrierOptions = Array.from(
     new Set([...CARRIER_SEED, ...carrierRows.map((r) => r.carrier)])
   ).sort();
@@ -367,8 +377,8 @@ export default async function ContactDetailPage({
               </label>
               <CommissionSelect id="commissionAmount" name="commissionAmount" />
             </div>
-            <PolicyField label="Doctor" name="doctor" />
-            <PolicyField label="Medical Group" name="medicalGroup" />
+            <PolicyField label="Doctor" name="doctor" options={doctorOptions} />
+            <PolicyField label="Medical Group" name="medicalGroup" options={groupOptions} />
           </SaveForm>
         </details>
       </section>
