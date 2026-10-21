@@ -19,7 +19,7 @@ export function ReapplyMappingsButton() {
           startTransition(async () => {
             try {
               const result = await reapplyStageMappings();
-              setMessage(`Updated ${result.updated} contact(s) still at New Lead.`);
+              setMessage(`Moved ${result.updated} contact(s) that were still at New Lead.`);
               router.refresh();
             } catch (err) {
               setMessage(
@@ -30,7 +30,7 @@ export function ReapplyMappingsButton() {
         }}
         className="btn-secondary"
       >
-        {isPending ? "Applying…" : "Re-apply mappings to existing contacts"}
+        {isPending ? "Applying…" : "Apply to existing contacts"}
       </button>
       {message && (
         <span className="muted max-w-md truncate text-xs" title={message}>

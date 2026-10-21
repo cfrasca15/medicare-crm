@@ -4,33 +4,19 @@ import { prisma } from "@/lib/prisma";
 import { PipelineStage } from "@/generated/prisma/client";
 import { revalidatePath } from "next/cache";
 
-export async function upsertStageMapping(formData: FormData) {
-  const code = Number(formData.get("code"));
-  const label = String(formData.get("label") ?? "").trim();
-  const pipelineStageRaw = String(formData.get("pipelineStage") ?? "").trim();
-
-  if (!Number.isInteger(code) || !label) {
-    throw new Error("Code and label are required");
-  }
-
-  await prisma.integrityStageMapping.upsert({
-    where: { code },
-    create: {
-      code,
-      label,
-      pipelineStage: pipelineStageRaw ? (pipelineStageRaw as PipelineStage) : undefined,
-    },
-    update: {
-      label,
-      pipelineStage: pipelineStageRaw ? (pipelineStageRaw as PipelineStage) : null,
-    },
-  });
-
-  revalidatePath("/settings/integrity-stages");
-}
-
-export async function deleteStageMapping(code: number) {
-  await prisma.integrityStageMapping.delete({ where: { code } });
+// Saves the CRM stage chosen for each Integrity status. The form sends one
+// "stage-<code>" field per status; blank means "start at New Lead".
+export async function saveStageMappings(formData: FormData) {
+  const mappings = await prisma.integrityStageMapping.findMany({ select: { code: true } });
+  await prisma.$transaction(
+    mappings.map(({ code }) => {
+      const raw = String(formData.get(`stage-${code}`) ?? "").trim();
+      return prisma.integrityStageMapping.update({
+        where: { code },
+        data: { pipelineStage: raw ? (raw as PipelineStage) : null },
+      });
+    })
+  );
   revalidatePath("/settings/integrity-stages");
 }
 

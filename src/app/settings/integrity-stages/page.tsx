@@ -1,113 +1,94 @@
 import { prisma } from "@/lib/prisma";
 import { STAGE_LABELS, STAGE_ORDER } from "@/lib/constants";
-import { upsertStageMapping, deleteStageMapping } from "@/lib/actions/stageMappings";
+import { saveStageMappings } from "@/lib/actions/stageMappings";
 import { ReapplyMappingsButton } from "@/components/ReapplyMappingsButton";
+import { SaveForm } from "@/components/SaveForm";
 
 export const dynamic = "force-dynamic";
 
 export default async function IntegrityStagesPage() {
-  const mappings = await prisma.integrityStageMapping.findMany({
-    orderBy: { code: "asc" },
-  });
+  const [mappings, totals, atNewLead] = await Promise.all([
+    prisma.integrityStageMapping.findMany({ orderBy: { code: "asc" } }),
+    prisma.contact.groupBy({ by: ["integrityLeadStage"], _count: { _all: true } }),
+    prisma.contact.groupBy({
+      by: ["integrityLeadStage"],
+      where: { stage: "NEW_LEAD" },
+      _count: { _all: true },
+    }),
+  ]);
+  const count = (rows: typeof totals, code: number) =>
+    rows.find((r) => r.integrityLeadStage === code)?._count._all ?? 0;
 
   return (
     <div className="max-w-2xl mx-auto flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold">Integrity Stage Mapping</h1>
+        <h1 className="text-2xl font-semibold">Integrity Stages</h1>
         <p className="muted mt-1 text-sm">
-          Integrity doesn&apos;t document what its numeric lead stage codes mean.
-          Define them here as you learn them — when a code is mapped to a
-          pipeline stage, newly-imported leads with that code will start in
-          that stage automatically. Re-syncing an existing contact never
-          overwrites a stage you&apos;ve already set manually.
+          Pick the CRM stage a contact starts in when &quot;Sync from Integrity&quot; brings
+          them in for the first time, based on their status in Integrity. Leave it blank to
+          start them at New Lead. Syncing again never changes a stage you&apos;ve set.
         </p>
       </div>
 
-      <div className="surface flex flex-col gap-2 p-4">
-        <h2 className="text-sm font-medium">Apply to existing contacts</h2>
+      {mappings.length === 0 ? (
         <p className="muted text-sm">
-          Mappings only apply automatically when a lead is first imported —
-          contacts synced before a mapping existed are stuck at New Lead.
-          This updates any contact still sitting at New Lead whose Integrity
-          stage now has a mapping. Anything you&apos;ve already moved
-          manually is left alone.
+          No Integrity statuses yet. They appear here after the first &quot;Sync from
+          Integrity&quot; on the Contacts page.
         </p>
+      ) : (
+        <SaveForm action={saveStageMappings} submitLabel="Save" className="surface flex flex-col gap-3 p-4">
+          <div className="grid grid-cols-[1fr_auto_14rem] items-center gap-x-4 gap-y-3 text-sm">
+            <span className="muted text-xs font-medium">Status in Integrity</span>
+            <span className="muted text-right text-xs font-medium">Contacts</span>
+            <span className="muted text-xs font-medium">Starts in CRM stage</span>
+            {mappings.map((m) => (
+              <div key={m.code} className="contents">
+                <label htmlFor={`stage-${m.code}`} className="font-medium">
+                  {m.label}
+                </label>
+                <span className="text-right tabular-nums" title={`${count(atNewLead, m.code)} still at New Lead`}>
+                  {count(totals, m.code)}
+                </span>
+                <select
+                  id={`stage-${m.code}`}
+                  name={`stage-${m.code}`}
+                  defaultValue={m.pipelineStage ?? ""}
+                  className="field"
+                >
+                  <option value="">New Lead (default)</option>
+                  {STAGE_ORDER.filter((s) => s !== "NEW_LEAD").map((s) => (
+                    <option key={s} value={s}>
+                      {STAGE_LABELS[s]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ))}
+          </div>
+        </SaveForm>
+      )}
+
+      <div className="surface flex flex-col gap-2 p-4">
+        <h2 className="text-sm font-medium">Apply to contacts already in the CRM</h2>
+        <p className="muted text-sm">
+          The stages above only apply when a contact is first imported. This moves contacts
+          already in the CRM that are still at New Lead into the stage picked for their
+          Integrity status. Anyone you&apos;ve moved yourself is left alone. Save your choices
+          above first.
+        </p>
+        <ul className="muted text-sm">
+          {mappings
+            .filter((m) => m.pipelineStage && count(atNewLead, m.code) > 0)
+            .map((m) => (
+              <li key={m.code}>
+                {m.label}: {count(atNewLead, m.code)} at New Lead → {STAGE_LABELS[m.pipelineStage!]}
+              </li>
+            ))}
+        </ul>
         <div>
           <ReapplyMappingsButton />
         </div>
       </div>
-
-      <div className="flex flex-col gap-2">
-        {mappings.length === 0 && (
-          <p className="muted text-sm">
-            No mappings yet. Add one below for each stage code you see on synced
-            leads (shown on a contact&apos;s detail page as &quot;stage code N&quot;).
-          </p>
-        )}
-        {mappings.map((m) => {
-          const deleteBound = deleteStageMapping.bind(null, m.code);
-          return (
-            <div key={m.code} className="surface flex items-center justify-between px-3 py-2 text-sm">
-              <div>
-                <span className="font-medium">Code {m.code}</span>
-                <span className="muted"> — {m.label}</span>
-                {m.pipelineStage && (
-                  <span className="muted"> → {STAGE_LABELS[m.pipelineStage]}</span>
-                )}
-              </div>
-              <form action={deleteBound}>
-                <button type="submit" className="btn-danger-text text-xs">
-                  Remove
-                </button>
-              </form>
-            </div>
-          );
-        })}
-      </div>
-
-      <details className="surface p-3">
-        <summary className="cursor-pointer text-sm font-medium">
-          + Add / Update Mapping
-        </summary>
-        <form action={upsertStageMapping} className="mt-3 grid grid-cols-2 gap-3">
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium" htmlFor="code">
-              Stage code <span className="text-red-500">*</span>
-            </label>
-            <input id="code" name="code" type="number" required className="field" />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium" htmlFor="label">
-              Label <span className="text-red-500">*</span>
-            </label>
-            <input
-              id="label"
-              name="label"
-              placeholder="e.g. Qualified"
-              required
-              className="field"
-            />
-          </div>
-          <div className="col-span-2 flex flex-col gap-1">
-            <label className="text-sm font-medium" htmlFor="pipelineStage">
-              Maps to pipeline stage (optional)
-            </label>
-            <select id="pipelineStage" name="pipelineStage" defaultValue="" className="field">
-              <option value="">— None —</option>
-              {STAGE_ORDER.map((s) => (
-                <option key={s} value={s}>
-                  {STAGE_LABELS[s]}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="col-span-2">
-            <button type="submit" className="btn-primary">
-              Save Mapping
-            </button>
-          </div>
-        </form>
-      </details>
     </div>
   );
 }
