@@ -3,8 +3,7 @@
 A CRM for Medicare health insurance brokers: contacts/pipeline (with a
 pipeline stage that auto-advances as a policy moves from application to
 enrolled), policy & commission tracking (with doctor/medical group), a
-dated notes log per contact, a plan document library (SOBs/EOCs/rate
-sheets, organized by carrier and plan), bulk CSV import with a reviewed
+dated notes log per contact, bulk CSV import with a reviewed
 diff before anything applies, automatic 30/60/90-day client check-in
 emails, tasks/reminders (with a quick-add widget on the dashboard), an
 enrollments tracker, and integrations with Integrity, Google Calendar,

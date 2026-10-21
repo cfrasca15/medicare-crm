@@ -1,7 +1,7 @@
 // 2027 commission amounts for the Add Policy form's Commission Amount list.
 // Copied from the carriers' 2027 commission schedules (the Commissions page in
-// the formulary-lookup tool, sourced from the PDFs in Drive > Medicare 2027 >
-// Commission Shedules). Percentage and per-month schedules (most Medicare
+// Agent Compass, sourced from the PDFs in Drive > Medicare 2027 > Commission
+// Shedules). Percentage and per-month schedules (most Medicare
 // Supplement plans) aren't listed: enter those with "Other amount".
 // Update these when a carrier publishes new rates.
 
