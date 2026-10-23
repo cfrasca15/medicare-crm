@@ -13,6 +13,7 @@ datasource db {
 enum PipelineStage {
   NEW_LEAD
   CONTACTED
+  ENGAGED        // talking with them, not enrolled (Integrity's "Engaged")
   APPOINTMENT_SET
   APPLICATION_SUBMITTED
   ENROLLED       // new client enrolled this season
