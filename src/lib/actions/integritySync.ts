@@ -19,6 +19,17 @@ import {
   type IntegrityDrug,
 } from "@/lib/integrity";
 import { revalidatePath } from "next/cache";
+import type { PipelineStage } from "@/generated/prisma/client";
+
+// The CRM stage a newly seen Integrity status starts mapped to (changeable on
+// the Integrity Stages page). Statuses not listed start at New Lead.
+const DEFAULT_STAGE_FOR_STATUS: Record<string, PipelineStage | undefined> = {
+  Contacted: "CONTACTED",
+  Engaged: "ENGAGED",
+  Client: "CURRENT_CLIENT",
+  Lost: "LOST",
+  Deceased: "LOST",
+};
 
 export async function syncIntegrityLeads(): Promise<{
   imported: number;
@@ -44,15 +55,18 @@ export async function syncIntegrityLeads(): Promise<{
     // what each numeric code means — he can still assign it a local
     // pipeline stage manually afterward via /settings/integrity-stages.
     if (!mappingByCode.has(lead.stage) && lead.stageName) {
+      // Integrity's "Lost" stage arrives from its API as "Other".
+      const label = lead.stageName === "Other" ? "Lost" : lead.stageName;
       const created = await prisma.integrityStageMapping.create({
-        data: { code: lead.stage, label: lead.stageName },
+        data: { code: lead.stage, label, pipelineStage: DEFAULT_STAGE_FOR_STATUS[label] },
       });
       mappingByCode.set(lead.stage, created);
     }
 
-    // Only apply the mapped pipeline stage on first import — once a broker
-    // starts working a lead in the CRM, re-syncing shouldn't clobber
-    // their manual stage progression.
+    // The mapped pipeline stage applies on first import, and again whenever
+    // the lead's status changes in Integrity (e.g. marked Lost there). A
+    // re-sync with the same Integrity status never touches a stage changed
+    // by hand in the CRM.
     const mappedStage = mappingByCode.get(lead.stage)?.pipelineStage ?? undefined;
 
     const sharedFields = {
@@ -72,9 +86,10 @@ export async function syncIntegrityLeads(): Promise<{
     };
 
     if (existing) {
+      const statusChanged = existing.integrityLeadStage != null && existing.integrityLeadStage !== lead.stage;
       await prisma.contact.update({
         where: { id: existing.id },
-        data: sharedFields,
+        data: { ...sharedFields, ...(statusChanged && mappedStage ? { stage: mappedStage } : {}) },
       });
       updated++;
     } else {

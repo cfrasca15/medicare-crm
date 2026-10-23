@@ -24,9 +24,10 @@ export default async function IntegrityStagesPage() {
       <div>
         <h1 className="text-2xl font-semibold">Integrity Stages</h1>
         <p className="muted mt-1 text-sm">
-          Pick the CRM stage a contact starts in when &quot;Sync from Integrity&quot; brings
-          them in for the first time, based on their status in Integrity. Leave it blank to
-          start them at New Lead. Syncing again never changes a stage you&apos;ve set.
+          Pick the CRM stage that goes with each status in Integrity. &quot;Sync from
+          Integrity&quot; uses it when a contact is first brought in, and again whenever their
+          status changes in Integrity (for example, marked Lost there). Leave it blank for New
+          Lead. Syncing when nothing changed in Integrity leaves your CRM stages alone.
         </p>
       </div>
 
