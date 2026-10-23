@@ -22,7 +22,9 @@ import { EffectiveDateSelect } from "@/components/EffectiveDateSelect";
 import { CommissionSelect } from "@/components/CommissionSelect";
 import { ShowWhen } from "@/components/ShowWhen";
 import { coverageMonth, planGroup, type PlanGroup } from "@/lib/coverage";
-import { CARRIER_SEED, PLAN_TYPE_SEED } from "@/lib/constants";
+import { PLAN_TYPE_SEED } from "@/lib/constants";
+import { carrierPlanOptions, type CarrierPlanOptions } from "@/lib/carriers";
+import { CarrierPlanFields } from "@/components/CarrierPlanFields";
 import { CallButton } from "@/components/CallButton";
 import { primaryPhone } from "@/lib/phone";
 import { CalendarSyncButton } from "@/components/CalendarSyncButton";
@@ -53,9 +55,8 @@ export default async function ContactDetailPage({
         })
       : null;
 
-  const [carrierRows, planNameRows, planTypeRows, groupRows, doctorRows] = await Promise.all([
-    prisma.policy.findMany({ distinct: ["carrier"], select: { carrier: true }, orderBy: { carrier: "asc" } }),
-    prisma.policy.findMany({ distinct: ["planName"], select: { planName: true }, orderBy: { planName: "asc" } }),
+  const [carrierPlanRows, planTypeRows, groupRows, doctorRows] = await Promise.all([
+    prisma.policy.findMany({ distinct: ["carrier", "planName"], select: { carrier: true, planName: true } }),
     prisma.policy.findMany({
       distinct: ["planType"],
       select: { planType: true },
@@ -73,10 +74,7 @@ export default async function ContactDetailPage({
   // is spelled the same way (the Book of Business page groups on it).
   const groupOptions = Array.from(new Set(groupRows.map((r) => (r.medicalGroup as string).trim()))).sort();
   const doctorOptions = Array.from(new Set(doctorRows.map((r) => (r.doctor as string).trim()))).sort();
-  const carrierOptions = Array.from(
-    new Set([...CARRIER_SEED, ...carrierRows.map((r) => r.carrier)])
-  ).sort();
-  const planNameOptions = Array.from(new Set(planNameRows.map((r) => r.planName))).sort();
+  const carrierPlans = carrierPlanOptions(carrierPlanRows);
   const planTypeOptions = Array.from(
     new Set([...PLAN_TYPE_SEED, ...planTypeRows.map((r) => r.planType as string)])
   ).sort();
@@ -279,6 +277,7 @@ export default async function ContactDetailPage({
                     policy={p}
                     group={group}
                     effectiveChoices={effectiveChoices}
+                    carrierPlans={carrierPlans}
                   />
                 ))}
               </div>
@@ -298,6 +297,7 @@ export default async function ContactDetailPage({
                   policy={p}
                   group="previous"
                   effectiveChoices={effectiveChoices}
+                  carrierPlans={carrierPlans}
                 />
               ))}
             </div>
@@ -344,8 +344,7 @@ export default async function ContactDetailPage({
                 </label>
               </div>
             </fieldset>
-            <PolicyField label="Carrier" name="carrier" required options={carrierOptions} />
-            <PolicyField label="Plan Name" name="planName" required options={planNameOptions} />
+            <CarrierPlanFields idPrefix="add" {...carrierPlans} />
             <PolicyField
               label="Plan Type"
               name="planType"
@@ -678,11 +677,13 @@ function PolicyCard({
   policy: p,
   group,
   effectiveChoices,
+  carrierPlans,
 }: {
   contactId: string;
   policy: ContactPolicy;
   group: PlanGroup;
   effectiveChoices: { value: string; label: string }[];
+  carrierPlans: CarrierPlanOptions;
 }) {
   const deletePolicyForContact = deletePolicy.bind(null, contactId, p.id);
   const setEffectiveDate = updatePolicyEffectiveDate.bind(null, contactId, p.id);
@@ -717,8 +718,13 @@ function PolicyCard({
         <details className="mt-2">
           <summary className="link cursor-pointer text-xs">Edit details</summary>
           <SaveForm action={savePolicy} className="mt-2 grid grid-cols-2 gap-2">
-            <EditPolicyField label="Carrier" id={fid("carrier")} name="carrier" value={p.carrier} required />
-            <EditPolicyField label="Plan Name" id={fid("planName")} name="planName" value={p.planName} required />
+            <CarrierPlanFields
+              idPrefix={`policy-${p.id}`}
+              {...carrierPlans}
+              defaultCarrier={p.carrier}
+              defaultPlan={p.planName}
+              labelClass="text-xs font-medium"
+            />
             <EditPolicyField label="Plan Type" id={fid("planType")} name="planType" value={p.planType} />
             <div className="flex flex-col gap-1">
               <label className="text-xs font-medium" htmlFor={fid("clientType")}>

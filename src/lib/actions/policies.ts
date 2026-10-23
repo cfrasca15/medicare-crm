@@ -6,10 +6,12 @@ import { PRE_APPLICATION_STAGES } from "@/lib/constants";
 import { revalidatePath } from "next/cache";
 import { planGroup } from "@/lib/coverage";
 import { todayInputValue } from "@/lib/date";
+import { canonicalCarrier, canonicalPlanName } from "@/lib/carriers";
 
 export async function createPolicy(contactId: string, formData: FormData) {
-  const carrier = String(formData.get("carrier") ?? "").trim();
-  const planName = String(formData.get("planName") ?? "").trim();
+  // Standard spellings, so the same carrier or plan isn't saved two ways.
+  const carrier = canonicalCarrier(String(formData.get("carrier") ?? ""));
+  const planName = canonicalPlanName(carrier, String(formData.get("planName") ?? ""));
   if (!carrier || !planName) {
     return { error: "Carrier and plan name are required." };
   }
@@ -119,8 +121,9 @@ export async function updatePolicyEffectiveDate(
 
 // Edits a saved plan's details (from the Edit panel on its card).
 export async function updatePolicy(contactId: string, policyId: string, formData: FormData) {
-  const carrier = String(formData.get("carrier") ?? "").trim();
-  const planName = String(formData.get("planName") ?? "").trim();
+  // Standard spellings, so the same carrier or plan isn't saved two ways.
+  const carrier = canonicalCarrier(String(formData.get("carrier") ?? ""));
+  const planName = canonicalPlanName(carrier, String(formData.get("planName") ?? ""));
   if (!carrier || !planName) return { error: "Carrier and plan name are required." };
   const clientType = String(formData.get("clientType") ?? "");
   await prisma.policy.update({

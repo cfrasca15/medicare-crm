@@ -15,22 +15,8 @@ export const STAGE_ORDER = Object.keys(STAGE_LABELS);
 // out of these; existing clients (Current Client / Retained) are left alone.
 export const PRE_APPLICATION_STAGES = ["NEW_LEAD", "CONTACTED", "APPOINTMENT_SET"];
 
-// Starter suggestions for the Add Policy form's Carrier/Plan Type fields —
-// merged with whatever's already been typed into existing policies, so the
-// list grows with real usage instead of being a fixed, ever-stale set.
-export const CARRIER_SEED = [
-  "Anthem",
-  "Aetna",
-  "Alignment Healthcare",
-  "Blue Shield of CA",
-  "Humana",
-  "Imperial Health Plan",
-  "SCAN",
-  "UCLA",
-  "UnitedHealthcare",
-  "WellCare",
-];
-
+// Starter suggestions for the plan form's Plan Type field, merged with what's
+// already been typed. (Carrier and plan name choices live in src/lib/carriers.ts.)
 export const PLAN_TYPE_SEED = ["MA", "MAPD", "PDP", "Med Supp", "HMO", "PPO", "SNP", "PFFS", "Cost Plan"];
 
 export const STAGE_COLORS: Record<string, string> = {

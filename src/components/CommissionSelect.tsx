@@ -29,7 +29,7 @@ export function CommissionSelect({
     if (!form) return;
     const read = () => {
       const input = form.elements.namedItem("carrier");
-      setCarrier(input instanceof HTMLInputElement ? input.value : "");
+      setCarrier(input instanceof HTMLInputElement || input instanceof HTMLSelectElement ? input.value : "");
     };
     const onReset = () => {
       setOther(false);
