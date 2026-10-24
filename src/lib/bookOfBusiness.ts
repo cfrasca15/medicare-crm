@@ -36,7 +36,7 @@ const GROUP_FAMILIES: { name: string; members: string[] }[] = [
   { name: "Providence", members: ["providence", "mission heritage", "st joseph heritage", "st jude heritage"] },
 ];
 
-const loose = (s: string) => keyOf(s).replace(/\bsaint\b/g, "st").replace(/\bst\./g, "st").replace(/[^a-z0-9 ]/g, "");
+export const loose = (s: string) => keyOf(s).replace(/\bsaint\b/g, "st").replace(/\bst\./g, "st").replace(/[^a-z0-9 ]/g, "");
 
 // The organization a medical group belongs to (e.g. "St Jude Heritage" ->
 // "Providence"), or the group's own name.

@@ -5,6 +5,7 @@ import { formatDateOnly } from "@/lib/date";
 import { getGoogleAccount, listUpcomingEvents, type UpcomingEvent } from "@/lib/google";
 import { createTask } from "@/lib/actions/tasks";
 import { TaskCheckbox } from "@/components/TaskCheckbox";
+import { DashboardInsights } from "@/components/DashboardInsights";
 
 // Always render fresh (queries the database) — without this, Next.js tries
 // to statically pre-render this page at build time, which fails since no
@@ -76,6 +77,8 @@ export default async function DashboardPage() {
           </div>
         ))}
       </section>
+
+      <DashboardInsights />
 
       <div className="grid grid-cols-3 gap-6">
         <section>

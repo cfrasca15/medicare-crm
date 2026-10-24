@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { logStageChanges } from "@/lib/activity";
 
 // A contact sitting at Application Submitted with any policy whose
 // effective date has arrived is, by definition, enrolled now — advance
@@ -22,6 +23,10 @@ export async function advanceEnrolledStages(): Promise<{ advanced: number }> {
     where: { id: { in: due.map((c) => c.id) } },
     data: { stage: "ENROLLED" },
   });
+  await logStageChanges(
+    due.map((c) => ({ contactId: c.id, from: "APPLICATION_SUBMITTED", to: "ENROLLED" })),
+    "plan started"
+  );
 
   return { advanced: due.length };
 }

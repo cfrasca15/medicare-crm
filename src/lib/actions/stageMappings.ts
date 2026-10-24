@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { PipelineStage } from "@/generated/prisma/client";
 import { revalidatePath } from "next/cache";
+import { logStageChanges } from "@/lib/activity";
 
 // Saves the CRM stage chosen for each Integrity status. The form sends one
 // "stage-<code>" field per status; blank means "start at New Lead".
@@ -33,13 +34,18 @@ export async function reapplyStageMappings(): Promise<{ updated: number }> {
   let updated = 0;
   for (const mapping of mappings) {
     if (!mapping.pipelineStage) continue;
+    const moving = await prisma.contact.findMany({
+      where: { integrityLeadStage: mapping.code, stage: "NEW_LEAD" },
+      select: { id: true },
+    });
     const result = await prisma.contact.updateMany({
-      where: {
-        integrityLeadStage: mapping.code,
-        stage: "NEW_LEAD",
-      },
+      where: { id: { in: moving.map((c) => c.id) } },
       data: { stage: mapping.pipelineStage },
     });
+    await logStageChanges(
+      moving.map((c) => ({ contactId: c.id, from: "NEW_LEAD", to: mapping.pipelineStage! })),
+      "Integrity stage applied"
+    );
     updated += result.count;
   }
 

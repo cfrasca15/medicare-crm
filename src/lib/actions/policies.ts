@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache";
 import { planGroup } from "@/lib/coverage";
 import { todayInputValue } from "@/lib/date";
 import { canonicalCarrier, canonicalPlanName } from "@/lib/carriers";
+import { logStageChanges } from "@/lib/activity";
 
 export async function createPolicy(contactId: string, formData: FormData) {
   // Standard spellings, so the same carrier or plan isn't saved two ways.
@@ -76,8 +77,9 @@ export async function createPolicy(contactId: string, formData: FormData) {
       nextStage = "RETAINED";
     }
   }
-  if (nextStage) {
+  if (nextStage && contact) {
     await prisma.contact.update({ where: { id: contactId }, data: { stage: nextStage } });
+    await logStageChanges([{ contactId, from: contact.stage, to: nextStage }], "health plan added");
   }
 
   revalidatePath(`/contacts/${contactId}`);
@@ -142,6 +144,18 @@ export async function updatePolicy(contactId: string, policyId: string, formData
   revalidatePath(`/contacts/${contactId}`);
   revalidatePath("/contacts");
   revalidatePath("/enrollments");
+}
+
+// Commission the carrier actually paid for a plan (Enrollments page). A
+// negative amount records a chargeback. Blank clears it.
+export async function updateCommissionReceived(contactId: string, policyId: string, amount: number | null) {
+  const value = amount == null || Number.isNaN(amount) ? null : amount;
+  await prisma.policy.update({
+    where: { id: policyId },
+    data: { commissionReceived: value, commissionPaidAt: value == null ? null : new Date() },
+  });
+  revalidatePath("/enrollments");
+  revalidatePath(`/contacts/${contactId}`);
 }
 
 export async function deletePolicy(contactId: string, policyId: string) {

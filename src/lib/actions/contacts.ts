@@ -5,6 +5,7 @@ import { PipelineStage } from "@/generated/prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { countyForZip, normalizeCounty } from "@/lib/county";
+import { logStageChanges } from "@/lib/activity";
 
 export async function createContact(formData: FormData) {
   const firstName = String(formData.get("firstName") ?? "").trim();
@@ -40,10 +41,12 @@ export async function createContact(formData: FormData) {
 }
 
 export async function updateContactStage(contactId: string, stage: PipelineStage) {
+  const before = await prisma.contact.findUnique({ where: { id: contactId }, select: { stage: true } });
   await prisma.contact.update({
     where: { id: contactId },
     data: { stage },
   });
+  if (before) await logStageChanges([{ contactId, from: before.stage, to: stage }]);
   revalidatePath("/contacts");
   revalidatePath(`/contacts/${contactId}`);
   revalidatePath("/");

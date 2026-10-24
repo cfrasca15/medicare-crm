@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { EditablePolicyCell } from "@/components/EditablePolicyCell";
+import { ReceivedCell } from "@/components/ReceivedCell";
 import { Prisma } from "@/generated/prisma/client";
 import { formatDateOnly, dateOnlyYear } from "@/lib/date";
 
@@ -25,6 +26,24 @@ function submittedLabel(p: { submittedAt: Date | null; createdAt: Date }): strin
   return `${m}/${d}/${y}`;
 }
 
+// Plans that ended within 3 months of starting, or whose client was marked
+// Lost within 3 months: carriers usually take that commission back.
+async function loadChargebackWatch(now = new Date()) {
+  const window = 92 * 24 * 60 * 60 * 1000;
+  const rows = await prisma.policy.findMany({
+    where: {
+      effectiveDate: { not: null },
+      OR: [{ termDate: { not: null } }, { contact: { stage: "LOST" }, effectiveDate: { gte: new Date(now.getTime() - window) } }],
+    },
+    include: { contact: true },
+  });
+  return rows.filter((p) => {
+    const end = p.termDate?.getTime();
+    const quick = end != null && end - p.effectiveDate!.getTime() < window;
+    return quick || (p.contact.stage === "LOST" && end == null);
+  });
+}
+
 function money(n: number): string {
   return n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 }
@@ -36,6 +55,12 @@ function totals(rows: EnrollmentRow[]) {
     currentClients: rows.filter((p) => p.clientType === "current").length,
     commission: rows.reduce((sum, p) => sum + (p.commissionAmount ?? 0), 0),
     missingCommission: rows.filter((p) => p.commissionAmount == null).length,
+    received: rows.reduce((sum, p) => sum + (p.commissionReceived ?? 0), 0),
+    // Expected minus received, for plans with an expected amount.
+    outstanding: rows.reduce(
+      (sum, p) => sum + (p.commissionAmount != null ? Math.max(0, p.commissionAmount - (p.commissionReceived ?? 0)) : 0),
+      0
+    ),
   };
 }
 
@@ -86,6 +111,7 @@ export default async function EnrollmentsPage({
     const byDay = submittedKey(a).localeCompare(submittedKey(b)) || a.createdAt.getTime() - b.createdAt.getTime();
     return oldestFirst ? byDay : -byDay;
   });
+  const watch = await loadChargebackWatch();
   const all = totals(policies);
   const aepTotals = totals(aepPolicies);
 
@@ -146,7 +172,8 @@ export default async function EnrollmentsPage({
                 <th className="px-3 py-2 font-medium">New / Current</th>
                 <th className="px-3 py-2 font-medium">Carrier</th>
                 <th className="px-3 py-2 font-medium">Plan</th>
-                <th className="px-3 py-2 text-right font-medium">Commission</th>
+                <th className="px-3 py-2 text-right font-medium">Expected</th>
+                <th className="px-3 py-2 text-right font-medium">Received</th>
               </tr>
             </thead>
             <tbody>
@@ -169,11 +196,19 @@ export default async function EnrollmentsPage({
                   <td className="px-3 py-2 text-right whitespace-nowrap">
                     {p.commissionAmount != null ? money(p.commissionAmount) : <span className="muted">—</span>}
                   </td>
+                  <td className="px-3 py-1 text-right">
+                    <ReceivedCell
+                      contactId={p.contact.id}
+                      policyId={p.id}
+                      defaultValue={p.commissionReceived}
+                      expected={p.commissionAmount}
+                    />
+                  </td>
                 </tr>
               ))}
               {aepPolicies.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="muted px-4 py-6 text-center">
+                  <td colSpan={7} className="muted px-4 py-6 text-center">
                     No 1/1/{aep} plans yet. Add a future plan with a January 1, {aep} effective date on a contact.
                   </td>
                 </tr>
@@ -182,6 +217,43 @@ export default async function EnrollmentsPage({
           </table>
         </div>
       </section>
+
+      {watch.length > 0 && (
+        <section className="flex flex-col gap-3">
+          <div>
+            <h2 className="section-label">Chargeback watch</h2>
+            <p className="muted mt-1 text-sm">
+              Plans that ended within 3 months of starting, or whose client was marked Lost soon
+              after. Carriers usually take that commission back.
+            </p>
+          </div>
+          <div className="surface overflow-x-auto">
+            <table className="w-full text-sm">
+              <tbody>
+                {watch.map((p) => (
+                  <tr key={p.id} className="table-row-hover border-t border-slate-200 first:border-t-0 dark:border-slate-800">
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      <Link href={`/contacts/${p.contact.id}`} className="font-medium hover:underline">
+                        {p.contact.firstName} {p.contact.lastName}
+                      </Link>
+                    </td>
+                    <td className="px-3 py-2">
+                      {p.carrier} <span className="muted">{p.planName}</span>
+                    </td>
+                    <td className="muted px-3 py-2 whitespace-nowrap">
+                      Started {formatDateOnly(p.effectiveDate!)}
+                      {p.termDate ? `, ended ${formatDateOnly(p.termDate)}` : ", marked Lost"}
+                    </td>
+                    <td className="px-3 py-2 text-right whitespace-nowrap">
+                      {p.commissionReceived != null ? `${money(p.commissionReceived)} received` : <span className="muted">nothing received</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
       <section className="flex flex-col gap-3">
         <h2 className="section-label">{year ? `All ${year} enrollments` : "All enrollments"}</h2>
@@ -197,7 +269,8 @@ export default async function EnrollmentsPage({
                 <th className="px-3 py-2 font-medium">Doctor</th>
                 <th className="px-3 py-2 font-medium">Medical Group</th>
                 <th className="px-3 py-2 font-medium">Effective</th>
-                <th className="px-3 py-2 text-right font-medium">Commission</th>
+                <th className="px-3 py-2 text-right font-medium">Expected</th>
+                <th className="px-3 py-2 text-right font-medium">Received</th>
               </tr>
             </thead>
             <tbody>
@@ -241,11 +314,19 @@ export default async function EnrollmentsPage({
                   <td className="px-3 py-2 text-right whitespace-nowrap">
                     {p.commissionAmount != null ? money(p.commissionAmount) : <span className="muted">—</span>}
                   </td>
+                  <td className="px-3 py-1 text-right">
+                    <ReceivedCell
+                      contactId={p.contact.id}
+                      policyId={p.id}
+                      defaultValue={p.commissionReceived}
+                      expected={p.commissionAmount}
+                    />
+                  </td>
                 </tr>
               ))}
               {policies.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="muted px-4 py-8 text-center">
+                  <td colSpan={9} className="muted px-4 py-8 text-center">
                     No enrollments found.
                   </td>
                 </tr>
@@ -264,13 +345,18 @@ function Stats({ t }: { t: ReturnType<typeof totals> }) {
     { label: "New clients", value: String(t.newClients) },
     { label: "Current clients", value: String(t.currentClients) },
     {
-      label: "Commission",
+      label: "Commission expected",
       value: money(t.commission),
       note: t.missingCommission ? `${t.missingCommission} without an amount` : undefined,
     },
+    {
+      label: "Commission received",
+      value: money(t.received),
+      note: t.outstanding > 0 ? `${money(t.outstanding)} still to come` : undefined,
+    },
   ];
   return (
-    <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
       {cards.map((c) => (
         <div key={c.label} className="surface p-4">
           <div className="muted text-xs font-medium">{c.label}</div>

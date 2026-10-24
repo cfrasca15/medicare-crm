@@ -20,6 +20,7 @@ import { revalidatePath } from "next/cache";
 import type { PipelineStage } from "@/generated/prisma/client";
 import { countyForZip, normalizeCounty } from "@/lib/county";
 import { integrityLeadSource, isWebsiteSource } from "@/lib/leadSource";
+import { logStageChanges } from "@/lib/activity";
 
 // The CRM stage a newly seen Integrity status starts mapped to (changeable on
 // the Integrity Stages page). Statuses not listed start at New Lead.
@@ -90,6 +91,9 @@ async function applyLead(lead: IntegrityLead, mappingByCode: StageMappings): Pro
         ...(source && !isWebsiteSource(existing.leadSource) ? { leadSource: source } : {}),
       },
     });
+    if (statusChanged && mappedStage) {
+      await logStageChanges([{ contactId: existing.id, from: existing.stage, to: mappedStage }], "Integrity status changed");
+    }
     return "updated";
   }
   await prisma.contact.create({
@@ -112,11 +116,17 @@ export async function syncIntegrityLeads(): Promise<{
   imported: number;
   updated: number;
 }> {
-  const [leads, mappingByCode] = await Promise.all([getIntegrityLeads(), loadMappings()]);
+  const [leads, mappingByCode, ignoredRows] = await Promise.all([
+    getIntegrityLeads(),
+    loadMappings(),
+    prisma.ignoredIntegrityLead.findMany({ select: { integrityContactId: true } }),
+  ]);
+  const ignored = new Set(ignoredRows.map((r) => r.integrityContactId));
 
   let imported = 0;
   let updated = 0;
   for (const lead of leads) {
+    if (ignored.has(String(lead.leadId))) continue;
     if ((await applyLead(lead, mappingByCode)) === "imported") imported++;
     else updated++;
   }

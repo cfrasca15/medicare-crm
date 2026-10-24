@@ -28,7 +28,10 @@ import { CallButton } from "@/components/CallButton";
 import { primaryPhone } from "@/lib/phone";
 import { CalendarSyncButton } from "@/components/CalendarSyncButton";
 import { SpouseLink } from "@/components/SpouseLink";
+import { ReferralLink } from "@/components/ReferralLink";
 import { SyncContactButton } from "@/components/SyncContactButton";
+import { logCall, deleteActivity } from "@/lib/actions/activity";
+import { CALL_OUTCOMES } from "@/lib/activity";
 import { COUNTY_OPTIONS } from "@/lib/county";
 import { isWebsiteSource } from "@/lib/leadSource";
 
@@ -45,6 +48,7 @@ export default async function ContactDetailPage({
       policies: { orderBy: { createdAt: "desc" } },
       tasks: { orderBy: { dueDate: "asc" } },
       noteEntries: { orderBy: { createdAt: "desc" } },
+      activities: { orderBy: { createdAt: "desc" } },
     },
   });
 
@@ -97,6 +101,46 @@ export default async function ContactDetailPage({
   const addNoteForContact = addContactNote.bind(null, contact.id);
   const updateInfoForContact = updateContactInfo.bind(null, contact.id);
   const updatePersonForContact = updateContactPerson.bind(null, contact.id);
+  const logCallForContact = logCall.bind(null, contact.id);
+
+  // One newest-first history: notes, calls, stage changes, plans and tasks.
+  type TimelineItem = {
+    key: string;
+    kind: "note" | "call" | "stage" | "plan" | "task" | "done";
+    at: Date;
+    text: string;
+    remove?: () => Promise<void>;
+  };
+  const timeline: TimelineItem[] = [
+    ...contact.noteEntries.map((n) => ({
+      key: `n-${n.id}`,
+      kind: "note" as const,
+      at: n.createdAt,
+      text: n.body,
+      remove: deleteContactNote.bind(null, contact.id, n.id),
+    })),
+    ...contact.activities.map((a) => ({
+      key: `a-${a.id}`,
+      kind: (a.type === "call" ? "call" : "stage") as "call" | "stage",
+      at: a.createdAt,
+      text: a.summary,
+      remove: a.type === "call" ? deleteActivity.bind(null, contact.id, a.id) : undefined,
+    })),
+    ...contact.policies.map((p) => ({
+      key: `p-${p.id}`,
+      kind: "plan" as const,
+      at: p.createdAt,
+      text: `Added ${p.timing === "future" ? "future" : "current"} plan: ${p.carrier} ${p.planName}${
+        p.effectiveDate ? ` (effective ${formatDateOnly(p.effectiveDate)})` : ""
+      }`,
+    })),
+    ...contact.tasks.flatMap((tk) => [
+      { key: `t-${tk.id}`, kind: "task" as const, at: tk.createdAt, text: `Task added: ${tk.title}` },
+      ...(tk.status === "DONE"
+        ? [{ key: `d-${tk.id}`, kind: "done" as const, at: tk.updatedAt, text: `Task done: ${tk.title}` }]
+        : []),
+    ]),
+  ].sort((a, b) => b.at.getTime() - a.at.getTime());
   const deleteContactBound = deleteContact.bind(null, contact.id);
   const effectiveChoices = upcomingFirstsOfMonth();
   const plansByGroup: Record<PlanGroup, typeof contact.policies> = { current: [], future: [], previous: [] };
@@ -107,6 +151,16 @@ export default async function ContactDetailPage({
         select: { id: true, firstName: true, lastName: true },
       })
     : null;
+  const [referrer, referrals] = await Promise.all([
+    contact.referredById
+      ? prisma.contact.findUnique({ where: { id: contact.referredById }, select: { id: true, firstName: true, lastName: true } })
+      : null,
+    prisma.contact.findMany({
+      where: { referredById: contact.id },
+      select: { id: true, firstName: true, lastName: true },
+      orderBy: { lastName: "asc" },
+    }),
+  ]);
   const callPhone = primaryPhone(contact);
   const otherPhone = callPhone?.isCell ? contact.phone : contact.cellPhone;
 
@@ -223,6 +277,28 @@ export default async function ContactDetailPage({
               contactId={contact.id}
               spouse={spouse ? { id: spouse.id, name: `${spouse.firstName} ${spouse.lastName}` } : null}
             />
+            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+              <ReferralLink
+                key={referrer?.id ?? "none"}
+                contactId={contact.id}
+                referrer={referrer ? { id: referrer.id, name: `${referrer.firstName} ${referrer.lastName}` } : null}
+              />
+              {referrals.length > 0 && (
+                <span className="flex flex-wrap items-center gap-1">
+                  <span className="muted">
+                    Referred {referrals.length} {referrals.length === 1 ? "person" : "people"}:
+                  </span>
+                  {referrals.map((r, i) => (
+                    <span key={r.id}>
+                      <Link href={`/contacts/${r.id}`} className="link">
+                        {r.firstName} {r.lastName}
+                      </Link>
+                      {i < referrals.length - 1 ? "," : ""}
+                    </span>
+                  ))}
+                </span>
+              )}
+            </div>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -565,41 +641,69 @@ export default async function ContactDetailPage({
       </section>
 
       <section>
-        <h2 className="section-label mb-3">Notes</h2>
-        <SaveForm
-          action={addNoteForContact}
-          submitLabel="Add Note"
-          savedLabel="Note added ✓"
-          resetOnSuccess
-          className="mb-4 flex flex-col gap-2"
-        >
-          <textarea name="body" placeholder="Add a note…" rows={3} required className="field" />
-        </SaveForm>
-
-        <div className="flex flex-col gap-2">
-          {contact.noteEntries.length === 0 && (
-            <p className="muted text-sm">No notes yet.</p>
-          )}
-          {contact.noteEntries.map((n) => {
-            const deleteNoteForContact = deleteContactNote.bind(null, contact.id, n.id);
-            return (
-              <div
-                key={n.id}
-                className="surface flex items-start justify-between gap-3 p-3 text-sm"
-              >
-                <div>
-                  <div className="muted text-xs">{formatDateTime(n.createdAt)}</div>
-                  <div className="mt-1 whitespace-pre-wrap">{n.body}</div>
-                </div>
-                <form action={deleteNoteForContact}>
-                  <button type="submit" className="btn-danger-text text-xs">
-                    Remove
-                  </button>
-                </form>
-              </div>
-            );
-          })}
+        <h2 className="section-label mb-3">Activity</h2>
+        <div className="mb-4 grid gap-3 md:grid-cols-2">
+          <SaveForm
+            action={addNoteForContact}
+            submitLabel="Add Note"
+            savedLabel="Note added ✓"
+            resetOnSuccess
+            className="surface flex flex-col gap-2 p-3"
+          >
+            <textarea name="body" placeholder="Add a note…" rows={3} required className="field" />
+          </SaveForm>
+          <SaveForm
+            action={logCallForContact}
+            submitLabel="Log Call"
+            savedLabel="Call logged ✓"
+            resetOnSuccess
+            className="surface flex flex-col gap-2 p-3"
+          >
+            <select name="outcome" required defaultValue="" className="field" aria-label="How the call went">
+              <option value="" disabled>
+                How did the call go?
+              </option>
+              {CALL_OUTCOMES.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+            <input name="note" placeholder="Quick note (optional)" className="field" />
+            <label className="muted flex items-center gap-2 text-xs">
+              Follow up on
+              <input type="date" name="followUp" className="field py-1" />
+              <span>(adds a task)</span>
+            </label>
+          </SaveForm>
         </div>
+
+        <ol className="relative flex flex-col gap-2 border-l border-slate-200 pl-4 dark:border-slate-800">
+          {timeline.length === 0 && <p className="muted text-sm">Nothing yet.</p>}
+          {timeline.map((item) => (
+            <li key={item.key} className="relative">
+              <span
+                aria-hidden="true"
+                className={`absolute top-3 -left-[21px] h-2.5 w-2.5 rounded-full ring-2 ring-white dark:ring-slate-950 ${TIMELINE_DOT[item.kind]}`}
+              />
+              <div className="surface flex items-start justify-between gap-3 p-3 text-sm">
+                <div className="min-w-0">
+                  <div className="muted text-xs">
+                    {TIMELINE_LABEL[item.kind]} · {formatDateTime(item.at)}
+                  </div>
+                  <div className="mt-1 whitespace-pre-wrap">{item.text}</div>
+                </div>
+                {item.remove && (
+                  <form action={item.remove}>
+                    <button type="submit" className="btn-danger-text text-xs">
+                      Remove
+                    </button>
+                  </form>
+                )}
+              </div>
+            </li>
+          ))}
+        </ol>
       </section>
 
       <section>
@@ -857,3 +961,21 @@ function EditPolicyField({
     </div>
   );
 }
+
+const TIMELINE_LABEL: Record<string, string> = {
+  note: "Note",
+  call: "Call",
+  stage: "Stage",
+  plan: "Health plan",
+  task: "Task",
+  done: "Task done",
+};
+
+const TIMELINE_DOT: Record<string, string> = {
+  note: "bg-slate-400",
+  call: "bg-indigo-500",
+  stage: "bg-amber-500",
+  plan: "bg-emerald-500",
+  task: "bg-sky-400",
+  done: "bg-sky-600",
+};

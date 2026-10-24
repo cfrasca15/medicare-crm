@@ -89,6 +89,8 @@ model Contact {
   // The contact's husband or wife, stored on both records (kept in step by
   // src/lib/actions/spouse.ts). A plain id rather than a relation.
   spouseId          String?
+  // The contact who referred this one (a plain id, like spouseId).
+  referredById      String?
 
   policies          Policy[]
   tasks             Task[]
@@ -96,12 +98,14 @@ model Contact {
   pharmacies        ContactPharmacy[]
   prescriptions     ContactPrescription[]
   noteEntries       ContactNote[]
+  activities        Activity[]
 
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
 
   @@index([stage])
   @@index([spouseId])
+  @@index([referredById])
   @@index([lastName, firstName])
 }
 
@@ -165,6 +169,29 @@ model ContactPrescription {
   @@index([contactId])
 }
 
+// Timeline entries that aren't notes, tasks or plans: logged calls
+// (type "call", outcome e.g. "no_answer") and stage changes (type "stage").
+model Activity {
+  id        String   @id @default(cuid())
+  contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  contactId String
+  type      String
+  outcome   String?
+  summary   String
+  createdAt DateTime @default(now())
+
+  @@index([contactId, createdAt])
+  @@index([type, createdAt])
+}
+
+// Integrity leads "Sync from Integrity" skips (e.g. a duplicate that was
+// merged into another contact), so they aren't imported again.
+model IgnoredIntegrityLead {
+  integrityContactId String   @id
+  reason             String?
+  createdAt          DateTime @default(now())
+}
+
 model ContactNote {
   id          String   @id @default(cuid())
   contact     Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
@@ -211,7 +238,9 @@ model Policy {
   submittedAt         DateTime?
 
   commissionStatus    String?   // e.g. pending, paid, chargeback
-  commissionAmount    Float?
+  commissionAmount    Float?    // expected
+  commissionReceived  Float?    // actually paid by the carrier
+  commissionPaidAt    DateTime?
   annualPremium       Float?
 
   doctor              String?

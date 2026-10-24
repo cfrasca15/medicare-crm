@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSyncExternalStore } from "react";
 import { logout } from "@/lib/actions/auth";
+import { QuickSearch } from "@/components/QuickSearch";
 
 // Simple 20px line icons (stroke paths on a 24px grid).
 const ICONS: Record<string, string> = {
@@ -20,6 +21,8 @@ const ICONS: Record<string, string> = {
   mail: "M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1M3 7l9 6 9-6",
   link: "M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1",
   logout: "M15 17l5-5-5-5M20 12H9M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4",
+  copy: "M8 8h11a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1M4 16V4a1 1 0 0 1 1-1h11",
+  bell: "M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0",
 };
 
 const SECTIONS: { title?: string; links: { href: string; label: string; icon: string }[] }[] = [
@@ -38,6 +41,7 @@ const SECTIONS: { title?: string; links: { href: string; label: string; icon: st
     links: [
       { href: "/enrollments", label: "Enrollments", icon: "chart" },
       { href: "/book-of-business", label: "Book of Business", icon: "briefcase" },
+      { href: "/alerts", label: "Change Alerts", icon: "bell" },
     ],
   },
   {
@@ -45,6 +49,7 @@ const SECTIONS: { title?: string; links: { href: string; label: string; icon: st
     links: [
       { href: "/settings/integrity-stages", label: "Integrity Stages", icon: "sliders" },
       { href: "/settings/plan-names", label: "Plan Names", icon: "tag" },
+      { href: "/settings/duplicates", label: "Duplicates", icon: "copy" },
       { href: "/settings/milestone-emails", label: "Milestone Emails", icon: "mail" },
       { href: "/settings/google", label: "Google", icon: "link" },
     ],
@@ -90,6 +95,7 @@ export function Nav() {
           <span className="block text-xs text-slate-500 dark:text-slate-400">Chris Frasca Insurance</span>
         </span>
       </div>
+      <QuickSearch />
       <div className="flex flex-1 flex-col gap-5 overflow-y-auto">
         {SECTIONS.map((section, i) => (
           <div key={section.title ?? i} className="flex flex-col gap-0.5">
