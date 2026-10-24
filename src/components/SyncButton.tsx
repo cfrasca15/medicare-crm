@@ -3,30 +3,27 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { syncIntegrityLeads } from "@/lib/actions/integritySync";
+import { Toast } from "@/components/Toast";
 
 export function SyncButton() {
   const [isPending, startTransition] = useTransition();
-  const [message, setMessage] = useState<string | null>(null);
+  const [result, setResult] = useState<{ text: string; error: boolean } | null>(null);
   const router = useRouter();
 
   return (
-    <div className="flex items-center gap-3">
+    <>
       <button
         type="button"
         disabled={isPending}
         onClick={() => {
-          setMessage(null);
+          setResult(null);
           startTransition(async () => {
             try {
-              const result = await syncIntegrityLeads();
-              setMessage(
-                `Synced: ${result.imported} imported, ${result.updated} updated.`
-              );
+              const r = await syncIntegrityLeads();
+              setResult({ text: `Synced from Integrity: ${r.imported} new, ${r.updated} updated.`, error: false });
               router.refresh();
             } catch (err) {
-              setMessage(
-                err instanceof Error ? `Sync failed: ${err.message}` : "Sync failed."
-              );
+              setResult({ text: err instanceof Error ? `Sync failed: ${err.message}` : "Sync failed.", error: true });
             }
           });
         }}
@@ -34,11 +31,7 @@ export function SyncButton() {
       >
         {isPending ? "Syncing…" : "Sync from Integrity"}
       </button>
-      {message && (
-        <span className="muted max-w-md truncate text-xs" title={message}>
-          {message}
-        </span>
-      )}
-    </div>
+      {result && <Toast message={result.text} error={result.error} onClose={() => setResult(null)} />}
+    </>
   );
 }

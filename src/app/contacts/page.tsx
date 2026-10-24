@@ -4,6 +4,8 @@ import { STAGE_LABELS, STAGE_ORDER, STAGE_COLORS } from "@/lib/constants";
 import { contactWhere } from "@/lib/contactFilters";
 import { isWebsiteSource } from "@/lib/leadSource";
 import { BulkBar } from "@/components/BulkBar";
+import { ContactFilters } from "@/components/ContactFilters";
+import { DropdownMenu } from "@/components/DropdownMenu";
 import { SyncButton } from "@/components/SyncButton";
 import { WebsiteLeadsSyncButton } from "@/components/WebsiteLeadsSyncButton";
 import { CallButton } from "@/components/CallButton";
@@ -49,84 +51,70 @@ export default async function ContactsPage({
     )
   ).toString();
 
+  // Active filters as removable chips.
+  const flagLabels: Record<string, string> = { either: "Medi-Cal or Extra Help", medicaid: "Medi-Cal", extraHelp: "Extra Help" };
+  const chips = [
+    q && { key: "q", label: `“${q}”` },
+    stage && STAGE_LABELS[stage] && { key: "stage", label: STAGE_LABELS[stage] },
+    source && { key: "source", label: source === "website" ? "Website leads" : `Source: ${source}` },
+    flag && flagLabels[flag] && { key: "flag", label: flagLabels[flag] },
+    county && { key: "county", label: `${county} County` },
+    effectiveRange && { key: "eff", label: `Effective ${formatDateOnly(effectiveRange.gte)}` },
+  ].filter(Boolean) as { key: string; label: string }[];
+  const withoutParam = (key: string) => {
+    const next = new URLSearchParams(
+      Object.entries(params).filter((kv): kv is [string, string] => typeof kv[1] === "string" && kv[0] !== key && kv[1] !== "")
+    ).toString();
+    return next ? `/contacts?${next}` : "/contacts";
+  };
+
   return (
     <div className="max-w-5xl mx-auto flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">Contacts</h1>
         <div className="flex flex-wrap items-center gap-2">
-          <WebsiteLeadsSyncButton />
           <SyncButton />
-          <a href={`/api/export/contacts${exportQuery ? `?${exportQuery}` : ""}`} className="btn-secondary">
-            Export CSV
-          </a>
-          <Link href="/contacts/import" className="btn-secondary">
-            Import CSV
-          </Link>
+          <DropdownMenu label="More ▾">
+            <WebsiteLeadsSyncButton className="menu-item" />
+            <Link href="/contacts/import" className="menu-item">
+              Import CSV
+            </Link>
+            <a href={`/api/export/contacts${exportQuery ? `?${exportQuery}` : ""}`} className="menu-item">
+              Export CSV{exportQuery ? " (this list)" : ""}
+            </a>
+          </DropdownMenu>
           <Link href="/contacts/new" className="btn-primary">
             + New Contact
           </Link>
         </div>
       </div>
 
-      <form className="flex flex-wrap items-center gap-3">
-        <input
-          type="text"
-          name="q"
-          defaultValue={q}
-          placeholder="Search by name, email, or phone"
-          className="field min-w-64 flex-1"
-        />
-        <select name="stage" defaultValue={stage ?? ""} className="field">
-          <option value="">All stages</option>
-          {STAGE_ORDER.map((s) => (
-            <option key={s} value={s}>
-              {STAGE_LABELS[s]}
-            </option>
-          ))}
-        </select>
-        <select name="source" defaultValue={source ?? ""} className="field">
-          <option value="">All sources</option>
-          <option value="website">Website leads</option>
-          {otherSources.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
-        <select name="flag" defaultValue={flag ?? ""} className="field">
-          <option value="">Medi-Cal / Extra Help: any</option>
-          <option value="either">Medi-Cal or Extra Help</option>
-          <option value="medicaid">Medi-Cal</option>
-          <option value="extraHelp">Extra Help</option>
-        </select>
-        <select name="county" defaultValue={county ?? ""} className="field">
-          <option value="">All counties</option>
-          {counties.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
-        <label className="muted flex items-center gap-2 text-sm whitespace-nowrap">
-          Effective
-          <input
-            type="month"
-            name="eff"
-            defaultValue={effectiveRange ? eff : ""}
-            title="Only contacts with a policy starting in this month"
-            className="field"
-          />
-        </label>
-        <button type="submit" className="btn-secondary">
-          Filter
-        </button>
-      </form>
+      <ContactFilters
+        stages={STAGE_ORDER.map((s) => ({ value: s, label: STAGE_LABELS[s] }))}
+        sources={otherSources.map((s) => ({ value: s, label: s }))}
+        counties={counties}
+      />
 
-      <p className="muted -mt-3 text-sm">
-        {contacts.length} {contacts.length === 1 ? "contact" : "contacts"}
-        {stage && STAGE_LABELS[stage] ? ` · ${STAGE_LABELS[stage]}` : ""}
-        {effectiveRange ? ` · effective ${formatDateOnly(effectiveRange.gte)}` : ""}
-      </p>
+      <div className="-mt-2 flex flex-wrap items-center gap-2 text-sm">
+        {chips.map((c) => (
+          <Link
+            key={c.key}
+            href={withoutParam(c.key)}
+            className="pill gap-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-500/15 dark:text-indigo-300"
+            title="Remove this filter"
+          >
+            {c.label} <span aria-hidden="true">✕</span>
+          </Link>
+        ))}
+        {chips.length > 1 && (
+          <Link href="/contacts" className="link text-xs">
+            Clear all
+          </Link>
+        )}
+        <span className="muted ml-auto">
+          {contacts.length} {contacts.length === 1 ? "contact" : "contacts"}
+        </span>
+      </div>
 
       <BulkBar stages={STAGE_ORDER.map((s) => ({ value: s, label: STAGE_LABELS[s] }))} />
 

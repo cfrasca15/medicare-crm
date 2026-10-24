@@ -3,45 +3,45 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { syncWebsiteLeads } from "@/lib/actions/websiteLeadsSync";
+import { Toast } from "@/components/Toast";
 
-export function WebsiteLeadsSyncButton() {
+// Pulls new leads from the website's Airtable. Shown as an item in the
+// Contacts page's "More" menu (pass className to style it).
+export function WebsiteLeadsSyncButton({ className = "btn-secondary" }: { className?: string }) {
   const [isPending, startTransition] = useTransition();
-  const [message, setMessage] = useState<string | null>(null);
+  const [result, setResult] = useState<{ text: string; error: boolean } | null>(null);
   const router = useRouter();
 
   return (
-    <div className="flex items-center gap-3">
+    <>
       <button
         type="button"
         disabled={isPending}
         onClick={() => {
-          setMessage(null);
+          setResult(null);
           startTransition(async () => {
             try {
               const r = await syncWebsiteLeads();
               if (!r.ok) {
-                setMessage(r.error);
+                setResult({ text: r.error, error: true });
                 return;
               }
-              const parts = [
-                `${r.imported} new leads`,
-                `${r.matched} matched existing contacts`,
-              ];
+              const parts = [`${r.imported} new leads`, `${r.matched} matched existing contacts`];
               if (r.skipped) parts.push(`${r.skipped} skipped`);
               if (r.cleanupFailed)
                 parts.push(`${r.cleanupFailed} couldn't be cleared from Airtable (safe to run again)`);
-              setMessage(parts.join(", ") + ".");
+              setResult({ text: `Website leads: ${parts.join(", ")}.`, error: false });
               router.refresh();
             } catch (err) {
-              setMessage(err instanceof Error ? err.message : "Sync failed.");
+              setResult({ text: err instanceof Error ? err.message : "Sync failed.", error: true });
             }
           });
         }}
-        className="btn-secondary"
+        className={className}
       >
         {isPending ? "Syncing…" : "Sync website leads"}
       </button>
-      {message && <span className="muted text-xs">{message}</span>}
-    </div>
+      {result && <Toast message={result.text} error={result.error} onClose={() => setResult(null)} />}
+    </>
   );
 }

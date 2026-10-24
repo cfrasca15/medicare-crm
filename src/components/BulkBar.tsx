@@ -46,9 +46,8 @@ export function BulkBar({ stages }: { stages: { value: string; label: string }[]
       }
     });
 
-  if (count === 0 && !message) {
-    return <p className="muted text-xs">Tick contacts in the list to change their stage or add a task to all of them at once.</p>;
-  }
+  // Only shows once something is ticked.
+  if (count === 0 && !message) return null;
 
   return (
     <div className="surface sticky top-0 z-10 flex flex-wrap items-center gap-3 p-3 text-sm">
