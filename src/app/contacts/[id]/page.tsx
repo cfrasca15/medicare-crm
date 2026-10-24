@@ -13,7 +13,6 @@ import {
   deleteContact,
 } from "@/lib/actions/contacts";
 import { SaveForm } from "@/components/SaveForm";
-import { PushToIntegrityButton } from "@/components/PushToIntegrityButton";
 import { DeleteContactButton } from "@/components/DeleteContactButton";
 import { EmailPanel } from "@/components/EmailPanel";
 import { getGoogleAccount, listGmailMessagesForContact, type GmailMessageSummary } from "@/lib/google";
@@ -29,6 +28,7 @@ import { CallButton } from "@/components/CallButton";
 import { primaryPhone } from "@/lib/phone";
 import { CalendarSyncButton } from "@/components/CalendarSyncButton";
 import { SpouseLink } from "@/components/SpouseLink";
+import { SyncContactButton } from "@/components/SyncContactButton";
 import { COUNTY_OPTIONS } from "@/lib/county";
 import { isWebsiteSource } from "@/lib/leadSource";
 
@@ -146,6 +146,7 @@ export default async function ContactDetailPage({
               )}
               {contact.email && <span>{contact.email}</span>}
               {contact.county && <span>{contact.county} County</span>}
+              {contact.integrityContactId && stageMapping && <span>Integrity: {stageMapping.label}</span>}
               {(isWebsiteSource(contact.leadSource) || contact.lastWebsiteLeadAt) && (
                 <span className="rounded-full bg-teal-100 px-2 py-0.5 text-xs font-medium text-teal-800 dark:bg-teal-900/40 dark:text-teal-200">
                   {isWebsiteSource(contact.leadSource) ? contact.leadSource : "Website: returning contact"}
@@ -237,6 +238,7 @@ export default async function ContactDetailPage({
               Open in Integrity ↗
             </a>
           )}
+          {contact.integrityContactId && <SyncContactButton contactId={contact.id} />}
           <Link href={`/book?contact=${contact.id}`} className="btn-secondary whitespace-nowrap">
             Book appointment
           </Link>
@@ -561,30 +563,6 @@ export default async function ContactDetailPage({
           </label>
         </SaveForm>
       </section>
-
-      {contact.integrityContactId && (
-        <section>
-          <h2 className="section-label mb-3">Integrity</h2>
-          <div className="surface flex flex-col gap-4 p-4">
-            <div className="muted text-sm">
-              Linked to Integrity lead #{contact.integrityContactId}
-              {contact.integrityLeadStage != null && (
-                <>
-                  {" "}
-                  (
-                  {stageMapping
-                    ? stageMapping.label
-                    : `stage code ${contact.integrityLeadStage} — unmapped`}
-                  )
-                </>
-              )}
-              . The button sends the saved Client Info above (address, email,
-              phone, Medicare info).
-            </div>
-            <PushToIntegrityButton contactId={contact.id} />
-          </div>
-        </section>
-      )}
 
       <section>
         <h2 className="section-label mb-3">Notes</h2>

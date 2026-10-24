@@ -2,11 +2,9 @@
 
 import { prisma } from "@/lib/prisma";
 import {
+  getIntegrityLead,
   getIntegrityLeads,
-  pushIntegrityLeadAddress,
-  pushIntegrityLeadEmail,
-  pushIntegrityLeadPhone,
-  pushIntegrityLeadMedicareInfo,
+  type IntegrityLead,
   searchIntegrityPharmacies,
   saveIntegrityLeadPharmacies,
   searchIntegrityProviders,
@@ -33,93 +31,119 @@ const DEFAULT_STAGE_FOR_STATUS: Record<string, PipelineStage | undefined> = {
   Deceased: "LOST",
 };
 
+type StageMappings = Map<number, { code: number; label: string; pipelineStage: PipelineStage | null }>;
+
+// Creates or updates the CRM contact for one Integrity lead.
+async function applyLead(lead: IntegrityLead, mappingByCode: StageMappings): Promise<"imported" | "updated"> {
+  const integrityContactId = String(lead.leadId);
+  const existing = await prisma.contact.findUnique({
+    where: { integrityContactId },
+  });
+
+  // Auto-fill the stage mapping's label from Integrity's own status name
+  // the first time we see a given code, so Chris doesn't have to guess
+  // what each numeric code means — he can still assign it a local
+  // pipeline stage manually afterward via /settings/integrity-stages.
+  if (!mappingByCode.has(lead.stage) && lead.stageName) {
+    // Integrity's "Lost" stage arrives from its API as "Other".
+    const label = lead.stageName === "Other" ? "Lost" : lead.stageName;
+    const created = await prisma.integrityStageMapping.create({
+      data: { code: lead.stage, label, pipelineStage: DEFAULT_STAGE_FOR_STATUS[label] },
+    });
+    mappingByCode.set(lead.stage, created);
+  }
+
+  // The mapped pipeline stage applies on first import, and again whenever
+  // the lead's status changes in Integrity (e.g. marked Lost there). A
+  // re-sync with the same Integrity status never touches a stage changed
+  // by hand in the CRM.
+  const mappedStage = mappingByCode.get(lead.stage)?.pipelineStage ?? undefined;
+
+  const sharedFields = {
+    firstName: lead.firstName,
+    lastName: lead.lastName,
+    email: lead.email ?? undefined,
+    phone: lead.phone ?? undefined,
+    address: lead.address1 ?? undefined,
+    city: lead.city ?? undefined,
+    state: lead.stateCode ?? undefined,
+    zip: lead.postalCode ?? undefined,
+    dateOfBirth: lead.birthdate ? new Date(lead.birthdate) : undefined,
+    medicareId: lead.medicareBeneficiaryId ?? undefined,
+    partAEffectiveDate: lead.partAEffectiveDate ? new Date(lead.partAEffectiveDate) : undefined,
+    partBEffectiveDate: lead.partBEffectiveDate ? new Date(lead.partBEffectiveDate) : undefined,
+    integrityLeadStage: lead.stage,
+    county: normalizeCounty(lead.county) ?? countyForZip(lead.postalCode) ?? undefined,
+    // Only ever turned on from Integrity, so a box ticked in the CRM stays.
+    ...(lead.hasMedicaid ? { medicaid: true } : {}),
+  };
+  // Integrity's lead source, unless the website already set one.
+  const source = integrityLeadSource(lead.leadSourceName);
+
+  if (existing) {
+    const statusChanged = existing.integrityLeadStage != null && existing.integrityLeadStage !== lead.stage;
+    await prisma.contact.update({
+      where: { id: existing.id },
+      data: {
+        ...sharedFields,
+        ...(statusChanged && mappedStage ? { stage: mappedStage } : {}),
+        ...(source && !isWebsiteSource(existing.leadSource) ? { leadSource: source } : {}),
+      },
+    });
+    return "updated";
+  }
+  await prisma.contact.create({
+    data: {
+      ...sharedFields,
+      stage: mappedStage,
+      integrityContactId,
+      leadSource: source ?? undefined,
+    },
+  });
+  return "imported";
+}
+
+async function loadMappings(): Promise<StageMappings> {
+  const mappings = await prisma.integrityStageMapping.findMany();
+  return new Map(mappings.map((m) => [m.code, m]));
+}
+
 export async function syncIntegrityLeads(): Promise<{
   imported: number;
   updated: number;
 }> {
-  const [leads, mappings] = await Promise.all([
-    getIntegrityLeads(),
-    prisma.integrityStageMapping.findMany(),
-  ]);
-  const mappingByCode = new Map(mappings.map((m) => [m.code, m]));
+  const [leads, mappingByCode] = await Promise.all([getIntegrityLeads(), loadMappings()]);
 
   let imported = 0;
   let updated = 0;
-
   for (const lead of leads) {
-    const integrityContactId = String(lead.leadId);
-    const existing = await prisma.contact.findUnique({
-      where: { integrityContactId },
-    });
-
-    // Auto-fill the stage mapping's label from Integrity's own status name
-    // the first time we see a given code, so Chris doesn't have to guess
-    // what each numeric code means — he can still assign it a local
-    // pipeline stage manually afterward via /settings/integrity-stages.
-    if (!mappingByCode.has(lead.stage) && lead.stageName) {
-      // Integrity's "Lost" stage arrives from its API as "Other".
-      const label = lead.stageName === "Other" ? "Lost" : lead.stageName;
-      const created = await prisma.integrityStageMapping.create({
-        data: { code: lead.stage, label, pipelineStage: DEFAULT_STAGE_FOR_STATUS[label] },
-      });
-      mappingByCode.set(lead.stage, created);
-    }
-
-    // The mapped pipeline stage applies on first import, and again whenever
-    // the lead's status changes in Integrity (e.g. marked Lost there). A
-    // re-sync with the same Integrity status never touches a stage changed
-    // by hand in the CRM.
-    const mappedStage = mappingByCode.get(lead.stage)?.pipelineStage ?? undefined;
-
-    const sharedFields = {
-      firstName: lead.firstName,
-      lastName: lead.lastName,
-      email: lead.email ?? undefined,
-      phone: lead.phone ?? undefined,
-      address: lead.address1 ?? undefined,
-      city: lead.city ?? undefined,
-      state: lead.stateCode ?? undefined,
-      zip: lead.postalCode ?? undefined,
-      dateOfBirth: lead.birthdate ? new Date(lead.birthdate) : undefined,
-      medicareId: lead.medicareBeneficiaryId ?? undefined,
-      partAEffectiveDate: lead.partAEffectiveDate ? new Date(lead.partAEffectiveDate) : undefined,
-      partBEffectiveDate: lead.partBEffectiveDate ? new Date(lead.partBEffectiveDate) : undefined,
-      integrityLeadStage: lead.stage,
-      county: normalizeCounty(lead.county) ?? countyForZip(lead.postalCode) ?? undefined,
-      // Only ever turned on from Integrity, so a box ticked in the CRM stays.
-      ...(lead.hasMedicaid ? { medicaid: true } : {}),
-    };
-    // Integrity's lead source, unless the website already set one.
-    const source = integrityLeadSource(lead.leadSourceName);
-
-    if (existing) {
-      const statusChanged = existing.integrityLeadStage != null && existing.integrityLeadStage !== lead.stage;
-      await prisma.contact.update({
-        where: { id: existing.id },
-        data: {
-          ...sharedFields,
-          ...(statusChanged && mappedStage ? { stage: mappedStage } : {}),
-          ...(source && !isWebsiteSource(existing.leadSource) ? { leadSource: source } : {}),
-        },
-      });
-      updated++;
-    } else {
-      await prisma.contact.create({
-        data: {
-          ...sharedFields,
-          stage: mappedStage,
-          integrityContactId,
-          leadSource: source ?? undefined,
-        },
-      });
-      imported++;
-    }
+    if ((await applyLead(lead, mappingByCode)) === "imported") imported++;
+    else updated++;
   }
 
   revalidatePath("/contacts");
   revalidatePath("/");
 
   return { imported, updated };
+}
+
+// Refreshes one contact from Integrity (the button on the contact page).
+export async function syncIntegrityContact(contactId: string): Promise<{ error?: string }> {
+  const contact = await prisma.contact.findUnique({
+    where: { id: contactId },
+    select: { integrityContactId: true },
+  });
+  if (!contact?.integrityContactId) return { error: "This contact isn't linked to Integrity." };
+  try {
+    const [lead, mappingByCode] = await Promise.all([getIntegrityLead(contact.integrityContactId), loadMappings()]);
+    if (!lead) return { error: "Integrity has no lead with this contact's ID any more." };
+    await applyLead(lead, mappingByCode);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Couldn't reach Integrity." };
+  }
+  revalidatePath(`/contacts/${contactId}`);
+  revalidatePath("/contacts");
+  return {};
 }
 
 export async function searchPharmacies(params: IntegrityPharmacySearchParams) {
@@ -266,56 +290,4 @@ export async function addContactPrescription(
 export async function deleteContactPrescription(contactId: string, id: string): Promise<void> {
   await prisma.contactPrescription.delete({ where: { id } });
   revalidatePath(`/contacts/${contactId}`);
-}
-
-// Pushes whatever is saved in the contact's Client Info to its Integrity
-// lead in one go (address, email, phone, Medicare info), so nothing has to
-// be retyped. Each part reports separately; a missing field is skipped.
-export async function pushContactInfoToIntegrity(contactId: string) {
-  const contact = await prisma.contact.findUnique({ where: { id: contactId } });
-  if (!contact) return { error: "Contact not found." };
-  if (!contact.integrityContactId) return { error: "This contact isn't linked to an Integrity lead." };
-  const leadId = contact.integrityContactId;
-  const iso = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : undefined);
-
-  const pushed: string[] = [];
-  const failed: string[] = [];
-  const attempt = async (label: string, fn: () => Promise<unknown>) => {
-    try {
-      await fn();
-      pushed.push(label);
-    } catch (err) {
-      failed.push(`${label} (${err instanceof Error ? err.message : "failed"})`);
-    }
-  };
-
-  if (contact.address && contact.city && contact.state && contact.zip) {
-    await attempt("address", () =>
-      pushIntegrityLeadAddress(leadId, {
-        address1: contact.address!,
-        city: contact.city!,
-        stateCode: contact.state!,
-        postalCode: contact.zip!,
-      })
-    );
-  }
-  if (contact.email) await attempt("email", () => pushIntegrityLeadEmail(leadId, contact.email!));
-  if (contact.phone) await attempt("phone", () => pushIntegrityLeadPhone(leadId, contact.phone!));
-  if (contact.medicareId || contact.partAEffectiveDate || contact.partBEffectiveDate) {
-    await attempt("Medicare info", () =>
-      pushIntegrityLeadMedicareInfo(leadId, {
-        medicareBeneficiaryId: contact.medicareId ?? undefined,
-        partA: iso(contact.partAEffectiveDate),
-        partB: iso(contact.partBEffectiveDate),
-      })
-    );
-  }
-
-  if (pushed.length === 0 && failed.length === 0) {
-    return { error: "Nothing to push yet — fill in Client Info first." };
-  }
-  if (failed.length) {
-    return { error: `Pushed: ${pushed.join(", ") || "nothing"}. Failed: ${failed.join("; ")}` };
-  }
-  return { message: `Pushed ${pushed.join(", ")} to Integrity.` };
 }

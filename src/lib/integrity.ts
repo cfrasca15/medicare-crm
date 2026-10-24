@@ -203,6 +203,17 @@ export async function getIntegrityLeads(): Promise<IntegrityLead[]> {
   return data.result.map(mapLead);
 }
 
+// One lead by its Integrity ID, or null if Integrity doesn't have it.
+export async function getIntegrityLead(leadId: string): Promise<IntegrityLead | null> {
+  const res = await integrityFetch(`/partners/leads/${encodeURIComponent(leadId)}`);
+  if (res.status === 404) return null;
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`Integrity lead fetch failed: ${res.status} ${res.statusText} ${body}`);
+  }
+  return mapLead((await res.json()) as RawIntegrityLead);
+}
+
 export interface IntegrityLeadAddressInput {
   address1: string;
   address2?: string;
