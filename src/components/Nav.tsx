@@ -5,20 +5,59 @@ import { usePathname } from "next/navigation";
 import { useSyncExternalStore } from "react";
 import { logout } from "@/lib/actions/auth";
 
-const links = [
-  { href: "/", label: "Dashboard" },
-  { href: "/contacts", label: "Contacts" },
-  { href: "/enrollments", label: "Enrollments" },
-  { href: "/book-of-business", label: "Book of Business" },
-  { href: "/tasks", label: "Tasks" },
-  { href: "/birthdays", label: "Birthdays" },
-  { href: "/calendar", label: "Calendar" },
-  { href: "/book", label: "Book Appointment" },
-  { href: "/settings/integrity-stages", label: "Integrity Stages" },
-  { href: "/settings/plan-names", label: "Plan Names" },
-  { href: "/settings/milestone-emails", label: "Milestone Emails" },
-  { href: "/settings/google", label: "Google" },
+// Simple 20px line icons (stroke paths on a 24px grid).
+const ICONS: Record<string, string> = {
+  home: "M3 10.5 12 3l9 7.5V21h-6v-6H9v6H3z",
+  users: "M16 19v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1M9.5 10a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7M21 19v-1a4 4 0 0 0-3-3.87M15.5 3.13a3.5 3.5 0 0 1 0 6.75",
+  check: "M9 11l3 3 8-8M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11",
+  cake: "M4 21h16M5 21v-7a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v7M12 12V8M12 5.5a1.5 1.5 0 0 0 1.5-1.5c0-1-1.5-2.5-1.5-2.5S10.5 3 10.5 4A1.5 1.5 0 0 0 12 5.5M5 16c2 1.5 4 1.5 7 0s5-1.5 7 0",
+  calendar: "M8 2v4M16 2v4M3 9h18M5 4h14a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2",
+  clock: "M12 7v5l3 2M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18",
+  chart: "M4 20V10M10 20V4M16 20v-7M22 20H2",
+  briefcase: "M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M4 6h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1M3 12h18",
+  sliders: "M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0M16 4v4M10 10v4M18 16v4",
+  tag: "M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9zM7.5 7.5h.01",
+  mail: "M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1M3 7l9 6 9-6",
+  link: "M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1",
+  logout: "M15 17l5-5-5-5M20 12H9M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4",
+};
+
+const SECTIONS: { title?: string; links: { href: string; label: string; icon: string }[] }[] = [
+  {
+    links: [
+      { href: "/", label: "Dashboard", icon: "home" },
+      { href: "/contacts", label: "Contacts", icon: "users" },
+      { href: "/tasks", label: "Tasks", icon: "check" },
+      { href: "/calendar", label: "Calendar", icon: "calendar" },
+      { href: "/book", label: "Book Appointment", icon: "clock" },
+      { href: "/birthdays", label: "Birthdays", icon: "cake" },
+    ],
+  },
+  {
+    title: "Business",
+    links: [
+      { href: "/enrollments", label: "Enrollments", icon: "chart" },
+      { href: "/book-of-business", label: "Book of Business", icon: "briefcase" },
+    ],
+  },
+  {
+    title: "Settings",
+    links: [
+      { href: "/settings/integrity-stages", label: "Integrity Stages", icon: "sliders" },
+      { href: "/settings/plan-names", label: "Plan Names", icon: "tag" },
+      { href: "/settings/milestone-emails", label: "Milestone Emails", icon: "mail" },
+      { href: "/settings/google", label: "Google", icon: "link" },
+    ],
+  },
 ];
+
+function Icon({ name }: { name: string }) {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="shrink-0">
+      <path d={ICONS[name]} />
+    </svg>
+  );
+}
 
 const HIDE_NAV_PATHS = ["/login", "/setup"];
 
@@ -36,36 +75,60 @@ export function Nav() {
     return null;
   }
 
+  const isActive = (href: string) =>
+    // Whole path segments only, so "/book" isn't lit up on "/book-of-business".
+    href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
+
   return (
-    <nav className="w-56 shrink-0 h-full flex flex-col gap-1 border-r border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-      <div className="px-2 pb-4">
-        <span className="text-lg font-semibold text-indigo-600 dark:text-indigo-400">
-          Medicare CRM
+    <nav className="flex h-full w-60 shrink-0 flex-col border-r border-slate-200 bg-white px-3 py-4 dark:border-slate-800 dark:bg-slate-900">
+      <div className="mb-5 flex items-center gap-2.5 px-2">
+        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 text-sm font-bold text-white shadow-sm">
+          CF
+        </span>
+        <span className="leading-tight">
+          <span className="block text-sm font-semibold text-slate-900 dark:text-slate-100">Medicare CRM</span>
+          <span className="block text-xs text-slate-500 dark:text-slate-400">Chris Frasca Insurance</span>
         </span>
       </div>
-      {links.map((link) => {
-        const isActive =
-          // Whole path segments only, so "/book" isn't lit up on "/book-of-business".
-          link.href === "/" ? pathname === "/" : pathname === link.href || pathname.startsWith(`${link.href}/`);
-        return (
-          <Link
-            key={link.href}
-            href={link.href}
-            className={
-              isActive
-                ? "rounded-md bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300"
-                : "rounded-md px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
-            }
-          >
-            {link.label}
-          </Link>
-        );
-      })}
-      <form action={logout} className="mt-auto pt-4">
+      <div className="flex flex-1 flex-col gap-5 overflow-y-auto">
+        {SECTIONS.map((section, i) => (
+          <div key={section.title ?? i} className="flex flex-col gap-0.5">
+            {section.title && (
+              <div className="px-3 pb-1 text-[11px] font-semibold tracking-wider text-slate-400 uppercase dark:text-slate-500">
+                {section.title}
+              </div>
+            )}
+            {section.links.map((link) => {
+              const active = isActive(link.href);
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  aria-current={active ? "page" : undefined}
+                  className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                    active
+                      ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300"
+                      : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+                  }`}
+                >
+                  <span className={active ? "text-indigo-600 dark:text-indigo-300" : "text-slate-400"}>
+                    <Icon name={link.icon} />
+                  </span>
+                  {link.label}
+                </Link>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+      <form action={logout} className="mt-4 border-t border-slate-200 pt-3 dark:border-slate-800">
         <button
           type="submit"
-          className="w-full rounded-md px-3 py-2 text-left text-sm font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+          className="flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
         >
+          <span className="text-slate-400">
+            <Icon name="logout" />
+          </span>
           Log out
         </button>
       </form>

@@ -112,106 +112,117 @@ export default async function ContactDetailPage({
 
   return (
     <div className="max-w-4xl mx-auto flex flex-col gap-8">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <Link href="/contacts" className="link text-sm">
-            ← All contacts
-          </Link>
-          <h1 className="mt-1 text-2xl font-semibold">
-            {contact.firstName} {contact.lastName}
-          </h1>
-          <div className="muted mt-1 flex flex-wrap items-center gap-4 text-sm">
-            {callPhone && (
-              <span className="flex items-center gap-2">
-                {callPhone.isCell ? "Cell " : ""}
-                {callPhone.number}
-                <CallButton phone={callPhone.number} />
-              </span>
-            )}
-            {callPhone && otherPhone && (
-              <span>
-                {callPhone.isCell ? "Other " : "Cell "}
-                {otherPhone}
-              </span>
-            )}
-            {contact.email && <span>{contact.email}</span>}
-            {contact.county && <span>{contact.county} County</span>}
-            {(isWebsiteSource(contact.leadSource) || contact.lastWebsiteLeadAt) && (
-              <span className="rounded-full bg-teal-100 px-2 py-0.5 text-xs font-medium text-teal-800 dark:bg-teal-900/40 dark:text-teal-200">
-                {isWebsiteSource(contact.leadSource) ? contact.leadSource : "Website: returning contact"}
-                {contact.lastWebsiteLeadAt
-                  ? ` · latest ${contact.lastWebsiteLeadAt.toLocaleDateString("en-US")}`
-                  : ""}
-              </span>
-            )}
-            {contact.leadSource && !isWebsiteSource(contact.leadSource) && (
-              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-                Source: {contact.leadSource}
-              </span>
-            )}
-            {contact.medicaid && (
-              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-500/15 dark:text-amber-200">
-                Medi-Cal
-              </span>
-            )}
-            {contact.extraHelp && (
-              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-500/15 dark:text-amber-200">
-                Extra Help
-              </span>
-            )}
-          </div>
-          {contact.altContactName && (
-            <div
-              className={`mt-2 flex flex-wrap items-center gap-2 text-sm ${
-                contact.altContactPreferred
-                  ? "rounded-md bg-amber-50 px-3 py-1.5 text-amber-900 dark:bg-amber-500/15 dark:text-amber-200"
-                  : "muted"
-              }`}
-            >
-              <span className="font-medium">
-                {contact.altContactPreferred ? "Call instead:" : "Contact person:"}
-              </span>
-              <span>
-                {contact.altContactName}
-                {contact.altContactRelationship ? ` (${contact.altContactRelationship})` : ""}
-              </span>
-              {contact.altContactPhone && (
+      <div className="-mb-5">
+        <Link href="/contacts" className="link text-sm">
+          ← All contacts
+        </Link>
+      </div>
+      <div className="surface flex flex-wrap items-start justify-between gap-4 p-5">
+        <div className="flex min-w-0 gap-4">
+          <span
+            aria-hidden="true"
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-base font-semibold text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-200"
+          >
+            {(contact.firstName[0] ?? "").toUpperCase()}
+            {(contact.lastName[0] ?? "").toUpperCase()}
+          </span>
+          <div className="min-w-0">
+            <h1 className="text-2xl font-semibold tracking-tight">
+              {contact.firstName} {contact.lastName}
+            </h1>
+            <div className="muted mt-1 flex flex-wrap items-center gap-4 text-sm">
+              {callPhone && (
                 <span className="flex items-center gap-2">
-                  {contact.altContactPhone}
-                  <CallButton phone={contact.altContactPhone} />
+                  {callPhone.isCell ? "Cell " : ""}
+                  {callPhone.number}
+                  <CallButton phone={callPhone.number} />
                 </span>
               )}
-              {contact.altContactEmail && <span>{contact.altContactEmail}</span>}
-            </div>
-          )}
-          {(plansByGroup.current.length > 0 || plansByGroup.future.length > 0) && (
-            <div className="mt-2 flex flex-wrap gap-2 text-sm">
-              {plansByGroup.current.map((p) => (
-                <span
-                  key={p.id}
-                  className="rounded-full bg-indigo-50 px-3 py-1 font-medium text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300"
-                >
-                  Current: {p.carrier} {p.planName}
-                  {p.effectiveDate && coverageMonth(p.effectiveDate) !== null && (
-                    <span className="font-normal opacity-80"> · Month {coverageMonth(p.effectiveDate)}</span>
-                  )}
+              {callPhone && otherPhone && (
+                <span>
+                  {callPhone.isCell ? "Other " : "Cell "}
+                  {otherPhone}
                 </span>
-              ))}
-              {plansByGroup.future.map((p) => (
-                <span
-                  key={p.id}
-                  className="rounded-full bg-emerald-50 px-3 py-1 font-medium text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
-                >
-                  {p.effectiveDate ? `Starting ${formatDateOnly(p.effectiveDate)}` : "Future"}: {p.carrier} {p.planName}
+              )}
+              {contact.email && <span>{contact.email}</span>}
+              {contact.county && <span>{contact.county} County</span>}
+              {(isWebsiteSource(contact.leadSource) || contact.lastWebsiteLeadAt) && (
+                <span className="rounded-full bg-teal-100 px-2 py-0.5 text-xs font-medium text-teal-800 dark:bg-teal-900/40 dark:text-teal-200">
+                  {isWebsiteSource(contact.leadSource) ? contact.leadSource : "Website: returning contact"}
+                  {contact.lastWebsiteLeadAt
+                    ? ` · latest ${contact.lastWebsiteLeadAt.toLocaleDateString("en-US")}`
+                    : ""}
                 </span>
-              ))}
+              )}
+              {contact.leadSource && !isWebsiteSource(contact.leadSource) && (
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                  Source: {contact.leadSource}
+                </span>
+              )}
+              {contact.medicaid && (
+                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-500/15 dark:text-amber-200">
+                  Medi-Cal
+                </span>
+              )}
+              {contact.extraHelp && (
+                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-500/15 dark:text-amber-200">
+                  Extra Help
+                </span>
+              )}
             </div>
-          )}
-          <SpouseLink
-            key={spouse?.id ?? "none"}
-            contactId={contact.id}
-            spouse={spouse ? { id: spouse.id, name: `${spouse.firstName} ${spouse.lastName}` } : null}
-          />
+            {contact.altContactName && (
+              <div
+                className={`mt-2 flex flex-wrap items-center gap-2 text-sm ${
+                  contact.altContactPreferred
+                    ? "rounded-md bg-amber-50 px-3 py-1.5 text-amber-900 dark:bg-amber-500/15 dark:text-amber-200"
+                    : "muted"
+                }`}
+              >
+                <span className="font-medium">
+                  {contact.altContactPreferred ? "Call instead:" : "Contact person:"}
+                </span>
+                <span>
+                  {contact.altContactName}
+                  {contact.altContactRelationship ? ` (${contact.altContactRelationship})` : ""}
+                </span>
+                {contact.altContactPhone && (
+                  <span className="flex items-center gap-2">
+                    {contact.altContactPhone}
+                    <CallButton phone={contact.altContactPhone} />
+                  </span>
+                )}
+                {contact.altContactEmail && <span>{contact.altContactEmail}</span>}
+              </div>
+            )}
+            {(plansByGroup.current.length > 0 || plansByGroup.future.length > 0) && (
+              <div className="mt-2 flex flex-wrap gap-2 text-sm">
+                {plansByGroup.current.map((p) => (
+                  <span
+                    key={p.id}
+                    className="rounded-full bg-indigo-50 px-3 py-1 font-medium text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300"
+                  >
+                    Current: {p.carrier} {p.planName}
+                    {p.effectiveDate && coverageMonth(p.effectiveDate) !== null && (
+                      <span className="font-normal opacity-80"> · Month {coverageMonth(p.effectiveDate)}</span>
+                    )}
+                  </span>
+                ))}
+                {plansByGroup.future.map((p) => (
+                  <span
+                    key={p.id}
+                    className="rounded-full bg-emerald-50 px-3 py-1 font-medium text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
+                  >
+                    {p.effectiveDate ? `Starting ${formatDateOnly(p.effectiveDate)}` : "Future"}: {p.carrier} {p.planName}
+                  </span>
+                ))}
+              </div>
+            )}
+            <SpouseLink
+              key={spouse?.id ?? "none"}
+              contactId={contact.id}
+              spouse={spouse ? { id: spouse.id, name: `${spouse.firstName} ${spouse.lastName}` } : null}
+            />
+          </div>
         </div>
         <div className="flex items-center gap-3">
           <Link href={`/book?contact=${contact.id}`} className="btn-secondary whitespace-nowrap">

@@ -11,6 +11,9 @@ import { TaskCheckbox } from "@/components/TaskCheckbox";
 // database is available during the Docker image build.
 export const dynamic = "force-dynamic";
 
+// Stages for people who are (or were) clients, shown as their own row.
+const CLIENT_STAGES = ["ENROLLED", "RETAINED", "CURRENT_CLIENT", "LOST"];
+
 export default async function DashboardPage() {
   const [stageCounts, openTasks, recentContacts, googleAccount] = await Promise.all([
     prisma.contact.groupBy({ by: ["stage"], _count: { stage: true } }),
@@ -52,20 +55,26 @@ export default async function DashboardPage() {
 
       <section>
         <h2 className="section-label mb-3">Pipeline</h2>
-        <div className="grid grid-cols-4 gap-3">
-          {STAGE_ORDER.map((stage) => (
-            <Link
-              key={stage}
-              href={`/contacts?stage=${stage}`}
-              className="surface p-4 transition-colors hover:border-indigo-300 dark:hover:border-indigo-700"
-            >
-              <div className={`mb-2 inline-block rounded-full px-2 py-0.5 text-xs font-medium ${STAGE_COLORS[stage]}`}>
-                {STAGE_LABELS[stage]}
-              </div>
-              <div className="text-2xl font-semibold">{countByStage[stage] ?? 0}</div>
-            </Link>
-          ))}
-        </div>
+        {[
+          { title: "Leads", stages: STAGE_ORDER.filter((s) => !CLIENT_STAGES.includes(s)), cols: "grid-cols-2 sm:grid-cols-3 lg:grid-cols-5" },
+          { title: "Clients", stages: CLIENT_STAGES, cols: "grid-cols-2 lg:grid-cols-4" },
+        ].map((row) => (
+          <div key={row.title} className="mb-3">
+            <div className="muted mb-1.5 text-xs font-medium">{row.title}</div>
+            <div className={`grid gap-3 ${row.cols}`}>
+              {row.stages.map((stage) => (
+                <Link
+                  key={stage}
+                  href={`/contacts?stage=${stage}`}
+                  className="surface group p-4 transition-all hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-md dark:hover:border-indigo-700"
+                >
+                  <div className={`pill ${STAGE_COLORS[stage]}`}>{STAGE_LABELS[stage]}</div>
+                  <div className="mt-2 text-2xl font-semibold tabular-nums">{countByStage[stage] ?? 0}</div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        ))}
       </section>
 
       <div className="grid grid-cols-3 gap-6">
