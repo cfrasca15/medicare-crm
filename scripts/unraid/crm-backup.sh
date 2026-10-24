@@ -6,6 +6,7 @@ set -euo pipefail
 
 CONTAINER="medicare-crm"
 REMOTE="gdrive:CRM Backups"                  # rclone remote name + Drive folder
+RCLONE_CONFIG_DIR="/mnt/user/appdata/rclone" # where `rclone config` saved its settings
 PASSWORD_FILE="/boot/config/crm-backup.pass" # one line: your backup password
 KEEP_DAYS=30
 
@@ -22,8 +23,12 @@ gzip -9 "$WORK/crm.db"
 openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt \
   -in "$WORK/crm.db.gz" -out "$WORK/crm-$STAMP.db.gz.enc" -pass "file:$PASSWORD_FILE"
 
-# 3. Upload, then remove backups older than KEEP_DAYS.
-rclone copy "$WORK/crm-$STAMP.db.gz.enc" "$REMOTE"
+# 3. Upload, then remove backups older than KEEP_DAYS. rclone runs from its
+#    official Docker image just for these two commands (nothing to install).
+rclone() {
+  docker run --rm -v "$RCLONE_CONFIG_DIR:/config/rclone" -v "$WORK:/data" rclone/rclone "$@"
+}
+rclone copy "/data/crm-$STAMP.db.gz.enc" "$REMOTE"
 rclone delete "$REMOTE" --min-age "${KEEP_DAYS}d"
 
 echo "CRM backup crm-$STAMP.db.gz.enc uploaded to $REMOTE"

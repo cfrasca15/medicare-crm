@@ -18,21 +18,34 @@ The database holds client health information, so:
 
 ## One-time setup on Unraid
 
-1. **Install rclone.** Apps tab > search "rclone" > install the rclone plugin.
-2. **Connect it to Google Drive.** In Unraid's terminal:
+1. **Nothing to install for rclone.** The script runs rclone's official
+   Docker image (`rclone/rclone`) only while it uploads. Don't install the
+   rclone container from the Apps tab; it isn't needed.
+2. **Connect rclone to Google Drive** (one time). In Unraid's terminal:
 
    ```bash
-   rclone config
+   mkdir -p /mnt/user/appdata/rclone
+   docker run -it --rm -v /mnt/user/appdata/rclone:/config/rclone rclone/rclone config
    ```
 
    - `n` (new remote), name it `gdrive`, storage type `drive` (Google Drive).
    - Leave client id / secret blank, scope `3` (drive.file: rclone can only
      see files it created), leave the rest at the defaults.
-   - "Use web browser to automatically authenticate?" answer `n`, then follow
-     the instructions: run the shown `rclone authorize` command on your PC
-     (install rclone there too) and paste the result back. Sign in with your
-     **Workspace** account.
-   - Test: `rclone mkdir "gdrive:CRM Backups"` then `rclone lsd gdrive:` shows it.
+   - "Use web browser to automatically authenticate?" answer `n`. It shows a
+     `rclone authorize "drive" "..."` command: run that on your **PC** (download
+     rclone for Windows from rclone.org, unzip, run it in that folder from
+     PowerShell), sign in with your **Workspace** account in the browser that
+     opens, and paste the long code it prints back into the Unraid terminal.
+   - Answer `n` to "Configure this as a Shared Drive", then `y` to keep the
+     remote and `q` to quit.
+   - Test it:
+
+     ```bash
+     docker run --rm -v /mnt/user/appdata/rclone:/config/rclone rclone/rclone mkdir "gdrive:CRM Backups"
+     docker run --rm -v /mnt/user/appdata/rclone:/config/rclone rclone/rclone lsd gdrive:
+     ```
+
+     The second command should list `CRM Backups`.
 3. **Create the backup password file** (pick a long password; this is the
    only thing that can decrypt the backups):
 
@@ -54,7 +67,7 @@ The CRM container must have been rebuilt after this update (it needs
 ## Restoring a backup
 
 1. Download the backup file from Drive to the Unraid server (or use
-   `rclone copy "gdrive:CRM Backups/crm-YYYY-MM-DD_HHMM.db.gz.enc" /tmp/`).
+   `docker run --rm -v /mnt/user/appdata/rclone:/config/rclone -v /tmp:/data rclone/rclone copy "gdrive:CRM Backups/crm-YYYY-MM-DD_HHMM.db.gz.enc" /data`).
 2. Decrypt and unpack it:
 
    ```bash
