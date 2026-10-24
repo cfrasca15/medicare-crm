@@ -8,7 +8,7 @@ import { SyncButton } from "@/components/SyncButton";
 import { WebsiteLeadsSyncButton } from "@/components/WebsiteLeadsSyncButton";
 import { CallButton } from "@/components/CallButton";
 import { primaryPhone } from "@/lib/phone";
-import { coverageMonth, currentPolicy } from "@/lib/coverage";
+import { planGroup } from "@/lib/coverage";
 import { formatDateOnly, monthRange } from "@/lib/date";
 
 export default async function ContactsPage({
@@ -31,7 +31,9 @@ export default async function ContactsPage({
     prisma.contact.findMany({
       where: contactWhere(params),
       orderBy: { lastName: "asc" },
-      include: { policies: { select: { effectiveDate: true, carrier: true, planName: true } } },
+      include: {
+        policies: { select: { effectiveDate: true, termDate: true, timing: true, carrier: true, planName: true } },
+      },
     }),
     prisma.contact.findMany({ distinct: ["leadSource"], select: { leadSource: true }, where: { leadSource: { not: null } } }),
     prisma.contact.findMany({ distinct: ["county"], select: { county: true }, where: { county: { not: null } } }),
@@ -138,7 +140,7 @@ export default async function ContactsPage({
               <th className="px-4 py-2 font-medium">Name</th>
               <th className="px-4 py-2 font-medium">Phone</th>
               <th className="px-4 py-2 font-medium">Email</th>
-              <th className="px-4 py-2 font-medium">Effective</th>
+              <th className="px-4 py-2 font-medium">Plan</th>
               <th className="px-4 py-2 font-medium">Stage</th>
             </tr>
           </thead>
@@ -188,7 +190,7 @@ export default async function ContactsPage({
                 </td>
                 <td className="muted px-4 py-2">{c.email ?? "—"}</td>
                 <td className="px-4 py-2">
-                  <EffectiveCell policy={currentPolicy(c.policies)} />
+                  <PlanCell policies={c.policies} />
                 </td>
                 <td className="px-4 py-2">
                   <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STAGE_COLORS[c.stage]}`}>
@@ -211,17 +213,31 @@ export default async function ContactsPage({
   );
 }
 
-function EffectiveCell({
-  policy,
-}: {
-  policy: { effectiveDate: Date | null; carrier: string; planName: string } | null;
-}) {
-  if (!policy?.effectiveDate) return <span className="muted">—</span>;
-  const month = coverageMonth(policy.effectiveDate);
+type ListPolicy = {
+  effectiveDate: Date | null;
+  termDate: Date | null;
+  timing: string | null;
+  carrier: string;
+  planName: string;
+};
+
+// The client's current plan, plus the plan they're switching to if there is one.
+function PlanCell({ policies }: { policies: ListPolicy[] }) {
+  const current = policies.filter((p) => planGroup(p) === "current");
+  const future = policies.filter((p) => planGroup(p) === "future");
+  if (!current.length && !future.length) return <span className="muted">—</span>;
   return (
-    <div className="flex flex-col" title={`${policy.carrier} ${policy.planName}`}>
-      <span>{formatDateOnly(policy.effectiveDate)}</span>
-      <span className="muted text-xs">{month === null ? "Not started" : `Month ${month}`}</span>
+    <div className="flex flex-col gap-0.5">
+      {current.map((p, i) => (
+        <span key={`c${i}`}>
+          <span className="font-medium">{p.carrier}</span> <span className="muted">{p.planName}</span>
+        </span>
+      ))}
+      {future.map((p, i) => (
+        <span key={`f${i}`} className="text-xs text-emerald-700 dark:text-emerald-300">
+          {p.effectiveDate ? `Starting ${formatDateOnly(p.effectiveDate)}` : "Next"}: {p.carrier} {p.planName}
+        </span>
+      ))}
     </div>
   );
 }
