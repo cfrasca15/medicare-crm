@@ -20,6 +20,8 @@ import {
 } from "@/lib/integrity";
 import { revalidatePath } from "next/cache";
 import type { PipelineStage } from "@/generated/prisma/client";
+import { countyForZip, normalizeCounty } from "@/lib/county";
+import { integrityLeadSource, isWebsiteSource } from "@/lib/leadSource";
 
 // The CRM stage a newly seen Integrity status starts mapped to (changeable on
 // the Integrity Stages page). Statuses not listed start at New Lead.
@@ -83,13 +85,22 @@ export async function syncIntegrityLeads(): Promise<{
       partAEffectiveDate: lead.partAEffectiveDate ? new Date(lead.partAEffectiveDate) : undefined,
       partBEffectiveDate: lead.partBEffectiveDate ? new Date(lead.partBEffectiveDate) : undefined,
       integrityLeadStage: lead.stage,
+      county: normalizeCounty(lead.county) ?? countyForZip(lead.postalCode) ?? undefined,
+      // Only ever turned on from Integrity, so a box ticked in the CRM stays.
+      ...(lead.hasMedicaid ? { medicaid: true } : {}),
     };
+    // Integrity's lead source, unless the website already set one.
+    const source = integrityLeadSource(lead.leadSourceName);
 
     if (existing) {
       const statusChanged = existing.integrityLeadStage != null && existing.integrityLeadStage !== lead.stage;
       await prisma.contact.update({
         where: { id: existing.id },
-        data: { ...sharedFields, ...(statusChanged && mappedStage ? { stage: mappedStage } : {}) },
+        data: {
+          ...sharedFields,
+          ...(statusChanged && mappedStage ? { stage: mappedStage } : {}),
+          ...(source && !isWebsiteSource(existing.leadSource) ? { leadSource: source } : {}),
+        },
       });
       updated++;
     } else {
@@ -98,6 +109,7 @@ export async function syncIntegrityLeads(): Promise<{
           ...sharedFields,
           stage: mappedStage,
           integrityContactId,
+          leadSource: source ?? undefined,
         },
       });
       imported++;

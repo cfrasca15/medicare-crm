@@ -13,11 +13,16 @@ const VIEWS: { key: BookView; label: string }[] = [
 export default async function BookOfBusinessPage({
   searchParams,
 }: {
-  searchParams: Promise<{ view?: string; carrier?: string; group?: string; q?: string }>;
+  searchParams: Promise<{ view?: string; carrier?: string; group?: string; county?: string; q?: string }>;
 }) {
   const params = await searchParams;
   const view: BookView = VIEWS.some((v) => v.key === params.view) ? (params.view as BookView) : "group";
-  const filters = { carrier: params.carrier || undefined, group: params.group || undefined, q: params.q || undefined };
+  const filters = {
+    carrier: params.carrier || undefined,
+    group: params.group || undefined,
+    county: params.county || undefined,
+    q: params.q || undefined,
+  };
 
   const [everything, rows] = await Promise.all([loadBook(), loadBook(filters)]);
   const sections = groupBook(rows, view);
@@ -31,6 +36,7 @@ export default async function BookOfBusinessPage({
   };
   const carriers = distinct(everything.map((r) => r.carrier));
   const groups = distinct(everything.map((r) => groupFamily(r.medicalGroup)));
+  const counties = distinct(everything.map((r) => r.county));
 
   const qs = (extra: Record<string, string | undefined>) => {
     const s = new URLSearchParams();
@@ -81,6 +87,14 @@ export default async function BookOfBusinessPage({
             </option>
           ))}
         </select>
+        <select name="county" defaultValue={filters.county ?? ""} className="field">
+          <option value="">All counties</option>
+          {counties.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </select>
         <select name="group" defaultValue={filters.group ?? ""} className="field">
           <option value="">All medical groups</option>
           {groups.map((g) => (
@@ -92,7 +106,7 @@ export default async function BookOfBusinessPage({
         <button type="submit" className="btn-secondary">
           Filter
         </button>
-        {(filters.q || filters.carrier || filters.group) && (
+        {(filters.q || filters.carrier || filters.group || filters.county) && (
           <Link href={`/book-of-business?view=${view}`} className="link text-sm">
             Clear
           </Link>

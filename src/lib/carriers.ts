@@ -46,18 +46,44 @@ export function canonicalCarrier(raw: string): string {
   return aliasMap.get(looseKey(tidy)) ?? tidy;
 }
 
+interface Catalog {
+  carriers: Record<string, string[]>;
+  counties: Record<string, Record<string, string[]>>;
+  medSupp: string[];
+  medSuppCarriers: string[];
+}
+const CATALOG = catalog as Catalog;
+
 // 2027 plan names by carrier (from Agent Compass's county plan lists).
-export const PLAN_CATALOG: Record<string, string[]> = (catalog as { carriers: Record<string, string[]> }).carriers;
+export const PLAN_CATALOG: Record<string, string[]> = CATALOG.carriers;
 
 export interface CarrierPlanOptions {
   carriers: string[];
   plansByCarrier: Record<string, string[]>;
+  // Set when the list is narrowed to one county: that county's name, and
+  // every county's plans for the "show all counties" switch.
+  county?: string;
+  allPlansByCarrier?: Record<string, string[]>;
+}
+
+// The 2027 plans sold in one county (plus Medicare Supplement plan letters,
+// which aren't county-specific), or null if that county isn't in the list.
+function countyCatalog(county: string | null | undefined): Record<string, string[]> | null {
+  const plans = county ? CATALOG.counties[county] : undefined;
+  if (!plans) return null;
+  const out: Record<string, string[]> = {};
+  for (const [c, list] of Object.entries(plans)) out[c] = [...list];
+  for (const c of CATALOG.medSuppCarriers) out[c] = [...(out[c] ?? []), ...CATALOG.medSupp];
+  return out;
 }
 
 // Choices for the Carrier and Plan Name boxes: the standard carriers plus any
 // other carrier already used, and per carrier the catalog plans plus names
 // already used (one entry per plan, catalog spelling first).
-export function carrierPlanOptions(existing: { carrier: string; planName: string }[]): CarrierPlanOptions {
+export function carrierPlanOptions(
+  existing: { carrier: string; planName: string }[],
+  county?: string | null
+): CarrierPlanOptions {
   const plans = new Map<string, Map<string, string>>();
   const add = (carrier: string, plan: string) => {
     if (!plans.has(carrier)) plans.set(carrier, new Map());
@@ -70,7 +96,11 @@ export function carrierPlanOptions(existing: { carrier: string; planName: string
   const carriers = Array.from(new Set([...CARRIER_NAMES, ...plans.keys()])).sort((a, b) => a.localeCompare(b));
   const plansByCarrier: Record<string, string[]> = {};
   for (const [c, m] of plans) plansByCarrier[c] = [...m.values()].sort((a, b) => a.localeCompare(b));
-  return { carriers, plansByCarrier };
+  const local = countyCatalog(county);
+  if (!local || !county) return { carriers, plansByCarrier };
+  const localSorted: Record<string, string[]> = {};
+  for (const [c, list] of Object.entries(local)) localSorted[c] = [...new Set(list)].sort((a, b) => a.localeCompare(b));
+  return { carriers, plansByCarrier: localSorted, county, allPlansByCarrier: plansByCarrier };
 }
 
 // The catalog's spelling of a plan name when it's the same plan typed

@@ -3,6 +3,7 @@ import { planGroup } from "@/lib/coverage";
 
 export interface BookRow {
   policyId: string;
+  county: string | null;
   contactId: string;
   name: string;
   phone: string | null;
@@ -20,6 +21,7 @@ export type BookView = "group" | "plan" | "doctor";
 export interface BookFilters {
   carrier?: string;
   group?: string;
+  county?: string;
   q?: string;
 }
 
@@ -48,7 +50,7 @@ export function groupFamily(group: string | null | undefined): string | null {
 // Every client's current and upcoming plans (ended plans are left out).
 export async function loadBook(filters: BookFilters = {}): Promise<BookRow[]> {
   const policies = await prisma.policy.findMany({
-    include: { contact: { select: { id: true, firstName: true, lastName: true, phone: true, cellPhone: true, cellPreferred: true } } },
+    include: { contact: { select: { id: true, firstName: true, lastName: true, phone: true, cellPhone: true, cellPreferred: true, county: true } } },
   });
   const q = keyOf(filters.q);
   return policies
@@ -58,6 +60,7 @@ export async function loadBook(filters: BookFilters = {}): Promise<BookRow[]> {
       policyId: p.id,
       contactId: p.contact.id,
       name: `${p.contact.firstName} ${p.contact.lastName}`,
+      county: p.contact.county,
       phone: p.contact.cellPreferred && p.contact.cellPhone ? p.contact.cellPhone : p.contact.phone ?? p.contact.cellPhone,
       carrier: p.carrier,
       planName: p.planName,
@@ -68,6 +71,7 @@ export async function loadBook(filters: BookFilters = {}): Promise<BookRow[]> {
       effectiveDate: p.effectiveDate,
     }))
     .filter((r) => !filters.carrier || keyOf(r.carrier) === keyOf(filters.carrier))
+    .filter((r) => !filters.county || keyOf(r.county) === keyOf(filters.county))
     .filter(
       (r) =>
         !filters.group ||

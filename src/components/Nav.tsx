@@ -11,6 +11,7 @@ const links = [
   { href: "/enrollments", label: "Enrollments" },
   { href: "/book-of-business", label: "Book of Business" },
   { href: "/tasks", label: "Tasks" },
+  { href: "/birthdays", label: "Birthdays" },
   { href: "/calendar", label: "Calendar" },
   { href: "/book", label: "Book" },
   { href: "/settings/integrity-stages", label: "Integrity Stages" },

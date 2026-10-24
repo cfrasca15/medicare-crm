@@ -27,16 +27,6 @@ enum TaskStatus {
   DONE
 }
 
-enum PlanDocumentType {
-  SOB
-  EOC
-  ANOC
-  RATE_SHEET
-  BENEFITS_HIGHLIGHT
-  COMPARISON_SPREADSHEET
-  OTHER
-}
-
 model Contact {
   id                String        @id @default(cuid())
   firstName         String
@@ -50,6 +40,10 @@ model Contact {
   city              String?
   state             String?
   zip               String?
+  county            String?       // from Integrity, or worked out from the ZIP
+  // Medi-Cal (Medicaid) and Extra Help (LIS): both allow plan changes outside AEP.
+  medicaid          Boolean       @default(false)
+  extraHelp         Boolean       @default(false)
   // A separate mailing address, used when hasMailingAddress is on.
   hasMailingAddress Boolean       @default(false)
   mailingAddress    String?
@@ -194,78 +188,6 @@ model ImportBatch {
   detailsJson  String   // JSON: per-contact { contactId, contactName, changes, pushResults }
 
   createdAt    DateTime @default(now())
-}
-
-// Files live on disk (in the same persistent volume as the SQLite db,
-// under an "uploads" folder next to it) — this table is just the index.
-// carrier/planName are optional since a comparison spreadsheet covers
-// every plan at once, not one specific plan.
-model PlanDocument {
-  id         String           @id @default(cuid())
-  carrier    String?
-  county     String? // e.g. "Orange" — lets the same plan name exist per-county without colliding
-  planYear   Int?    // e.g. 2027
-  planName   String?
-  docType    PlanDocumentType
-
-  fileName   String // original filename, shown in the UI
-  storedName String // randomized name actually used on disk
-  fileSize   Int
-  mimeType   String
-
-  // Optional link to a live Google Sheet/Doc/Drive preview of this file
-  // (pasted in manually -- e.g. after converting an uploaded xlsx via
-  // Drive's "Open with > Google Sheets"), rendered as an inline iframe
-  // instead of making the user download the file to view it.
-  embedUrl   String?
-
-  createdAt  DateTime @default(now())
-
-  @@index([carrier, county, planName])
-}
-
-// A carrier's published Part D drug list (formulary), parsed from its PDF.
-// One formulary can be shared by many plans (SCAN uses a single California
-// formulary for every plan), hence the separate FormularyPlan mapping.
-model Formulary {
-  id         String   @id @default(cuid())
-  carrier    String
-  name       String   // e.g. "SCAN California 2027"
-  year       Int
-  sourceNote String?  // where it came from / when the carrier last updated it
-  createdAt  DateTime @default(now())
-
-  drugs      FormularyDrug[]
-  plans      FormularyPlan[]
-
-  @@index([carrier, year])
-}
-
-model FormularyDrug {
-  id          String   @id @default(cuid())
-  formulary   Formulary @relation(fields: [formularyId], references: [id], onDelete: Cascade)
-  formularyId String
-
-  name        String   // as printed, e.g. "ELIQUIS ORAL TABLET" / "metformin oral tablet"
-  isBrand     Boolean
-  tier        Int
-  limits      String   @default("") // raw requirements, e.g. "PA; QL (30 EA per 30 days); EDS"
-  category    String?
-  subcategory String?
-
-  @@index([formularyId])
-  @@index([name])
-}
-
-model FormularyPlan {
-  id          String    @id @default(cuid())
-  formulary   Formulary @relation(fields: [formularyId], references: [id], onDelete: Cascade)
-  formularyId String
-
-  planName    String
-  county      String?
-
-  @@index([formularyId])
 }
 
 model Policy {

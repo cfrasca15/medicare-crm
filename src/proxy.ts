@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { jwtVerify } from "jose";
+import { prisma } from "@/lib/prisma";
 
 const SESSION_SECRET = process.env.SESSION_SECRET!;
 const secretKey = new TextEncoder().encode(SESSION_SECRET);
@@ -17,16 +18,21 @@ export async function proxy(request: NextRequest) {
   let valid = false;
   if (token) {
     try {
-      await jwtVerify(token, secretKey);
-      valid = true;
+      const { payload } = await jwtVerify(token, secretKey);
+      // A signed cookie isn't enough on its own: the login must still exist,
+      // so deleting a user signs them out everywhere.
+      valid =
+        typeof payload.userId === "string" &&
+        (await prisma.user.count({ where: { id: payload.userId } })) > 0;
     } catch {
       valid = false;
     }
   }
 
   if (!valid) {
-    const loginUrl = new URL("/login", request.url);
-    return NextResponse.redirect(loginUrl);
+    const res = NextResponse.redirect(new URL("/login", request.url));
+    if (token) res.cookies.delete("session");
+    return res;
   }
 
   return NextResponse.next();

@@ -1,6 +1,20 @@
 {
- "source": "Agent Compass county-data/2027.json (all counties), plus Kaiser LA/Orange and Medicare Supplement plan letters",
+ "source": "Agent Compass county-data/2027.json (all counties), plus Kaiser LA/Orange and Medicare Supplement plan letters (sold in every county)",
  "year": 2027,
+ "medSupp": [
+  "Medicare Supplement Plan G",
+  "Medicare Supplement Plan N",
+  "Medicare Supplement Plan F",
+  "Medicare Supplement High Deductible Plan G"
+ ],
+ "medSuppCarriers": [
+  "Aetna",
+  "Anthem",
+  "Blue Shield",
+  "Humana",
+  "Mutual of Omaha",
+  "UnitedHealthcare"
+ ],
  "carriers": {
   "Aetna": [
    "Aetna Medicare Chronic Care (HMO C-SNP)",
@@ -205,5 +219,571 @@
    "Wellcare Simple Focus (HMO)",
    "Wellcare Specialty Simple (HMO C-SNP)"
   ]
+ },
+ "counties": {
+  "Los Angeles": {
+   "Aetna": [
+    "Aetna Medicare Chronic Care (HMO C-SNP)",
+    "Aetna Medicare Eagle (HMO)",
+    "Aetna Medicare Prime (HMO)",
+    "Aetna Medicare Prime Extra (HMO)",
+    "Aetna Medicare Signature (HMO)",
+    "Aetna Medicare Signature Extra (HMO)",
+    "Aetna Medicare Signature Legacy (HMO)"
+   ],
+   "Alignment": [
+    "Alignment Health Advantage 001 (PPO)",
+    "Alignment Health Advantage 005 (PPO)",
+    "Alignment Health Balance 033 (HMO C-SNP)",
+    "Alignment Health BreathEasy Plus 041 (HMO C-SNP)",
+    "Alignment Health BRIDGE 003 (HMO)",
+    "Alignment Health Clarity Plus 042 (HMO C-SNP)",
+    "Alignment Health Heart & Diabetes 010 (HMO C-SNP)",
+    "Alignment Health Heart & Diabetes 051 (HMO C-SNP)",
+    "Alignment Health Heart & Diabetes 054 (HMO C-SNP)",
+    "Alignment Health Heart & Diabetes Plus 039 (HMO C-SNP)",
+    "Alignment Health Heart & Diabetes Plus 044 (HMO C-SNP)",
+    "Alignment Health Honor Plus 060 (HMO)",
+    "Alignment Health My Choice 001 (HMO)",
+    "Alignment Health My Choice 050 (HMO)",
+    "Alignment Health Platinum + Instacart 008 (HMO)",
+    "Alignment Health Smart 013 (HMO)",
+    "Alignment Health Smart 047 (HMO)",
+    "Alignment Health Smart 055 (HMO)",
+    "Alignment Health ValorCare 053 (HMO)",
+    "Central Health Harmony 001 (HMO)",
+    "Central Health Harmony Plus 002 (HMO C-SNP)"
+   ],
+   "Anthem": [
+    "Anthem Medicare Advantage (HMO-POS)",
+    "Anthem Prime (HMO-POS)",
+    "Anthem Select (HMO-POS)",
+    "Anthem | CareMore Chronic Care (HMO-POS C-SNP)",
+    "Anthem | CareMore Chronic Care 2 (HMO-POS C-SNP)",
+    "Anthem | CareMore Home Care (HMO I-SNP)",
+    "Anthem | CareMore Kidney Care (HMO-POS C-SNP)",
+    "Anthem | CareMore Lung Care (HMO-POS C-SNP)",
+    "Anthem | CareMore Lung Care 2 (HMO-POS C-SNP)",
+    "Anthem | CareMore Medicare Advantage (HMO-POS)",
+    "Anthem | CareMore Medicare Advantage 2 (HMO-POS)",
+    "Anthem | CareMore Premium Savings (HMO-POS)"
+   ],
+   "Astiva": [
+    "Astiva Health C-SNP Bloom (HMO C-SNP)",
+    "Astiva Health C-SNP Deluxe (HMO C-SNP)",
+    "Astiva Health C-SNP Fountain (HMO C-SNP)",
+    "Astiva Health C-SNP WOW (HMO C-SNP)",
+    "Astiva Health Savings Plan (HMO)"
+   ],
+   "Blue Shield": [
+    "Blue Shield 65 Plus (HMO)",
+    "Blue Shield 65 Plus Plan 2 (HMO)",
+    "Blue Shield Advantage (HMO)",
+    "Blue Shield AdvantageOptimum Plan (HMO)",
+    "Blue Shield Inspire (HMO)",
+    "Blue Shield Value Advantage Plan (HMO)"
+   ],
+   "Clever Care": [
+    "Clever Care Breathe Select+ (HMO C-SNP)",
+    "Clever Care Breathe+ (HMO C-SNP)",
+    "Clever Care Longevity (HMO)",
+    "Clever Care Total Choice+ (HMO C-SNP)",
+    "Clever Care Total+ (HMO C-SNP)",
+    "Clever Care Value (HMO)"
+   ],
+   "Humana": [
+    "Humana Gold Plus Giveback H5619-146 (HMO)",
+    "Humana Gold Plus H3767-002 (HMO)",
+    "Humana Gold Plus H5619-021 (HMO)",
+    "Humana USAA Honor Giveback (HMO)",
+    "Humana USAA Honor Giveback (PPO)",
+    "Humana USAA Honor Giveback with Rx (PPO)",
+    "HumanaChoice H5525-074 (PPO)",
+    "HumanaChoice H5525-075 (PPO)"
+   ],
+   "Imperial": [
+    "Imperial Courage Plan (HMO)",
+    "Imperial Dynamic Plan (HMO)",
+    "Imperial Flex Plan (HMO C-SNP)",
+    "Imperial Senior Value (HMO C-SNP)"
+   ],
+   "Kaiser Permanente": [
+    "Kaiser Permanente Senior Advantage LA & Orange (HMO) H0524-003",
+    "Kaiser Permanente Senior Advantage LA & Orange Value (HMO) H0524-078"
+   ],
+   "SCAN": [
+    "CareMore Health Plan by SCAN (HMO)",
+    "SCAN Allied (HMO)",
+    "SCAN Ansim Care (HMO C-SNP)",
+    "SCAN Baekse (HMO)",
+    "SCAN Balance (HMO C-SNP)",
+    "SCAN Classic (HMO)",
+    "SCAN Costco Medicare Advantage (HMO)",
+    "SCAN Essential Savings (HMO)",
+    "SCAN Inclusive (HMO)",
+    "SCAN Inspired by women for women (HMO)",
+    "SCAN Prime (HMO)",
+    "SCAN Strive (HMO C-SNP)",
+    "SCAN Venture (HMO)"
+   ],
+   "UCLA Health": [
+    "UCLA Health Medicare Advantage Prestige Plan (HMO)",
+    "UCLA Health Medicare Advantage Principal Plan (HMO)"
+   ],
+   "UnitedHealthcare": [
+    "AARP Medicare Advantage from UHC CA-003P (HMO-POS)",
+    "AARP Medicare Advantage from UHC CA-004P (HMO-POS)",
+    "AARP Medicare Advantage from UHC CA-34P (HMO-POS)",
+    "AARP Medicare Advantage from UHC CA-45 (HMO-POS)",
+    "AARP Medicare Advantage Giveback from UHC CA-30P (HMO-POS)",
+    "AARP Medicare Advantage Patriot No Rx CA-MA1P (HMO-POS)",
+    "UHC Complete Care CA-18P (HMO-POS C-SNP)",
+    "UHC Complete Care Support CA-1AP (HMO C-SNP)"
+   ],
+   "Wellcare": [
+    "Wellcare Low Premium (HMO)",
+    "Wellcare Simple (HMO)",
+    "Wellcare Simple Focus (HMO)",
+    "Wellcare Specialty Simple (HMO C-SNP)"
+   ]
+  },
+  "Orange": {
+   "Aetna": [
+    "Aetna Medicare Chronic Care (HMO C-SNP)",
+    "Aetna Medicare Eagle (HMO)",
+    "Aetna Medicare Prime (HMO)",
+    "Aetna Medicare Signature (HMO)",
+    "Aetna Medicare Signature Extra (HMO)",
+    "Aetna Medicare Signature Legacy (HMO)"
+   ],
+   "Alignment": [
+    "Alignment Health Balance 033 (HMO C-SNP)",
+    "Alignment Health BreathEasy Plus 041 (HMO C-SNP)",
+    "Alignment Health Clarity Plus 042 (HMO C-SNP)",
+    "Alignment Health Heart & Diabetes 010 (HMO C-SNP)",
+    "Alignment Health Heart & Diabetes 051 (HMO C-SNP)",
+    "Alignment Health Heart & Diabetes 054 (HMO C-SNP)",
+    "Alignment Health Heart & Diabetes Plus 039 (HMO C-SNP)",
+    "Alignment Health Heart & Diabetes Plus 044 (HMO C-SNP)",
+    "Alignment Health Honor Plus 060 (HMO)",
+    "Alignment Health My Choice 001 (HMO)",
+    "Alignment Health My Choice 050 (HMO)",
+    "Alignment Health Platinum + Instacart 008 (HMO)",
+    "Alignment Health Platinum Preferred 004 (HMO)",
+    "Alignment Health Platinum Preferred+ 005 (HMO)",
+    "Alignment Health Smart 013 (HMO)",
+    "Alignment Health Smart 047 (HMO)",
+    "Alignment Health ValorCare 053 (HMO)",
+    "Central Health Harmony 001 (HMO)",
+    "Central Health Harmony Plus 002 (HMO C-SNP)"
+   ],
+   "Anthem": [
+    "Anthem Medicare Advantage (HMO-POS)",
+    "Anthem Prime (HMO-POS)",
+    "Anthem Select (HMO-POS)",
+    "Anthem | CareMore Chronic Care (HMO-POS C-SNP)",
+    "Anthem | CareMore Chronic Care 2 (HMO-POS C-SNP)",
+    "Anthem | CareMore Home Care (HMO I-SNP)",
+    "Anthem | CareMore Kidney Care (HMO-POS C-SNP)",
+    "Anthem | CareMore Lung Care (HMO-POS C-SNP)",
+    "Anthem | CareMore Lung Care 2 (HMO-POS C-SNP)",
+    "Anthem | CareMore Medicare Advantage (HMO-POS)",
+    "Anthem | CareMore Medicare Advantage 2 (HMO-POS)",
+    "Anthem | CareMore Premium Savings (HMO-POS)"
+   ],
+   "Astiva": [
+    "Astiva Health C-SNP Bloom (HMO C-SNP)",
+    "Astiva Health C-SNP Deluxe (HMO C-SNP)",
+    "Astiva Health C-SNP Fountain (HMO C-SNP)",
+    "Astiva Health C-SNP WOW (HMO C-SNP)",
+    "Astiva Health Savings Plan (HMO)"
+   ],
+   "Blue Shield": [
+    "Blue Shield 65 Plus (HMO)",
+    "Blue Shield 65 Plus Plan 2 (HMO)",
+    "Blue Shield Advantage (HMO)",
+    "Blue Shield AdvantageOptimum Plan (HMO)",
+    "Blue Shield Inspire (HMO)"
+   ],
+   "CalOptima": [
+    "CalOptima Health OneCare Complete (HMO D-SNP)"
+   ],
+   "Clever Care": [
+    "Clever Care Breathe Select+ (HMO C-SNP)",
+    "Clever Care Breathe+ (HMO C-SNP)",
+    "Clever Care Longevity (HMO)",
+    "Clever Care Total Choice+ (HMO C-SNP)",
+    "Clever Care Total+ (HMO C-SNP)",
+    "Clever Care Value (HMO)"
+   ],
+   "Humana": [
+    "Humana Gold Plus Giveback H5619-146 (HMO)",
+    "Humana Gold Plus H3767-002 (HMO)",
+    "Humana Gold Plus H5619-021 (HMO)",
+    "Humana USAA Honor Giveback (HMO)",
+    "Humana USAA Honor Giveback (PPO)",
+    "Humana USAA Honor Giveback with Rx (PPO)",
+    "HumanaChoice H5525-074 (PPO)",
+    "HumanaChoice H5525-075 (PPO)"
+   ],
+   "Imperial": [
+    "Imperial Courage Plan (HMO)",
+    "Imperial Dynamic Plan (HMO)",
+    "Imperial Flex Plan (HMO C-SNP)",
+    "Imperial Senior Value (HMO C-SNP)"
+   ],
+   "Kaiser Permanente": [
+    "Kaiser Permanente Senior Advantage LA & Orange (HMO) H0524-003",
+    "Kaiser Permanente Senior Advantage LA & Orange Value (HMO) H0524-078"
+   ],
+   "Providence Health Plan": [
+    "Providence Sycamore + RX (HMO)"
+   ],
+   "SCAN": [
+    "CareMore Health Plan by SCAN (HMO)",
+    "SCAN Ansim Care (HMO C-SNP)",
+    "SCAN Baekse (HMO)",
+    "SCAN Balance (HMO C-SNP)",
+    "SCAN Classic (HMO)",
+    "SCAN Costco Medicare Advantage (HMO)",
+    "SCAN Inclusive (HMO)",
+    "SCAN Inspired by women for women (HMO)",
+    "SCAN Prime (HMO)",
+    "SCAN Select (HMO)",
+    "SCAN Strive (HMO C-SNP)",
+    "SCAN Venture (HMO)"
+   ],
+   "UnitedHealthcare": [
+    "AARP Medicare Advantage from UHC CA-005P (HMO-POS)",
+    "AARP Medicare Advantage from UHC CA-021P (HMO-POS)",
+    "AARP Medicare Advantage from UHC CA-33P (HMO-POS)",
+    "AARP Medicare Advantage from UHC CA-46 (HMO-POS)",
+    "AARP Medicare Advantage Giveback from UHC CA-31P (HMO-POS)",
+    "AARP Medicare Advantage Patriot No Rx CA-MA1P (HMO-POS)",
+    "UHC Complete Care CA-19P (HMO-POS C-SNP)",
+    "UHC Complete Care Support CA-2AP (HMO C-SNP)"
+   ],
+   "Wellcare": [
+    "Wellcare Low Premium (HMO)",
+    "Wellcare Simple (HMO)",
+    "Wellcare Simple Focus (HMO)",
+    "Wellcare Specialty Simple (HMO C-SNP)"
+   ]
+  },
+  "Riverside": {
+   "Aetna": [
+    "Aetna Medicare Chronic Care (HMO C-SNP)",
+    "Aetna Medicare Prime (HMO)",
+    "Aetna Medicare Prime Extra (HMO)",
+    "Aetna Medicare Prime Value Plus (HMO)",
+    "Aetna Medicare Signature (HMO)",
+    "Aetna Medicare Signature Extra (HMO)",
+    "Aetna Medicare Signature Legacy (HMO)"
+   ],
+   "Alignment": [
+    "Alignment Health BreathEasy Plus 041 (HMO C-SNP)",
+    "Alignment Health Clarity Plus 042 (HMO C-SNP)",
+    "Alignment Health Heart & Diabetes 010 (HMO C-SNP)",
+    "Alignment Health Heart & Diabetes 051 (HMO C-SNP)",
+    "Alignment Health Heart & Diabetes 054 (HMO C-SNP)",
+    "Alignment Health Heart & Diabetes Plus 039 (HMO C-SNP)",
+    "Alignment Health Heart & Diabetes Plus 044 (HMO C-SNP)",
+    "Alignment Health Honor Plus 060 (HMO)",
+    "Alignment Health My Choice 001 (HMO)",
+    "Alignment Health My Choice 050 (HMO)",
+    "Alignment Health Smart 013 (HMO)",
+    "Alignment Health Smart 047 (HMO)",
+    "Alignment Health ValorCare 053 (HMO)"
+   ],
+   "Anthem": [
+    "Anthem Prime (HMO-POS)",
+    "Anthem Select (HMO-POS)"
+   ],
+   "Astiva": [
+    "Astiva Health C-SNP Bloom (HMO C-SNP)",
+    "Astiva Health C-SNP Deluxe (HMO C-SNP)",
+    "Astiva Health C-SNP Fountain (HMO C-SNP)",
+    "Astiva Health C-SNP WOW (HMO C-SNP)",
+    "Astiva Health Savings Plan (HMO)"
+   ],
+   "Blue Shield": [
+    "Blue Shield 65 Plus (HMO)",
+    "Blue Shield 65 Plus Choice Plan (HMO)"
+   ],
+   "Clever Care": [
+    "Clever Care Breathe Select+ (HMO C-SNP)",
+    "Clever Care Breathe+ (HMO C-SNP)",
+    "Clever Care Longevity (HMO)",
+    "Clever Care Total Choice+ (HMO C-SNP)",
+    "Clever Care Total+ (HMO C-SNP)",
+    "Clever Care Value (HMO)"
+   ],
+   "Humana": [
+    "Humana Gold Plus Giveback H5619-150 (HMO)",
+    "Humana Gold Plus H5619-178 (HMO)",
+    "Humana Gold Plus H5619-191 (HMO)",
+    "Humana USAA Honor Giveback (HMO)",
+    "Humana USAA Honor Giveback (PPO)",
+    "Humana USAA Honor Giveback with Rx (PPO)",
+    "HumanaChoice H5525-074 (PPO)",
+    "HumanaChoice H5525-075 (PPO)"
+   ],
+   "Imperial": [
+    "Imperial Courage Plan (HMO)",
+    "Imperial Dynamic Plan (HMO)",
+    "Imperial Flex Plan (HMO C-SNP)",
+    "Imperial Senior Value (HMO C-SNP)"
+   ],
+   "SCAN": [
+    "SCAN Balance (HMO C-SNP)",
+    "SCAN Classic (HMO)",
+    "SCAN Costco Medicare Advantage (HMO)",
+    "SCAN Desert Choice (HMO)",
+    "SCAN Inclusive (HMO)",
+    "SCAN Strive (HMO C-SNP)",
+    "SCAN Venture (HMO)"
+   ],
+   "UnitedHealthcare": [
+    "AARP Medicare Advantage from UHC CA-0015 (HMO-POS)",
+    "AARP Medicare Advantage from UHC CA-006P (HMO-POS)",
+    "AARP Medicare Advantage from UHC CA-022P (HMO-POS)",
+    "AARP Medicare Advantage Giveback from UHC CA-32P (HMO-POS)",
+    "AARP Medicare Advantage Patriot No Rx CA-MA1P (HMO-POS)",
+    "UHC Complete Care CA-20P (HMO-POS C-SNP)",
+    "UHC Complete Care Support CA-3AP (HMO C-SNP)"
+   ],
+   "Wellcare": [
+    "Wellcare Low Premium (HMO)",
+    "Wellcare Simple Focus (HMO)",
+    "Wellcare Specialty Simple (HMO C-SNP)"
+   ]
+  },
+  "San Bernardino": {
+   "Aetna": [
+    "Aetna Medicare Chronic Care (HMO C-SNP)",
+    "Aetna Medicare Prime (HMO)",
+    "Aetna Medicare Prime Extra (HMO)",
+    "Aetna Medicare Prime Value Plus (HMO)",
+    "Aetna Medicare Signature (HMO)",
+    "Aetna Medicare Signature Extra (HMO)",
+    "Aetna Medicare Signature Legacy (HMO)"
+   ],
+   "Alignment": [
+    "Alignment Health BreathEasy Plus 041 (HMO C-SNP)",
+    "Alignment Health Clarity Plus 042 (HMO C-SNP)",
+    "Alignment Health Heart & Diabetes 010 (HMO C-SNP)",
+    "Alignment Health Heart & Diabetes 051 (HMO C-SNP)",
+    "Alignment Health Heart & Diabetes 054 (HMO C-SNP)",
+    "Alignment Health Heart & Diabetes Plus 039 (HMO C-SNP)",
+    "Alignment Health Heart & Diabetes Plus 044 (HMO C-SNP)",
+    "Alignment Health Honor Plus 060 (HMO)",
+    "Alignment Health My Choice 001 (HMO)",
+    "Alignment Health My Choice 050 (HMO)",
+    "Alignment Health Smart 013 (HMO)",
+    "Alignment Health Smart 047 (HMO)",
+    "Alignment Health ValorCare 053 (HMO)"
+   ],
+   "Anthem": [
+    "Anthem Prime (HMO-POS)",
+    "Anthem Select (HMO-POS)",
+    "Anthem | CareMore Chronic Care (HMO-POS C-SNP)",
+    "Anthem | CareMore Chronic Care 2 (HMO-POS C-SNP)",
+    "Anthem | CareMore Kidney Care (HMO-POS C-SNP)",
+    "Anthem | CareMore Lung Care (HMO-POS C-SNP)",
+    "Anthem | CareMore Lung Care 2 (HMO-POS C-SNP)",
+    "Anthem | CareMore Medicare Advantage (HMO-POS)",
+    "Anthem | CareMore Medicare Advantage 2 (HMO-POS)",
+    "Anthem | CareMore Premium Savings (HMO-POS)"
+   ],
+   "Astiva": [
+    "Astiva Health C-SNP Bloom (HMO C-SNP)",
+    "Astiva Health C-SNP Deluxe (HMO C-SNP)",
+    "Astiva Health C-SNP Fountain (HMO C-SNP)",
+    "Astiva Health C-SNP WOW (HMO C-SNP)",
+    "Astiva Health Savings Plan (HMO)"
+   ],
+   "Blue Shield": [
+    "Blue Shield 65 Plus (HMO)",
+    "Blue Shield 65 Plus Choice Plan (HMO)"
+   ],
+   "Clever Care": [
+    "Clever Care Breathe Select+ (HMO C-SNP)",
+    "Clever Care Breathe+ (HMO C-SNP)",
+    "Clever Care Longevity (HMO)",
+    "Clever Care Total Choice+ (HMO C-SNP)",
+    "Clever Care Total+ (HMO C-SNP)",
+    "Clever Care Value (HMO)"
+   ],
+   "Humana": [
+    "Humana Gold Plus Giveback H5619-150 (HMO)",
+    "Humana Gold Plus H5619-178 (HMO)",
+    "Humana Gold Plus H5619-191 (HMO)",
+    "Humana USAA Honor Giveback (HMO)",
+    "Humana USAA Honor Giveback (PPO)",
+    "Humana USAA Honor Giveback with Rx (PPO)",
+    "HumanaChoice H5525-074 (PPO)",
+    "HumanaChoice H5525-075 (PPO)"
+   ],
+   "Imperial": [
+    "Imperial Courage Plan (HMO)",
+    "Imperial Dynamic Plan (HMO)",
+    "Imperial Flex Plan (HMO C-SNP)",
+    "Imperial Senior Value (HMO C-SNP)"
+   ],
+   "SCAN": [
+    "SCAN Balance (HMO C-SNP)",
+    "SCAN Classic (HMO)",
+    "SCAN Costco Medicare Advantage (HMO)",
+    "SCAN Inclusive (HMO)",
+    "SCAN Prime (HMO)",
+    "SCAN Strive (HMO C-SNP)",
+    "SCAN Venture (HMO)"
+   ],
+   "UnitedHealthcare": [
+    "AARP Medicare Advantage from UHC CA-0015 (HMO-POS)",
+    "AARP Medicare Advantage from UHC CA-006P (HMO-POS)",
+    "AARP Medicare Advantage from UHC CA-022P (HMO-POS)",
+    "AARP Medicare Advantage Giveback from UHC CA-32P (HMO-POS)",
+    "AARP Medicare Advantage Patriot No Rx CA-MA1P (HMO-POS)",
+    "UHC Complete Care CA-20P (HMO-POS C-SNP)",
+    "UHC Complete Care Support CA-3AP (HMO C-SNP)"
+   ],
+   "Wellcare": [
+    "Wellcare Low Premium (HMO)",
+    "Wellcare Simple Focus (HMO)",
+    "Wellcare Specialty Simple (HMO C-SNP)"
+   ]
+  },
+  "San Diego": {
+   "Aetna": [
+    "Aetna Medicare Chronic Care (HMO C-SNP)",
+    "Aetna Medicare Eagle (HMO)",
+    "Aetna Medicare Prime (HMO)",
+    "Aetna Medicare Signature Legacy (HMO)"
+   ],
+   "Alignment": [
+    "Alignment Health Advantage 005 (PPO)",
+    "Alignment Health Balance Plus 004 (PPO)",
+    "Alignment Health BreathEasy Plus 041 (HMO C-SNP)",
+    "Alignment Health Clarity Plus 042 (HMO C-SNP)",
+    "Alignment Health Heart & Diabetes 010 (HMO C-SNP)",
+    "Alignment Health Heart & Diabetes 051 (HMO C-SNP)",
+    "Alignment Health Heart & Diabetes 054 (HMO C-SNP)",
+    "Alignment Health Heart & Diabetes Plus 039 (HMO C-SNP)",
+    "Alignment Health Honor Plus 060 (HMO)",
+    "Alignment Health My Choice 050 (HMO)",
+    "Alignment Health Platinum + Instacart 016 (HMO-POS)",
+    "Alignment Health Smart 013 (HMO)",
+    "Alignment Health Smart 047 (HMO)",
+    "Alignment Health Smart 056 (HMO)",
+    "Alignment Health ValorCare 053 (HMO)"
+   ],
+   "Anthem": [
+    "Anthem Kidney Care (PPO C-SNP)",
+    "Anthem Medicare Advantage (HMO-POS)",
+    "Anthem Prime (HMO-POS)",
+    "Anthem Select (HMO-POS)"
+   ],
+   "Astiva": [
+    "Astiva Health C-SNP Bloom (HMO C-SNP)",
+    "Astiva Health C-SNP Deluxe (HMO C-SNP)",
+    "Astiva Health C-SNP Fountain (HMO C-SNP)",
+    "Astiva Health C-SNP WOW (HMO C-SNP)",
+    "Astiva Health Savings Plan (HMO)"
+   ],
+   "Blue Shield": [
+    "Blue Shield 65 Plus (HMO)",
+    "Blue Shield Advantage (HMO)",
+    "Blue Shield AdvantageOptimum Plan 1 (HMO)",
+    "Blue Shield Value Advantage Plan (HMO)"
+   ],
+   "Clever Care": [
+    "Clever Care Breathe Select+ (HMO C-SNP)",
+    "Clever Care Breathe+ (HMO C-SNP)",
+    "Clever Care Longevity (HMO)",
+    "Clever Care Total Choice+ (HMO C-SNP)",
+    "Clever Care Total+ (HMO C-SNP)",
+    "Clever Care Value (HMO)"
+   ],
+   "Humana": [
+    "Humana Gold Plus Giveback H5619-150 (HMO)",
+    "Humana Gold Plus H3767-001 (HMO)",
+    "Humana Gold Plus H5619-016 (HMO)",
+    "Humana USAA Honor Giveback (HMO)",
+    "Humana USAA Honor Giveback (PPO)",
+    "Humana USAA Honor Giveback with Rx (PPO)"
+   ],
+   "Imperial": [
+    "Imperial Courage Plan (HMO)",
+    "Imperial Dynamic Plan (HMO)",
+    "Imperial Flex Plan (HMO C-SNP)",
+    "Imperial Senior Value (HMO C-SNP)"
+   ],
+   "SCAN": [
+    "SCAN Alta (HMO)",
+    "SCAN Balance (HMO C-SNP)",
+    "SCAN Classic (HMO)",
+    "SCAN Costco Medicare Advantage (HMO)",
+    "SCAN Select (HMO)",
+    "SCAN Strive (HMO C-SNP)"
+   ],
+   "Sharp Health Plan": [
+    "Sharp Direct Advantage (individual Medicare Advantage HMO plans)"
+   ],
+   "UnitedHealthcare": [
+    "AARP Medicare Advantage from UHC CA-0001 (HMO-POS)",
+    "AARP Medicare Advantage from UHC CA-0007 (HMO-POS)",
+    "AARP Medicare Advantage from UHC CA-0012 (HMO-POS)",
+    "AARP Medicare Advantage Patriot No Rx CA-MA2 (HMO-POS)",
+    "UHC Sharp Complete Care CA-15P (HMO-POS C-SNP)",
+    "UHC Sharp Complete Care Support CA-6AP (HMO C-SNP)",
+    "UHC Sharp Medicare Advantage CA-001P (HMO-POS)",
+    "UHC Sharp Medicare Advantage CA-026P (HMO-POS)",
+    "UHC Sharp Medicare Advantage ValueRx CA-12P (HMO-POS)"
+   ],
+   "Wellcare": [
+    "Wellcare Low Premium (HMO)",
+    "Wellcare Low Premium Focus (HMO)",
+    "Wellcare Specialty Simple (HMO C-SNP)"
+   ]
+  },
+  "Ventura": {
+   "Alignment": [
+    "Alignment Health Advantage 001 (PPO)",
+    "Alignment Health BreathEasy Plus 041 (HMO C-SNP)",
+    "Alignment Health Clarity Plus 042 (HMO C-SNP)",
+    "Alignment Health Heart & Diabetes 010 (HMO C-SNP)",
+    "Alignment Health Heart & Diabetes 048 (HMO C-SNP)",
+    "Alignment Health Heart & Diabetes 051 (HMO C-SNP)",
+    "Alignment Health Heart & Diabetes Plus 039 (HMO C-SNP)",
+    "Alignment Health Honor Plus 060 (HMO)",
+    "Alignment Health My Choice 028 (HMO)",
+    "Alignment Health My Choice 050 (HMO)",
+    "Alignment Health Smart 040 (HMO)"
+   ],
+   "Anthem": [
+    "Anthem Kidney Care (PPO C-SNP)",
+    "Anthem Medicare Advantage (HMO-POS)",
+    "Anthem Prime (HMO-POS)"
+   ],
+   "Humana": [
+    "Humana Gold Plus Giveback H5619-150 (HMO)",
+    "Humana Gold Plus H5619-184 (HMO)",
+    "Humana Gold Plus H5619-191 (HMO)",
+    "Humana USAA Honor Giveback (HMO)"
+   ],
+   "Imperial": [
+    "Imperial Courage Plan (HMO)",
+    "Imperial Dynamic Plan (HMO)",
+    "Imperial Flex Plan (HMO C-SNP)",
+    "Imperial Senior Value (HMO C-SNP)"
+   ],
+   "SCAN": [
+    "SCAN Balance (HMO C-SNP)",
+    "SCAN Classic (HMO)",
+    "SCAN Costco Medicare Advantage (HMO)",
+    "SCAN Strive (HMO C-SNP)"
+   ]
+  }
  }
 }

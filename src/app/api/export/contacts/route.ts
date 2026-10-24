@@ -1,37 +1,21 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { STAGE_LABELS, STAGE_ORDER } from "@/lib/constants";
-import { PipelineStage, Prisma } from "@/generated/prisma/client";
+import { STAGE_LABELS } from "@/lib/constants";
+import { contactWhere } from "@/lib/contactFilters";
 import { toCsv, csvResponse } from "@/lib/csv";
-import { formatDateOnly, monthRange } from "@/lib/date";
+import { formatDateOnly } from "@/lib/date";
 import { currentPolicy } from "@/lib/coverage";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const stage = searchParams.get("stage");
-  const q = searchParams.get("q");
-
-  const where: Prisma.ContactWhereInput = {};
-  if (stage && STAGE_ORDER.includes(stage)) {
-    where.stage = stage as PipelineStage;
-  }
-  if (searchParams.get("source") === "website") {
-    where.AND = [
-      { OR: [{ leadSource: { startsWith: "Website" } }, { lastWebsiteLeadAt: { not: null } }] },
-    ];
-  }
-  const effectiveRange = monthRange(searchParams.get("eff"));
-  if (effectiveRange) {
-    where.policies = { some: { effectiveDate: effectiveRange } };
-  }
-  if (q) {
-    where.OR = [
-      { firstName: { contains: q } },
-      { lastName: { contains: q } },
-      { email: { contains: q } },
-      { phone: { contains: q } },
-    ];
-  }
+  const where = contactWhere({
+    stage: searchParams.get("stage"),
+    q: searchParams.get("q"),
+    source: searchParams.get("source"),
+    flag: searchParams.get("flag"),
+    county: searchParams.get("county"),
+    eff: searchParams.get("eff"),
+  });
 
   const contacts = await prisma.contact.findMany({
     where,
@@ -52,6 +36,7 @@ export async function GET(request: NextRequest) {
       "City",
       "State",
       "ZIP",
+      "County",
       "Mailing Address",
       "Mailing City",
       "Mailing State",
@@ -67,6 +52,8 @@ export async function GET(request: NextRequest) {
       "Stage",
       "Policy Effective",
       "Lead Source",
+      "Medi-Cal",
+      "Extra Help",
       "Contact Person",
       "Contact Person Relationship",
       "Contact Person Phone",
@@ -85,6 +72,7 @@ export async function GET(request: NextRequest) {
       c.city,
       c.state,
       c.zip,
+      c.county ?? "",
       c.hasMailingAddress ? c.mailingAddress ?? "" : "",
       c.hasMailingAddress ? c.mailingCity ?? "" : "",
       c.hasMailingAddress ? c.mailingState ?? "" : "",
@@ -103,6 +91,8 @@ export async function GET(request: NextRequest) {
         return policy?.effectiveDate ? formatDateOnly(policy.effectiveDate) : "";
       })(),
       c.leadSource ?? "",
+      c.medicaid ? "Yes" : "",
+      c.extraHelp ? "Yes" : "",
       c.altContactName ?? "",
       c.altContactRelationship ?? "",
       c.altContactPhone ?? "",

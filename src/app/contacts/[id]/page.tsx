@@ -29,6 +29,8 @@ import { CallButton } from "@/components/CallButton";
 import { primaryPhone } from "@/lib/phone";
 import { CalendarSyncButton } from "@/components/CalendarSyncButton";
 import { SpouseLink } from "@/components/SpouseLink";
+import { COUNTY_OPTIONS } from "@/lib/county";
+import { isWebsiteSource } from "@/lib/leadSource";
 
 export default async function ContactDetailPage({
   params,
@@ -74,7 +76,7 @@ export default async function ContactDetailPage({
   // is spelled the same way (the Book of Business page groups on it).
   const groupOptions = Array.from(new Set(groupRows.map((r) => (r.medicalGroup as string).trim()))).sort();
   const doctorOptions = Array.from(new Set(doctorRows.map((r) => (r.doctor as string).trim()))).sort();
-  const carrierPlans = carrierPlanOptions(carrierPlanRows);
+  const carrierPlans = carrierPlanOptions(carrierPlanRows, contact.county);
   const planTypeOptions = Array.from(
     new Set([...PLAN_TYPE_SEED, ...planTypeRows.map((r) => r.planType as string)])
   ).sort();
@@ -133,12 +135,28 @@ export default async function ContactDetailPage({
               </span>
             )}
             {contact.email && <span>{contact.email}</span>}
-            {(contact.leadSource || contact.lastWebsiteLeadAt) && (
+            {contact.county && <span>{contact.county} County</span>}
+            {(isWebsiteSource(contact.leadSource) || contact.lastWebsiteLeadAt) && (
               <span className="rounded-full bg-teal-100 px-2 py-0.5 text-xs font-medium text-teal-800 dark:bg-teal-900/40 dark:text-teal-200">
-                {contact.leadSource ?? "Website: returning contact"}
+                {isWebsiteSource(contact.leadSource) ? contact.leadSource : "Website: returning contact"}
                 {contact.lastWebsiteLeadAt
                   ? ` · latest ${contact.lastWebsiteLeadAt.toLocaleDateString("en-US")}`
                   : ""}
+              </span>
+            )}
+            {contact.leadSource && !isWebsiteSource(contact.leadSource) && (
+              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                Source: {contact.leadSource}
+              </span>
+            )}
+            {contact.medicaid && (
+              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-500/15 dark:text-amber-200">
+                Medi-Cal
+              </span>
+            )}
+            {contact.extraHelp && (
+              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-500/15 dark:text-amber-200">
+                Extra Help
               </span>
             )}
           </div>
@@ -433,6 +451,34 @@ export default async function ContactDetailPage({
           <Field label="City" name="city" value={contact.city} span={1} />
           <Field label="State" name="state" value={contact.state} span={1} />
           <Field label="ZIP" name="zip" value={contact.zip} span={1} />
+          <div className="col-span-2 flex flex-col gap-1">
+            <label className="text-sm font-medium" htmlFor="info-county">
+              County
+            </label>
+            <input
+              id="info-county"
+              name="county"
+              list="county-options"
+              defaultValue={contact.county ?? ""}
+              placeholder="Filled from the ZIP if blank"
+              className="field"
+            />
+            <datalist id="county-options">
+              {COUNTY_OPTIONS.map((c) => (
+                <option key={c} value={c} />
+              ))}
+            </datalist>
+          </div>
+          <div className="col-span-4 flex flex-wrap items-end gap-x-6 gap-y-2 pb-2 text-sm">
+            <label className="flex items-center gap-2">
+              <input type="checkbox" name="medicaid" defaultChecked={contact.medicaid} className="h-4 w-4 accent-indigo-600" />
+              Medi-Cal
+            </label>
+            <label className="flex items-center gap-2">
+              <input type="checkbox" name="extraHelp" defaultChecked={contact.extraHelp} className="h-4 w-4 accent-indigo-600" />
+              Extra Help (LIS)
+            </label>
+          </div>
           <label className="col-span-6 flex items-center gap-2 text-sm">
             <input
               type="checkbox"

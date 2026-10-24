@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE "Contact" ADD COLUMN "county" TEXT;
+ALTER TABLE "Contact" ADD COLUMN "medicaid" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "Contact" ADD COLUMN "extraHelp" BOOLEAN NOT NULL DEFAULT false;

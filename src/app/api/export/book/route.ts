@@ -9,14 +9,16 @@ export async function GET(request: NextRequest) {
   const rows = await loadBook({
     carrier: searchParams.get("carrier") || undefined,
     group: searchParams.get("group") || undefined,
+    county: searchParams.get("county") || undefined,
     q: searchParams.get("q") || undefined,
   });
 
   const csv = toCsv(
-    ["Client", "Phone", "Carrier", "Plan Name", "Plan Type", "Medical Group", "Doctor", "Current / Future", "Effective Date"],
+    ["Client", "Phone", "County", "Carrier", "Plan Name", "Plan Type", "Medical Group", "Doctor", "Current / Future", "Effective Date"],
     rows.map((r) => [
       r.name,
       r.phone ?? "",
+      r.county ?? "",
       r.carrier,
       r.planName,
       r.planType ?? "",

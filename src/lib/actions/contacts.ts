@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { PipelineStage } from "@/generated/prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { countyForZip, normalizeCounty } from "@/lib/county";
 
 export async function createContact(formData: FormData) {
   const firstName = String(formData.get("firstName") ?? "").trim();
@@ -25,6 +26,7 @@ export async function createContact(formData: FormData) {
       city: emptyToNull(formData.get("city")),
       state: emptyToNull(formData.get("state")),
       zip: emptyToNull(formData.get("zip")),
+      county: countyForZip(emptyToNull(formData.get("zip"))) ?? undefined,
       dateOfBirth: toDate(formData.get("dateOfBirth")),
       medicareId: emptyToNull(formData.get("medicareId")),
       partAEffectiveDate: toDate(formData.get("partAEffectiveDate")),
@@ -87,6 +89,9 @@ export async function updateContactInfo(contactId: string, formData: FormData) {
       city: orNull(formData.get("city")),
       state: orNull(formData.get("state")),
       zip: orNull(formData.get("zip")),
+      county: normalizeCounty(orNull(formData.get("county"))) ?? countyForZip(orNull(formData.get("zip"))),
+      medicaid: formData.get("medicaid") === "on",
+      extraHelp: formData.get("extraHelp") === "on",
       hasMailingAddress: hasMailing,
       mailingAddress: mailing("mailingAddress"),
       mailingCity: mailing("mailingCity"),

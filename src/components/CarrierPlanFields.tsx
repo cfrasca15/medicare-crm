@@ -9,6 +9,8 @@ const OTHER = "__other";
 export function CarrierPlanFields({
   carriers,
   plansByCarrier,
+  county,
+  allPlansByCarrier,
   defaultCarrier = "",
   defaultPlan = "",
   labelClass = "text-sm font-medium",
@@ -16,6 +18,8 @@ export function CarrierPlanFields({
 }: {
   carriers: string[];
   plansByCarrier: Record<string, string[]>;
+  county?: string;
+  allPlansByCarrier?: Record<string, string[]>;
   defaultCarrier?: string;
   defaultPlan?: string;
   labelClass?: string;
@@ -25,7 +29,9 @@ export function CarrierPlanFields({
   const [carrier, setCarrier] = useState(defaultCarrier);
   const [other, setOther] = useState(!known);
   const listId = useId();
-  const plans = plansByCarrier[carrier] ?? [];
+  const [allCounties, setAllCounties] = useState(false);
+  const narrowed = Boolean(county && allPlansByCarrier && !allCounties);
+  const plans = (narrowed ? plansByCarrier : allPlansByCarrier ?? plansByCarrier)[carrier] ?? [];
 
   return (
     <>
@@ -100,6 +106,17 @@ export function CarrierPlanFields({
             <option key={p} value={p} />
           ))}
         </datalist>
+        {county && allPlansByCarrier && (
+          <label className="muted flex items-center gap-2 text-xs">
+            <input
+              type="checkbox"
+              checked={allCounties}
+              onChange={(e) => setAllCounties(e.target.checked)}
+              className="h-3.5 w-3.5 accent-indigo-600"
+            />
+            {allCounties ? "Showing plans from every county" : `Showing ${county} County plans — show all counties`}
+          </label>
+        )}
       </div>
     </>
   );

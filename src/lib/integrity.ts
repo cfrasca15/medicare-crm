@@ -105,6 +105,9 @@ export interface IntegrityLead {
   medicareBeneficiaryId: string | null;
   partAEffectiveDate: string | null;
   partBEffectiveDate: string | null;
+  county: string | null;
+  hasMedicaid: boolean | null;
+  leadSourceName: string | null;
 }
 
 // Real production shape — confirmed against Integrity's production API
@@ -124,6 +127,9 @@ interface RawIntegrityLead {
   medicareBeneficiaryId: string | null;
   partA: string | null;
   partB: string | null;
+  hasMedicAid: number | null;
+  leadSource: string | null;
+  leadSourceName: string | null;
   emails: { leadEmail: string; inactive: boolean }[];
   phones: { leadPhone: string; inactive: boolean }[];
   addresses: {
@@ -132,6 +138,7 @@ interface RawIntegrityLead {
     city: string;
     stateCode: string;
     postalCode: string;
+    county: string | null;
   }[];
 }
 
@@ -171,6 +178,9 @@ function mapLead(raw: RawIntegrityLead): IntegrityLead {
     medicareBeneficiaryId: raw.medicareBeneficiaryId,
     partAEffectiveDate: raw.partA,
     partBEffectiveDate: raw.partB,
+    county: address?.county ?? null,
+    hasMedicaid: raw.hasMedicAid == null ? null : raw.hasMedicAid === 1,
+    leadSourceName: raw.leadSourceName ?? raw.leadSource ?? null,
   };
 }
 

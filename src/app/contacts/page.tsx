@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { STAGE_LABELS, STAGE_ORDER, STAGE_COLORS } from "@/lib/constants";
-import { PipelineStage, Prisma } from "@/generated/prisma/client";
+import { contactWhere } from "@/lib/contactFilters";
+import { isWebsiteSource } from "@/lib/leadSource";
+import { BulkBar } from "@/components/BulkBar";
 import { SyncButton } from "@/components/SyncButton";
 import { WebsiteLeadsSyncButton } from "@/components/WebsiteLeadsSyncButton";
 import { CallButton } from "@/components/CallButton";
@@ -12,40 +14,38 @@ import { formatDateOnly, monthRange } from "@/lib/date";
 export default async function ContactsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ stage?: string; q?: string; source?: string; eff?: string }>;
+  searchParams: Promise<{
+    stage?: string;
+    q?: string;
+    source?: string;
+    flag?: string;
+    county?: string;
+    eff?: string;
+  }>;
 }) {
-  const { stage, q, source, eff } = await searchParams;
-
-  const where: Prisma.ContactWhereInput = {};
-  if (stage && STAGE_ORDER.includes(stage)) {
-    where.stage = stage as PipelineStage;
-  }
-  if (source === "website") {
-    where.AND = [
-      { OR: [{ leadSource: { startsWith: "Website" } }, { lastWebsiteLeadAt: { not: null } }] },
-    ];
-  }
+  const params = await searchParams;
+  const { stage, q, source, flag, county, eff } = params;
   const effectiveRange = monthRange(eff);
-  if (effectiveRange) {
-    where.policies = { some: { effectiveDate: effectiveRange } };
-  }
-  if (q) {
-    where.OR = [
-      { firstName: { contains: q } },
-      { lastName: { contains: q } },
-      { email: { contains: q } },
-      { phone: { contains: q } },
-      { cellPhone: { contains: q } },
-      { altContactName: { contains: q } },
-      { altContactPhone: { contains: q } },
-    ];
-  }
 
-  const contacts = await prisma.contact.findMany({
-    where,
-    orderBy: { lastName: "asc" },
-    include: { policies: { select: { effectiveDate: true, carrier: true, planName: true } } },
-  });
+  const [contacts, sourceRows, countyRows] = await Promise.all([
+    prisma.contact.findMany({
+      where: contactWhere(params),
+      orderBy: { lastName: "asc" },
+      include: { policies: { select: { effectiveDate: true, carrier: true, planName: true } } },
+    }),
+    prisma.contact.findMany({ distinct: ["leadSource"], select: { leadSource: true }, where: { leadSource: { not: null } } }),
+    prisma.contact.findMany({ distinct: ["county"], select: { county: true }, where: { county: { not: null } } }),
+  ]);
+  const otherSources = sourceRows
+    .map((r) => r.leadSource as string)
+    .filter((s) => !isWebsiteSource(s))
+    .sort((a, b) => a.localeCompare(b));
+  const counties = countyRows.map((r) => r.county as string).sort((a, b) => a.localeCompare(b));
+  const exportQuery = new URLSearchParams(
+    Object.entries({ stage, q, source, flag, county, eff: effectiveRange ? eff : undefined }).filter(
+      (kv): kv is [string, string] => Boolean(kv[1])
+    )
+  ).toString();
 
   return (
     <div className="max-w-5xl mx-auto flex flex-col gap-6">
@@ -54,19 +54,7 @@ export default async function ContactsPage({
         <div className="flex items-center gap-3">
           <WebsiteLeadsSyncButton />
           <SyncButton />
-          <a
-            href={(() => {
-              const params = new URLSearchParams({
-                ...(stage ? { stage } : {}),
-                ...(q ? { q } : {}),
-                ...(source ? { source } : {}),
-                ...(effectiveRange && eff ? { eff } : {}),
-              });
-              const qs = params.toString();
-              return `/api/export/contacts${qs ? `?${qs}` : ""}`;
-            })()}
-            className="btn-secondary"
-          >
+          <a href={`/api/export/contacts${exportQuery ? `?${exportQuery}` : ""}`} className="btn-secondary">
             Export CSV
           </a>
           <Link href="/contacts/import" className="btn-secondary">
@@ -78,13 +66,13 @@ export default async function ContactsPage({
         </div>
       </div>
 
-      <form className="flex items-center gap-3">
+      <form className="flex flex-wrap items-center gap-3">
         <input
           type="text"
           name="q"
           defaultValue={q}
           placeholder="Search by name, email, or phone"
-          className="field flex-1"
+          className="field min-w-64 flex-1"
         />
         <select name="stage" defaultValue={stage ?? ""} className="field">
           <option value="">All stages</option>
@@ -97,6 +85,25 @@ export default async function ContactsPage({
         <select name="source" defaultValue={source ?? ""} className="field">
           <option value="">All sources</option>
           <option value="website">Website leads</option>
+          {otherSources.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </select>
+        <select name="flag" defaultValue={flag ?? ""} className="field">
+          <option value="">Medi-Cal / Extra Help: any</option>
+          <option value="either">Medi-Cal or Extra Help</option>
+          <option value="medicaid">Medi-Cal</option>
+          <option value="extraHelp">Extra Help</option>
+        </select>
+        <select name="county" defaultValue={county ?? ""} className="field">
+          <option value="">All counties</option>
+          {counties.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
         </select>
         <label className="muted flex items-center gap-2 text-sm whitespace-nowrap">
           Effective
@@ -119,10 +126,15 @@ export default async function ContactsPage({
         {effectiveRange ? ` · effective ${formatDateOnly(effectiveRange.gte)}` : ""}
       </p>
 
+      <BulkBar stages={STAGE_ORDER.map((s) => ({ value: s, label: STAGE_LABELS[s] }))} />
+
       <div className="surface overflow-hidden">
         <table className="w-full text-sm">
           <thead className="table-head">
             <tr>
+              <th className="w-8 px-4 py-2">
+                <input type="checkbox" data-bulk-all aria-label="Select all" className="h-4 w-4 accent-indigo-600" />
+              </th>
               <th className="px-4 py-2 font-medium">Name</th>
               <th className="px-4 py-2 font-medium">Phone</th>
               <th className="px-4 py-2 font-medium">Email</th>
@@ -137,10 +149,23 @@ export default async function ContactsPage({
                 className="table-row-hover border-t border-slate-200 dark:border-slate-800"
               >
                 <td className="px-4 py-2">
+                  <input
+                    type="checkbox"
+                    data-bulk-id={c.id}
+                    aria-label={`Select ${c.firstName} ${c.lastName}`}
+                    className="h-4 w-4 accent-indigo-600"
+                  />
+                </td>
+                <td className="px-4 py-2">
                   <Link href={`/contacts/${c.id}`} className="font-medium hover:underline">
                     {c.firstName} {c.lastName}
                   </Link>
                   <WebsiteBadge leadSource={c.leadSource} lastWebsiteLeadAt={c.lastWebsiteLeadAt} />
+                  {(c.medicaid || c.extraHelp) && (
+                    <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-500/15 dark:text-amber-200">
+                      {[c.medicaid && "Medi-Cal", c.extraHelp && "Extra Help"].filter(Boolean).join(" · ")}
+                    </span>
+                  )}
                 </td>
                 <td className="muted px-4 py-2">
                   <div className="flex items-center gap-2">
@@ -174,7 +199,7 @@ export default async function ContactsPage({
             ))}
             {contacts.length === 0 && (
               <tr>
-                <td colSpan={5} className="muted px-4 py-8 text-center">
+                <td colSpan={6} className="muted px-4 py-8 text-center">
                   No contacts found.
                 </td>
               </tr>
@@ -208,14 +233,14 @@ function WebsiteBadge({
   leadSource: string | null;
   lastWebsiteLeadAt: Date | null;
 }) {
-  if (!leadSource && !lastWebsiteLeadAt) return null;
+  if (!isWebsiteSource(leadSource) && !lastWebsiteLeadAt) return null;
   const when = lastWebsiteLeadAt ? ` (latest ${lastWebsiteLeadAt.toLocaleDateString("en-US")})` : "";
   return (
     <span
       className="ml-2 rounded-full bg-teal-100 px-2 py-0.5 text-xs font-medium text-teal-800 dark:bg-teal-900/40 dark:text-teal-200"
-      title={`${leadSource ?? "Website: returning contact"}${when}`}
+      title={`${isWebsiteSource(leadSource) ? leadSource : "Website: returning contact"}${when}`}
     >
-      {leadSource ? "Website" : "Website · returned"}
+      {isWebsiteSource(leadSource) ? "Website" : "Website · returned"}
     </span>
   );
 }

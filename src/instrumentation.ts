@@ -26,5 +26,11 @@ export async function register() {
     });
   });
 
+  // Contacts with a ZIP but no county get one filled in from the ZIP.
+  import("@/lib/countyBackfill")
+    .then(({ fillCountiesFromZip }) => fillCountiesFromZip())
+    .then((n) => n && console.log(`Filled in the county for ${n} contact(s) from their ZIP.`))
+    .catch((err) => console.error("County fill from ZIP failed:", err));
+
   console.log("Daily checks scheduled (milestone emails + stage automation, 9:00 AM server time).");
 }
