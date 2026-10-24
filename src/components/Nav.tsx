@@ -13,7 +13,7 @@ const links = [
   { href: "/tasks", label: "Tasks" },
   { href: "/birthdays", label: "Birthdays" },
   { href: "/calendar", label: "Calendar" },
-  { href: "/book", label: "Book" },
+  { href: "/book", label: "Book Appointment" },
   { href: "/settings/integrity-stages", label: "Integrity Stages" },
   { href: "/settings/plan-names", label: "Plan Names" },
   { href: "/settings/milestone-emails", label: "Milestone Emails" },
@@ -45,7 +45,8 @@ export function Nav() {
       </div>
       {links.map((link) => {
         const isActive =
-          link.href === "/" ? pathname === "/" : pathname.startsWith(link.href);
+          // Whole path segments only, so "/book" isn't lit up on "/book-of-business".
+          link.href === "/" ? pathname === "/" : pathname === link.href || pathname.startsWith(`${link.href}/`);
         return (
           <Link
             key={link.href}
