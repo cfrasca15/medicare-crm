@@ -224,7 +224,19 @@ export default async function ContactDetailPage({
             />
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          {contact.integrityContactId && (
+            // Doctors, drugs and pharmacies live in Integrity (its API can't
+            // send them back), so this opens the client there.
+            <a
+              href={`https://connect.integrity.com/agent/clients/contact/${contact.integrityContactId}/overview`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-secondary"
+            >
+              Open in Integrity ↗
+            </a>
+          )}
           <Link href={`/book?contact=${contact.id}`} className="btn-secondary whitespace-nowrap">
             Book appointment
           </Link>
