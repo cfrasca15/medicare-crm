@@ -43,8 +43,8 @@ export const config = {
     /*
      * Match all paths except:
      * - _next/static, _next/image (Next.js internals)
-     * - favicon.ico
+     * - favicon.ico, icon.svg, apple-icon.png (so the sign-in page shows the icon too)
      */
-    "/((?!_next/static|_next/image|favicon.ico).*)",
+    "/((?!_next/static|_next/image|favicon.ico|icon.svg|apple-icon.png).*)",
   ],
 };
