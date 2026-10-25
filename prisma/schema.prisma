@@ -99,6 +99,7 @@ model Contact {
   prescriptions     ContactPrescription[]
   noteEntries       ContactNote[]
   activities        Activity[]
+  serviceRequests   ServiceRequest[]
 
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
@@ -178,9 +179,13 @@ model Activity {
   type      String
   outcome   String?
   summary   String
+  // Set on updates to a service request (type "service").
+  serviceRequest   ServiceRequest? @relation(fields: [serviceRequestId], references: [id], onDelete: Cascade)
+  serviceRequestId String?
   createdAt DateTime @default(now())
 
   @@index([contactId, createdAt])
+  @@index([serviceRequestId])
   @@index([type, createdAt])
 }
 
@@ -258,6 +263,7 @@ model Policy {
 
   // Lines from imported carrier commission statements paid on this plan.
   payments            CommissionPayment[]
+  serviceRequests     ServiceRequest[]
 
   createdAt           DateTime  @default(now())
   updatedAt            DateTime @updatedAt
@@ -362,4 +368,28 @@ model CommissionLayout {
   carrier   String
   mapping   String   // JSON: field -> column index
   updatedAt DateTime @updatedAt
+}
+
+// A client issue being worked on (ID card not received, billing problem,
+// doctor not in network...), open until resolved. Its updates are Activity
+// rows, so they also show on the contact's timeline.
+model ServiceRequest {
+  id         String     @id @default(cuid())
+  contact    Contact    @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  contactId  String
+  // The plan it's about, if any.
+  policy     Policy?    @relation(fields: [policyId], references: [id], onDelete: SetNull)
+  policyId   String?
+  category   String     // see SERVICE_CATEGORIES
+  title      String
+  status     String     @default("open") // open, waiting, resolved
+  waitingOn  String?    // with status "waiting": carrier, client, doctor...
+  followUpOn DateTime?  // a calendar date, like Policy.effectiveDate
+  resolvedAt DateTime?
+  updates    Activity[]
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  @@index([contactId])
+  @@index([status])
 }

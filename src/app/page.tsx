@@ -6,6 +6,8 @@ import { getGoogleAccount, listUpcomingEvents, type UpcomingEvent } from "@/lib/
 import { createTask } from "@/lib/actions/tasks";
 import { TaskCheckbox } from "@/components/TaskCheckbox";
 import { DashboardInsights } from "@/components/DashboardInsights";
+import { loadServiceRequests, isDue } from "@/lib/serviceQueries";
+import { STATUS_STYLE, statusLabel } from "@/lib/service";
 
 // Always render fresh (queries the database) — without this, Next.js tries
 // to statically pre-render this page at build time, which fails since no
@@ -16,7 +18,7 @@ export const dynamic = "force-dynamic";
 const CLIENT_STAGES = ["ENROLLED", "RETAINED", "CURRENT_CLIENT", "LOST"];
 
 export default async function DashboardPage() {
-  const [stageCounts, openTasks, recentContacts, googleAccount] = await Promise.all([
+  const [stageCounts, openTasks, recentContacts, googleAccount, openRequests] = await Promise.all([
     prisma.contact.groupBy({ by: ["stage"], _count: { stage: true } }),
     prisma.task.findMany({
       where: { status: "OPEN" },
@@ -29,6 +31,7 @@ export default async function DashboardPage() {
       take: 5,
     }),
     getGoogleAccount(),
+    loadServiceRequests("open"),
   ]);
 
   let calendarEvents: UpcomingEvent[] = [];
@@ -79,6 +82,44 @@ export default async function DashboardPage() {
       </section>
 
       <DashboardInsights />
+
+      {openRequests.length > 0 && (
+        <section>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="section-label">Service Requests ({openRequests.length} open)</h2>
+            <Link href="/service" className="link text-sm">
+              View all
+            </Link>
+          </div>
+          <ul className="grid gap-2 md:grid-cols-2">
+            {openRequests.slice(0, 6).map((r) => (
+              <li key={r.id}>
+                <Link
+                  href={`/contacts/${r.contact.id}`}
+                  className="surface flex items-center justify-between gap-3 px-3 py-2 text-sm transition-colors hover:border-indigo-300 dark:hover:border-indigo-700"
+                >
+                  <span className="min-w-0">
+                    <span className="font-medium">
+                      {r.contact.firstName} {r.contact.lastName}
+                    </span>
+                    <span className="muted block truncate text-xs">{r.title}</span>
+                  </span>
+                  <span className="flex shrink-0 flex-col items-end gap-1">
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLE[r.status] ?? STATUS_STYLE.open}`}>
+                      {statusLabel(r)}
+                    </span>
+                    {r.followUpOn && (
+                      <span className={`text-xs ${isDue(r.followUpOn) ? "font-medium text-red-600 dark:text-red-400" : "muted"}`}>
+                        Follow up {formatDateOnly(r.followUpOn)}
+                      </span>
+                    )}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <div className="grid grid-cols-3 gap-6">
         <section>

@@ -39,6 +39,7 @@ export async function mergeContacts(keepId: string, mergeIds: string[]) {
     prisma.task.updateMany({ where: { contactId: { in: others } }, data: { contactId: keepId } }),
     prisma.contactNote.updateMany({ where: { contactId: { in: others } }, data: { contactId: keepId } }),
     prisma.activity.updateMany({ where: { contactId: { in: others } }, data: { contactId: keepId } }),
+    prisma.serviceRequest.updateMany({ where: { contactId: { in: others } }, data: { contactId: keepId } }),
     prisma.contactProvider.updateMany({ where: { contactId: { in: others } }, data: { contactId: keepId } }),
     prisma.contactPharmacy.updateMany({ where: { contactId: { in: others } }, data: { contactId: keepId } }),
     prisma.contactPrescription.updateMany({ where: { contactId: { in: others } }, data: { contactId: keepId } }),

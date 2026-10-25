@@ -34,6 +34,7 @@ import { logCall, deleteActivity } from "@/lib/actions/activity";
 import { CALL_OUTCOMES } from "@/lib/activity";
 import { COUNTY_OPTIONS } from "@/lib/county";
 import { isWebsiteSource } from "@/lib/leadSource";
+import { ServiceRequests } from "@/components/ServiceRequests";
 
 export default async function ContactDetailPage({
   params,
@@ -49,6 +50,13 @@ export default async function ContactDetailPage({
       tasks: { orderBy: { dueDate: "asc" } },
       noteEntries: { orderBy: { createdAt: "desc" } },
       activities: { orderBy: { createdAt: "desc" } },
+      serviceRequests: {
+        orderBy: { createdAt: "desc" },
+        include: {
+          policy: { select: { carrier: true, planName: true } },
+          updates: { orderBy: { createdAt: "desc" }, select: { id: true, summary: true, createdAt: true } },
+        },
+      },
     },
   });
 
@@ -106,7 +114,7 @@ export default async function ContactDetailPage({
   // One newest-first history: notes, calls, stage changes, plans and tasks.
   type TimelineItem = {
     key: string;
-    kind: "note" | "call" | "stage" | "plan" | "task" | "done";
+    kind: "note" | "call" | "stage" | "plan" | "task" | "done" | "service";
     at: Date;
     text: string;
     remove?: () => Promise<void>;
@@ -121,7 +129,7 @@ export default async function ContactDetailPage({
     })),
     ...contact.activities.map((a) => ({
       key: `a-${a.id}`,
-      kind: (a.type === "call" ? "call" : "stage") as "call" | "stage",
+      kind: (a.type === "call" ? "call" : a.type === "service" ? "service" : "stage") as "call" | "stage" | "service",
       at: a.createdAt,
       text: a.summary,
       remove: a.type === "call" ? deleteActivity.bind(null, contact.id, a.id) : undefined,
@@ -374,6 +382,18 @@ export default async function ContactDetailPage({
             );
           })}
         </div>
+      </section>
+
+      <section>
+        <h2 className="section-label mb-3">Service Requests</h2>
+        <ServiceRequests
+          contactId={contact.id}
+          requests={contact.serviceRequests}
+          plans={[...plansByGroup.current, ...plansByGroup.future, ...plansByGroup.previous].map((p) => ({
+            id: p.id,
+            label: `${p.carrier} ${p.planName}${p.effectiveDate ? ` (eff. ${formatDateOnly(p.effectiveDate)})` : ""}`,
+          }))}
+        />
       </section>
 
       <section>
@@ -969,6 +989,7 @@ const TIMELINE_LABEL: Record<string, string> = {
   plan: "Health plan",
   task: "Task",
   done: "Task done",
+  service: "Service request",
 };
 
 const TIMELINE_DOT: Record<string, string> = {
@@ -978,4 +999,5 @@ const TIMELINE_DOT: Record<string, string> = {
   plan: "bg-emerald-500",
   task: "bg-sky-400",
   done: "bg-sky-600",
+  service: "bg-teal-500",
 };

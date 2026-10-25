@@ -23,6 +23,7 @@ const ICONS: Record<string, string> = {
   logout: "M15 17l5-5-5-5M20 12H9M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4",
   copy: "M8 8h11a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1M4 16V4a1 1 0 0 1 1-1h11",
   dollar: "M12 2v20M17 6.5c0-1.9-2.2-3.5-5-3.5S7 4.6 7 6.5 9.2 9.6 12 10s5 1.6 5 3.5-2.2 3.5-5 3.5-5-1.6-5-3.5",
+  lifebuoy: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8M5.6 5.6l3.6 3.6M14.8 14.8l3.6 3.6M18.4 5.6l-3.6 3.6M9.2 14.8l-3.6 3.6",
   bell:"M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0",
 };
 
@@ -32,6 +33,7 @@ const SECTIONS: { title?: string; links: { href: string; label: string; icon: st
       { href: "/", label: "Dashboard", icon: "home" },
       { href: "/contacts", label: "Contacts", icon: "users" },
       { href: "/tasks", label: "Tasks", icon: "check" },
+      { href: "/service", label: "Service Requests", icon: "lifebuoy" },
       { href: "/calendar", label: "Calendar", icon: "calendar" },
       { href: "/book", label: "Book Appointment", icon: "clock" },
       { href: "/birthdays", label: "Birthdays", icon: "cake" },
