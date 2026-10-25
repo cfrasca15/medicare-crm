@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { planGroup } from "@/lib/coverage";
+import { canonicalCarrier, canonicalPlanName, planKey } from "@/lib/carriers";
 
 export interface BookRow {
   policyId: string;
@@ -62,8 +63,9 @@ export async function loadBook(filters: BookFilters = {}): Promise<BookRow[]> {
       name: `${p.contact.firstName} ${p.contact.lastName}`,
       county: p.contact.county,
       phone: p.contact.cellPreferred && p.contact.cellPhone ? p.contact.cellPhone : p.contact.phone ?? p.contact.cellPhone,
-      carrier: p.carrier,
-      planName: p.planName,
+      // Standard spellings, so the same plan typed two ways is listed once.
+      carrier: canonicalCarrier(p.carrier),
+      planName: canonicalPlanName(p.carrier, p.planName),
       planType: p.planType,
       medicalGroup: p.medicalGroup,
       doctor: p.doctor,
@@ -90,34 +92,40 @@ export interface BookSection {
   title: string;
   subsections: { title: string; rows: BookRow[] }[];
   count: number;
+  clients: number;
 }
 
-// Groups rows two levels deep: by medical group then plan, by plan then
-// medical group, or by doctor then plan. Blank values sort last.
+// Groups rows two levels deep: by medical group then plan, by carrier then
+// plan, or by doctor then plan. Blank values sort last.
 export function groupBook(rows: BookRow[], view: BookView): BookSection[] {
-  const planTitle = (r: BookRow) => `${r.carrier} — ${r.planName}`;
-  const [outer, inner, blankOuter, blankInner] =
+  type Level = (r: BookRow) => { key: string; title: string };
+  const text = (v: string | null | undefined): ReturnType<Level> => ({ key: keyOf(v), title: v?.trim() ?? "" });
+  // Plans match loosely ("Inspire" and "Blue Shield Inspire (HMO)" are one).
+  const plan = (withCarrier: boolean): Level => (r) => ({
+    key: `${keyOf(r.carrier)}|${planKey(r.planName)}`,
+    title: withCarrier ? `${r.carrier} — ${r.planName}` : r.planName,
+  });
+  const [outer, inner, blankOuter, blankInner]: [Level, Level, string, string] =
     view === "plan"
-      ? [planTitle, (r: BookRow) => groupFamily(r.medicalGroup), "No plan", "No medical group entered"]
+      ? [(r) => text(r.carrier), plan(false), "No carrier", "No plan"]
       : view === "doctor"
-        ? [(r: BookRow) => r.doctor, planTitle, "No doctor entered", "No plan"]
-        : [(r: BookRow) => groupFamily(r.medicalGroup), planTitle, "No medical group entered", "No plan"];
+        ? [(r) => text(r.doctor), plan(true), "No doctor entered", "No plan"]
+        : [(r) => text(groupFamily(r.medicalGroup)), plan(true), "No medical group entered", "No plan"];
 
   const sections = new Map<string, { title: string; inner: Map<string, { title: string; rows: BookRow[] }> }>();
   for (const r of rows) {
-    const o = outer(r)?.trim() || "";
-    const i = inner(r)?.trim() || "";
-    const ok = keyOf(o);
-    if (!sections.has(ok)) sections.set(ok, { title: o || blankOuter, inner: new Map() });
-    const sec = sections.get(ok)!;
-    const ik = keyOf(i);
-    if (!sec.inner.has(ik)) sec.inner.set(ik, { title: i || blankInner, rows: [] });
-    sec.inner.get(ik)!.rows.push(r);
+    const o = outer(r);
+    const i = inner(r);
+    if (!sections.has(o.key)) sections.set(o.key, { title: o.title || blankOuter, inner: new Map() });
+    const sec = sections.get(o.key)!;
+    if (!sec.inner.has(i.key)) sec.inner.set(i.key, { title: i.title || blankInner, rows: [] });
+    sec.inner.get(i.key)!.rows.push(r);
   }
   const byTitle = (a: [string, { title: string }], b: [string, { title: string }]) =>
     (a[0] === "" ? 1 : 0) - (b[0] === "" ? 1 : 0) || a[1].title.localeCompare(b[1].title);
   return [...sections.entries()].sort(byTitle).map(([, s]) => {
     const subsections = [...s.inner.entries()].sort(byTitle).map(([, x]) => x);
-    return { title: s.title, subsections, count: subsections.reduce((n, x) => n + x.rows.length, 0) };
+    const all = subsections.flatMap((x) => x.rows);
+    return { title: s.title, subsections, count: all.length, clients: new Set(all.map((r) => r.contactId)).size };
   });
 }

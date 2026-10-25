@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 const VIEWS: { key: BookView; label: string }[] = [
   { key: "group", label: "By medical group" },
-  { key: "plan", label: "By health plan" },
+  { key: "plan", label: "By carrier & plan" },
   { key: "doctor", label: "By doctor" },
 ];
 
@@ -27,6 +27,7 @@ export default async function BookOfBusinessPage({
   const [everything, rows] = await Promise.all([loadBook(), loadBook(filters)]);
   const sections = groupBook(rows, view);
   const clients = new Set(rows.map((r) => r.contactId)).size;
+  const filtered = Boolean(filters.q || filters.carrier || filters.group || filters.county);
 
   // Dropdown choices, one per spelling-insensitive value.
   const distinct = (values: (string | null)[]) => {
@@ -106,7 +107,7 @@ export default async function BookOfBusinessPage({
         <button type="submit" className="btn-secondary">
           Filter
         </button>
-        {(filters.q || filters.carrier || filters.group || filters.county) && (
+        {filtered && (
           <Link href={`/book-of-business?view=${view}`} className="link text-sm">
             Clear
           </Link>
@@ -124,11 +125,21 @@ export default async function BookOfBusinessPage({
       )}
 
       {sections.map((s) => (
-        <details key={s.title} open={sections.length <= 6} className="surface">
+        <details
+          key={s.title}
+          // Carriers start closed (open one to see its plans) unless a filter
+          // has already narrowed the list.
+          open={view === "plan" ? filtered && sections.length <= 6 : sections.length <= 6}
+          className="surface"
+        >
           <summary className="flex cursor-pointer items-center justify-between gap-3 px-4 py-3">
             <span className="font-semibold">{s.title}</span>
             <span className="muted text-sm">
-              {s.count} {s.count === 1 ? "plan" : "plans"}
+              {view === "plan" &&
+                `${s.subsections.length} ${s.subsections.length === 1 ? "plan" : "plans"} · `}
+              {view === "plan"
+                ? `${s.clients} ${s.clients === 1 ? "client" : "clients"}`
+                : `${s.count} ${s.count === 1 ? "plan" : "plans"}`}
             </span>
           </summary>
           <div className="flex flex-col gap-4 border-t border-slate-200 px-4 py-3 dark:border-slate-800">

@@ -103,11 +103,67 @@ export function carrierPlanOptions(
   return { carriers, plansByCarrier: localSorted, county, allPlansByCarrier: plansByCarrier };
 }
 
-// The catalog's spelling of a plan name when it's the same plan typed
-// differently (case, spacing, punctuation); otherwise the text as typed.
+// Words that say which carrier a plan belongs to, longest first, so a plan
+// name typed with the carrier in front ("Blue Shield Blue Shield Inspire")
+// can be compared without it.
+const CARRIER_WORDS = [...aliasMap.keys()].sort((a, b) => b.length - a.length);
+
+// Plan type tags that are often left off or written differently.
+const TYPE_WORDS = /\b(hmo|ppo|pos|pffs|msa|snp|c snp|d snp|i snp|csnp|dsnp|isnp)\b/g;
+
+// A plan name with any leading carrier names (and "Medicare Supplement")
+// removed, keeping the plan type: "Blue Shield Blue Shield Inspire (HMO)"
+// becomes "inspire hmo".
+function planBody(raw: string): string {
+  let k = looseKey(raw);
+  for (let again = true; again; ) {
+    again = false;
+    for (const w of [...CARRIER_WORDS, "medicare supplement", "supplement", "med supp", "medigap"]) {
+      if (k.startsWith(`${w} `)) {
+        k = k.slice(w.length + 1);
+        again = true;
+        break;
+      }
+    }
+  }
+  return k;
+}
+
+// The name used to tell plans apart: no carrier names, no plan type and no
+// trailing "plan", so "Inspire", "Blue Shield Inspire" and "Blue Shield
+// Inspire (HMO)" all give "inspire".
+export function planKey(raw: string): string {
+  return planBody(raw).replace(TYPE_WORDS, " ").replace(/\bplan$/, "").replace(/\s+/g, " ").trim() || looseKey(raw);
+}
+
+// True when two plan names are the same plan written differently.
+export const samePlan = (a: string, b: string) => planKey(a) === planKey(b);
+
+// The plan list (from Agent Compass) spelling of a plan name when it's the
+// same plan written differently: other case or punctuation, the carrier name
+// repeated or left off, or the plan type missing. Otherwise the text as
+// typed, with a doubled carrier name taken out.
 export function canonicalPlanName(carrier: string, raw: string): string {
   const tidy = raw.trim().replace(/\s+/g, " ");
-  const key = looseKey(tidy);
-  const hit = (PLAN_CATALOG[canonicalCarrier(carrier)] ?? []).find((p) => looseKey(p) === key);
-  return hit ?? tidy;
+  const list = PLAN_CATALOG[canonicalCarrier(carrier)] ?? [];
+  const exact = list.find((p) => looseKey(p) === looseKey(tidy));
+  if (exact) return exact;
+  // With the plan type, then without it; only when it points to one plan.
+  for (const key of [planBody, planKey]) {
+    const hits = list.filter((p) => key(p) === key(tidy));
+    if (hits.length === 1) return hits[0];
+  }
+  return undoubleCarrier(tidy);
+}
+
+// "Blue Shield Blue Shield Inspire" -> "Blue Shield Inspire".
+function undoubleCarrier(name: string): string {
+  const k = looseKey(name);
+  for (const w of CARRIER_WORDS) {
+    if (!k.startsWith(`${w} ${w} `)) continue;
+    // Drop the first copy: as many words as the carrier name has.
+    const n = w.split(" ").length;
+    return name.split(" ").slice(n).join(" ");
+  }
+  return name;
 }

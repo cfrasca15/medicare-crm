@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { planGroup } from "@/lib/coverage";
-import { canonicalCarrier, looseKey, PLAN_CATALOG } from "@/lib/carriers";
+import { canonicalCarrier, PLAN_CATALOG, planKey, samePlan } from "@/lib/carriers";
 import { groupFamily, loose } from "@/lib/bookOfBusiness";
 
 // Upcoming medical-group and plan changes from Agent Compass, matched against
@@ -77,7 +77,7 @@ function groupMatches(clientGroup: string | null, compassGroup: string): boolean
 }
 
 const isKnownPlan = (carrier: string, plan: string) =>
-  (PLAN_CATALOG[carrier] ?? []).some((p) => looseKey(p) === looseKey(plan));
+  (PLAN_CATALOG[carrier] ?? []).some((p) => samePlan(p, plan));
 
 const fmt = (iso: string | null) => {
   if (!iso) return null;
@@ -116,13 +116,13 @@ export async function loadChangeAlerts(now = new Date()): Promise<ChangeAlertsRe
     const carrier = canonicalCarrier(g.carrier);
     const key = `${g.group}|${carrier}|${g.endDate ?? ""}`;
     if (!ending.has(key)) ending.set(key, { group: g.group, carrier, endDate: g.endDate, note: g.note, plans: new Set() });
-    ending.get(key)!.plans.add(looseKey(g.planName));
+    ending.get(key)!.plans.add(planKey(g.planName));
   }
   for (const [key, e] of ending) {
     const clients = policies
       .filter((p) => canonicalCarrier(p.carrier) === e.carrier && groupMatches(p.medicalGroup, e.group))
       .flatMap((p) => {
-        if (e.plans.has(looseKey(p.planName))) return [client(p, true)];
+        if (e.plans.has(planKey(p.planName))) return [client(p, true)];
         // A plan name we can't match (older or shorthand): flag it to check.
         return isKnownPlan(e.carrier, p.planName) ? [] : [client(p, false)];
       });
@@ -144,7 +144,7 @@ export async function loadChangeAlerts(now = new Date()): Promise<ChangeAlertsRe
       .filter(
         (p) =>
           canonicalCarrier(p.carrier) === carrier &&
-          looseKey(p.planName) === looseKey(t.planName) &&
+          samePlan(p.planName, t.planName) &&
           (!t.county || !p.contact.county || p.contact.county === t.county)
       )
       .map((p) => client(p, true));
