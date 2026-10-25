@@ -1,4 +1,5 @@
-// 2027 commission amounts for the Add Policy form's Commission Amount list.
+// Built-in 2027 commission amounts, used for the Commission Amount list only
+// when Agent Compass can't be reached (see compassCommissions.ts).
 // Copied from the carriers' 2027 commission schedules (the Commissions page in
 // Agent Compass, sourced from the PDFs in Drive > Medicare 2027 > Commission
 // Shedules). Percentage and per-month schedules (most Medicare
@@ -43,10 +44,3 @@ export const STANDARD_MAPD_RATES: { label: string; amount: number }[] = [
   { label: "MAPD, new enrollment (2027 CMS maximum, check carrier schedule)", amount: 902 },
   { label: "MAPD, renewal (2027 CMS maximum, check carrier schedule)", amount: 451 },
 ];
-
-export function ratesForCarrier(carrier: string): { label: string; amount: number }[] {
-  const c = carrier.trim().toLowerCase();
-  if (!c) return [];
-  const own = COMMISSION_RATES.filter((r) => r.carrierKeys.some((k) => c.includes(k)));
-  return own.length ? own.map((r) => ({ label: `${r.carrier} ${r.label}`, amount: r.amount })) : STANDARD_MAPD_RATES;
-}

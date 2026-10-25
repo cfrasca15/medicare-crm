@@ -35,6 +35,7 @@ import { CALL_OUTCOMES } from "@/lib/activity";
 import { COUNTY_OPTIONS } from "@/lib/county";
 import { isWebsiteSource } from "@/lib/leadSource";
 import { ServiceRequests } from "@/components/ServiceRequests";
+import { loadCommissionChoices, type CommissionChoices } from "@/lib/compassCommissions";
 
 export default async function ContactDetailPage({
   params,
@@ -93,7 +94,7 @@ export default async function ContactDetailPage({
     new Set([...PLAN_TYPE_SEED, ...planTypeRows.map((r) => r.planType as string)])
   ).sort();
 
-  const googleAccount = await getGoogleAccount();
+  const [googleAccount, commissionChoices] = await Promise.all([getGoogleAccount(), loadCommissionChoices()]);
   let emailHistory: GmailMessageSummary[] = [];
   let emailHistoryError: string | null = null;
   if (googleAccount && contact.email) {
@@ -417,6 +418,8 @@ export default async function ContactDetailPage({
                     group={group}
                     effectiveChoices={effectiveChoices}
                     carrierPlans={carrierPlans}
+                    commissionChoices={commissionChoices}
+                    county={contact.county}
                   />
                 ))}
               </div>
@@ -437,6 +440,8 @@ export default async function ContactDetailPage({
                   group="previous"
                   effectiveChoices={effectiveChoices}
                   carrierPlans={carrierPlans}
+                  commissionChoices={commissionChoices}
+                  county={contact.county}
                 />
               ))}
             </div>
@@ -525,7 +530,12 @@ export default async function ContactDetailPage({
               <label className="text-sm font-medium" htmlFor="commissionAmount">
                 Commission Amount
               </label>
-              <CommissionSelect id="commissionAmount" name="commissionAmount" />
+              <CommissionSelect
+                id="commissionAmount"
+                name="commissionAmount"
+                choices={commissionChoices}
+                county={contact.county}
+              />
             </div>
             <PolicyField label="Doctor" name="doctor" options={doctorOptions} />
             <PolicyField label="Medical Group" name="medicalGroup" options={groupOptions} />
@@ -849,12 +859,16 @@ function PolicyCard({
   group,
   effectiveChoices,
   carrierPlans,
+  commissionChoices,
+  county,
 }: {
   contactId: string;
   policy: ContactPolicy;
   group: PlanGroup;
   effectiveChoices: { value: string; label: string }[];
   carrierPlans: CarrierPlanOptions;
+  commissionChoices: CommissionChoices;
+  county: string | null;
 }) {
   const deletePolicyForContact = deletePolicy.bind(null, contactId, p.id);
   const setEffectiveDate = updatePolicyEffectiveDate.bind(null, contactId, p.id);
@@ -914,7 +928,10 @@ function PolicyCard({
               <CommissionSelect
                 id={fid("commissionAmount")}
                 name="commissionAmount"
+                choices={commissionChoices}
+                county={county}
                 initialCarrier={p.carrier}
+                initialPlan={p.planName}
                 defaultAmount={p.commissionAmount}
               />
             </div>
