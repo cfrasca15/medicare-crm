@@ -256,6 +256,9 @@ model Policy {
   // Integrity linkage
   integrityPolicyId   String?   @unique
 
+  // Lines from imported carrier commission statements paid on this plan.
+  payments            CommissionPayment[]
+
   createdAt           DateTime  @default(now())
   updatedAt            DateTime @updatedAt
 
@@ -318,4 +321,45 @@ model GoogleAccount {
 
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+}
+
+// A carrier commission statement uploaded on the Commissions page. Each line
+// applied to a plan adds its amount to that plan's commissionReceived;
+// undoing the statement takes them back off.
+model CommissionStatement {
+  id         String              @id @default(cuid())
+  carrier    String
+  fileName   String
+  total      Float
+  lineCount  Int
+  createdAt  DateTime            @default(now())
+  payments   CommissionPayment[]
+}
+
+model CommissionPayment {
+  id          String              @id @default(cuid())
+  statement   CommissionStatement @relation(fields: [statementId], references: [id], onDelete: Cascade)
+  statementId String
+  policy      Policy?             @relation(fields: [policyId], references: [id], onDelete: SetNull)
+  policyId    String?
+  memberName  String
+  memberId    String?
+  amount      Float
+  paidOn      DateTime?
+  description String?
+  // Same line from the same carrier: used to skip it if the file is uploaded again.
+  lineKey     String              @unique
+  createdAt   DateTime            @default(now())
+
+  @@index([statementId])
+  @@index([policyId])
+}
+
+// Which column is which in a carrier's statement layout, remembered by its
+// header row so the next statement in the same layout is set up already.
+model CommissionLayout {
+  signature String   @id
+  carrier   String
+  mapping   String   // JSON: field -> column index
+  updatedAt DateTime @updatedAt
 }

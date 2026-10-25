@@ -22,7 +22,8 @@ const ICONS: Record<string, string> = {
   link: "M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1",
   logout: "M15 17l5-5-5-5M20 12H9M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4",
   copy: "M8 8h11a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1M4 16V4a1 1 0 0 1 1-1h11",
-  bell: "M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0",
+  dollar: "M12 2v20M17 6.5c0-1.9-2.2-3.5-5-3.5S7 4.6 7 6.5 9.2 9.6 12 10s5 1.6 5 3.5-2.2 3.5-5 3.5-5-1.6-5-3.5",
+  bell:"M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0",
 };
 
 const SECTIONS: { title?: string; links: { href: string; label: string; icon: string }[] }[] = [
@@ -40,6 +41,7 @@ const SECTIONS: { title?: string; links: { href: string; label: string; icon: st
     title: "Business",
     links: [
       { href: "/enrollments", label: "Enrollments", icon: "chart" },
+      { href: "/commissions", label: "Commissions", icon: "dollar" },
       { href: "/book-of-business", label: "Book of Business", icon: "briefcase" },
       { href: "/alerts", label: "Change Alerts", icon: "bell" },
     ],
