@@ -187,7 +187,7 @@ export default async function ContactDetailPage({
         <div className="flex min-w-0 gap-4">
           <span
             aria-hidden="true"
-            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-base font-semibold text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-200"
+            className="hidden h-12 w-12 shrink-0 sm:flex items-center justify-center rounded-full bg-indigo-100 text-base font-semibold text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-200"
           >
             {(contact.firstName[0] ?? "").toUpperCase()}
             {(contact.lastName[0] ?? "").toUpperCase()}
@@ -269,7 +269,7 @@ export default async function ContactDetailPage({
                     key={p.id}
                     className="rounded-full bg-indigo-50 px-3 py-1 font-medium text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300"
                   >
-                    Current: {p.carrier} {p.planName}
+                    Current: {planLabel(p)}
                     {p.effectiveDate && coverageMonth(p.effectiveDate) !== null && (
                       <span className="font-normal opacity-80"> · Month {coverageMonth(p.effectiveDate)}</span>
                     )}
@@ -280,7 +280,7 @@ export default async function ContactDetailPage({
                     key={p.id}
                     className="rounded-full bg-emerald-50 px-3 py-1 font-medium text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
                   >
-                    {p.effectiveDate ? `Starting ${formatDateOnly(p.effectiveDate)}` : "Future"}: {p.carrier} {p.planName}
+                    {p.effectiveDate ? `Starting ${formatDateOnly(p.effectiveDate)}` : "Future"}: {planLabel(p)}
                   </span>
                 ))}
               </div>
@@ -973,6 +973,16 @@ function PolicyField({
   );
 }
 
+// True when the plan name already says the carrier ("SCAN Classic").
+function nameHasCarrier(p: { carrier: string; planName: string }): boolean {
+  return looseKey(p.planName).includes(looseKey(p.carrier).split(" ")[0]);
+}
+
+// "SCAN Classic (HMO)" as is; the carrier added when the name leaves it out.
+function planLabel(p: { carrier: string; planName: string }): string {
+  return nameHasCarrier(p) ? p.planName : `${p.carrier} ${p.planName}`;
+}
+
 type ContactPolicy = Awaited<ReturnType<typeof prisma.policy.findMany>>[number];
 
 function PolicyCard({
@@ -999,7 +1009,7 @@ function PolicyCard({
   const month = p.effectiveDate ? coverageMonth(p.effectiveDate) : null;
   // The plan type is often in the name already ("Value Script (PDP)").
   const showType = p.planType && !p.planName.toLowerCase().includes(p.planType.toLowerCase());
-  const showCarrier = !looseKey(p.planName).includes(looseKey(p.carrier).split(" ")[0]);
+  const showCarrier = !nameHasCarrier(p);
   const facts = [
     p.clientType === "new" ? "New client" : p.clientType === "current" ? "Current client" : null,
     group === "current" && month !== null ? `Month ${month}` : null,

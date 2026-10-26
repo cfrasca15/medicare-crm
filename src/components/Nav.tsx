@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { logout } from "@/lib/actions/auth";
 import { QuickSearch } from "@/components/QuickSearch";
 
@@ -24,6 +24,8 @@ const ICONS: Record<string, string> = {
   copy: "M8 8h11a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1M4 16V4a1 1 0 0 1 1-1h11",
   dollar: "M12 2v20M17 6.5c0-1.9-2.2-3.5-5-3.5S7 4.6 7 6.5 9.2 9.6 12 10s5 1.6 5 3.5-2.2 3.5-5 3.5-5-1.6-5-3.5",
   lifebuoy: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8M5.6 5.6l3.6 3.6M14.8 14.8l3.6 3.6M18.4 5.6l-3.6 3.6M9.2 14.8l-3.6 3.6",
+  menu: "M4 6h16M4 12h16M4 18h16",
+  close: "M6 6l12 12M18 6L6 18",
   bell:"M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0",
 };
 
@@ -78,6 +80,8 @@ const isFramed = () => window.self !== window.top;
 export function Nav() {
   const pathname = usePathname();
   const framed = useSyncExternalStore(subscribeNoop, isFramed, () => false);
+  // Phones and narrow windows: the menu slides in from the ☰ button.
+  const [open, setOpen] = useState(false);
 
   if (framed) return null;
   if (HIDE_NAV_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {
@@ -88,16 +92,50 @@ export function Nav() {
     // Whole path segments only, so "/book" isn't lit up on "/book-of-business".
     href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
 
+  const brand = (
+    <span className="flex items-center gap-2.5">
+      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 text-sm font-bold text-white shadow-sm">
+        CF
+      </span>
+      <span className="leading-tight">
+        <span className="block text-sm font-semibold text-slate-900 dark:text-slate-100">Medicare CRM</span>
+        <span className="block text-xs text-slate-500 dark:text-slate-400">Chris Frasca Insurance</span>
+      </span>
+    </span>
+  );
+
   return (
-    <nav className="flex h-full w-60 shrink-0 flex-col border-r border-slate-200 bg-white px-3 py-4 dark:border-slate-800 dark:bg-slate-900">
-      <div className="mb-5 flex items-center gap-2.5 px-2">
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 text-sm font-bold text-white shadow-sm">
-          CF
-        </span>
-        <span className="leading-tight">
-          <span className="block text-sm font-semibold text-slate-900 dark:text-slate-100">Medicare CRM</span>
-          <span className="block text-xs text-slate-500 dark:text-slate-400">Chris Frasca Insurance</span>
-        </span>
+    <>
+      {/* Top bar with the menu button, on narrow screens only. */}
+      <div className="flex h-14 shrink-0 items-center gap-3 border-b border-slate-200 bg-white px-3 md:hidden dark:border-slate-800 dark:bg-slate-900">
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label="Open menu"
+          className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+        >
+          <Icon name="menu" />
+        </button>
+        {brand}
+      </div>
+      {open && (
+        <div aria-hidden="true" onClick={() => setOpen(false)} className="fixed inset-0 z-30 bg-slate-900/40 md:hidden" />
+      )}
+    <nav
+      className={`fixed inset-y-0 left-0 z-40 flex h-full w-72 shrink-0 flex-col border-r border-slate-200 bg-white px-3 py-4 shadow-xl transition-transform md:static md:w-60 md:translate-x-0 md:shadow-none dark:border-slate-800 dark:bg-slate-900 ${
+        open ? "translate-x-0" : "-translate-x-full"
+      }`}
+    >
+      <div className="mb-5 flex items-center justify-between gap-2 px-2">
+        {brand}
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          aria-label="Close menu"
+          className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 md:hidden dark:hover:bg-slate-800"
+        >
+          <Icon name="close" />
+        </button>
       </div>
       <QuickSearch />
       <div className="flex flex-1 flex-col gap-5 overflow-y-auto">
@@ -114,6 +152,7 @@ export function Nav() {
                 <Link
                   key={link.href}
                   href={link.href}
+                  onClick={() => setOpen(false)}
                   aria-current={active ? "page" : undefined}
                   className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                     active
@@ -143,5 +182,6 @@ export function Nav() {
         </button>
       </form>
     </nav>
+    </>
   );
 }
