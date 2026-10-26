@@ -22,7 +22,7 @@ import { CommissionSelect } from "@/components/CommissionSelect";
 import { ShowWhen } from "@/components/ShowWhen";
 import { coverageMonth, planGroup, type PlanGroup } from "@/lib/coverage";
 import { PLAN_TYPE_SEED } from "@/lib/constants";
-import { carrierPlanOptions, type CarrierPlanOptions } from "@/lib/carriers";
+import { carrierPlanOptions, looseKey, type CarrierPlanOptions } from "@/lib/carriers";
 import { CarrierPlanFields } from "@/components/CarrierPlanFields";
 import { CallButton } from "@/components/CallButton";
 import { primaryPhone } from "@/lib/phone";
@@ -34,7 +34,9 @@ import { logCall, deleteActivity } from "@/lib/actions/activity";
 import { CALL_OUTCOMES } from "@/lib/activity";
 import { COUNTY_OPTIONS } from "@/lib/county";
 import { isWebsiteSource } from "@/lib/leadSource";
-import { ServiceRequests } from "@/components/ServiceRequests";
+import { NewServiceRequestForm, ServiceRequestList } from "@/components/ServiceRequests";
+import { ToggleSection } from "@/components/ToggleSection";
+import { ActivityComposer } from "@/components/ActivityComposer";
 import { loadCommissionChoices, type CommissionChoices } from "@/lib/compassCommissions";
 
 export default async function ContactDetailPage({
@@ -170,11 +172,12 @@ export default async function ContactDetailPage({
       orderBy: { lastName: "asc" },
     }),
   ]);
+  const openRequestCount = contact.serviceRequests.filter((r) => r.status !== "resolved").length;
   const callPhone = primaryPhone(contact);
   const otherPhone = callPhone?.isCell ? contact.phone : contact.cellPhone;
 
   return (
-    <div className="max-w-4xl mx-auto flex flex-col gap-8">
+    <div className="max-w-6xl mx-auto flex flex-col gap-6">
       <div className="-mb-5">
         <Link href="/contacts" className="link text-sm">
           ← All contacts
@@ -202,9 +205,10 @@ export default async function ContactDetailPage({
                 </span>
               )}
               {callPhone && otherPhone && (
-                <span>
+                <span className="flex items-center gap-2">
                   {callPhone.isCell ? "Other " : "Cell "}
                   {otherPhone}
+                  <CallButton phone={otherPhone} />
                 </span>
               )}
               {contact.email && <span>{contact.email}</span>}
@@ -281,14 +285,15 @@ export default async function ContactDetailPage({
                 ))}
               </div>
             )}
-            <SpouseLink
-              key={spouse?.id ?? "none"}
-              contactId={contact.id}
-              spouse={spouse ? { id: spouse.id, name: `${spouse.firstName} ${spouse.lastName}` } : null}
-            />
+            {/* Spouse and referral on one line. */}
             <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+              <SpouseLink
+                key={`spouse-${spouse?.id ?? "none"}`}
+                contactId={contact.id}
+                spouse={spouse ? { id: spouse.id, name: `${spouse.firstName} ${spouse.lastName}` } : null}
+              />
               <ReferralLink
-                key={referrer?.id ?? "none"}
+                key={`referrer-${referrer?.id ?? "none"}`}
                 contactId={contact.id}
                 referrer={referrer ? { id: referrer.id, name: `${referrer.firstName} ${referrer.lastName}` } : null}
               />
@@ -335,437 +340,554 @@ export default async function ContactDetailPage({
         </div>
       </div>
 
-      <section>
-        <h2 className="section-label mb-3">Tasks</h2>
-        <SaveForm
-          action={createTask}
-          submitLabel="Add Task"
-          savedLabel="Task added ✓"
-          resetOnSuccess
-          primary
-          className="surface mb-3 flex flex-wrap items-center gap-2 p-3"
-        >
-          <input type="hidden" name="contactId" value={contact.id} />
-          <input
-            name="title"
-            placeholder="Add a task or follow-up…"
-            aria-label="Task"
-            required
-            className="field min-w-48 flex-1"
-          />
-          <input name="dueDate" type="date" aria-label="Due date" title="Due date" className="field" />
-          <input name="notes" placeholder="Notes (optional)" aria-label="Notes" className="field min-w-40 flex-1" />
-        </SaveForm>
-        <div className="flex flex-col gap-2">
-          {contact.tasks.length === 0 && <p className="muted text-sm">No tasks yet.</p>}
-          {contact.tasks.map((t) => {
-            const deleteTaskBound = deleteTask.bind(null, t.id);
-            return (
-              <div key={t.id} className="surface flex items-center justify-between px-3 py-2 text-sm">
-                <div className="flex items-center gap-3">
-                  <TaskCheckbox taskId={t.id} done={t.status === "DONE"} />
-                  <span className={t.status === "DONE" ? "muted line-through" : ""}>
-                    {t.title}
-                  </span>
-                  {t.dueDate && <span className="muted text-xs">{formatDateOnly(t.dueDate)}</span>}
-                </div>
-                <div className="flex items-center gap-3">
-                  {t.dueDate && (
-                    <CalendarSyncButton taskId={t.id} synced={!!t.googleEventId} />
-                  )}
-                  <form action={deleteTaskBound}>
-                    <button type="submit" className="btn-danger-text text-xs">
-                      Remove
-                    </button>
-                  </form>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      <section>
-        <h2 className="section-label mb-3">Service Requests</h2>
-        <ServiceRequests
-          contactId={contact.id}
-          requests={contact.serviceRequests}
-          plans={[...plansByGroup.current, ...plansByGroup.future, ...plansByGroup.previous].map((p) => ({
-            id: p.id,
-            label: `${p.carrier} ${p.planName}${p.effectiveDate ? ` (eff. ${formatDateOnly(p.effectiveDate)})` : ""}`,
-          }))}
-        />
-      </section>
-
-      <section>
-        <h2 className="section-label mb-3">Health Plans</h2>
-        <div className="mb-4 grid gap-3 md:grid-cols-2">
-          {(["current", "future"] as const).map((group) => {
-            const list = plansByGroup[group];
-            return (
-              <div key={group} className="flex flex-col gap-2">
-                <h3 className="text-sm font-semibold">{group === "current" ? "Current plan" : "Future plan"}</h3>
-                {list.length === 0 && (
-                  <p className="muted surface p-3 text-sm">
-                    {group === "current" ? "No current plan entered." : "No future plan entered."}
-                  </p>
-                )}
-                {list.map((p) => (
-                  <PolicyCard
-                    key={p.id}
-                    contactId={contact.id}
-                    policy={p}
-                    group={group}
-                    effectiveChoices={effectiveChoices}
-                    carrierPlans={carrierPlans}
-                    commissionChoices={commissionChoices}
+      {/* Two columns on wide screens: plans and activity on the left; tasks,
+          client info and contact person on the right. Narrower screens get one
+          column, in the order set by each section's order- class. */}
+      <div className="contents lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start lg:gap-6">
+        <div className="contents lg:flex lg:min-w-0 lg:flex-col lg:gap-6">
+          <ToggleSection
+            title="Health Plans"
+            className="order-3 lg:order-none"
+            note={contact.policies.length ? undefined : "none"}
+            actionLabel="+ Add plan"
+            form={
+              <SaveForm
+                action={createPolicyForContact}
+                submitLabel="Add Health Plan"
+                savedLabel="Health plan added ✓"
+                resetOnSuccess
+                primary
+                className="surface grid grid-cols-2 gap-3 p-3"
+              >
+                <fieldset className="flex flex-col gap-1">
+                  <legend className="mb-1 text-sm font-medium">
+                    Client <span className="text-red-500">*</span>
+                  </legend>
+                  <div className="flex gap-4 text-sm">
+                    <label className="flex items-center gap-2">
+                      <input type="radio" name="clientType" value="new" required className="accent-indigo-600" />
+                      New client
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input type="radio" name="clientType" value="current" required className="accent-indigo-600" />
+                      Current client
+                    </label>
+                  </div>
+                </fieldset>
+                <fieldset className="flex flex-col gap-1">
+                  <legend className="mb-1 text-sm font-medium">
+                    Plan <span className="text-red-500">*</span>
+                  </legend>
+                  <div className="flex gap-4 text-sm">
+                    <label className="flex items-center gap-2">
+                      <input type="radio" name="timing" value="current" required className="accent-indigo-600" />
+                      Current plan
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input type="radio" name="timing" value="future" required className="accent-indigo-600" />
+                      Future plan
+                    </label>
+                  </div>
+                </fieldset>
+                <CarrierPlanFields idPrefix="add" {...carrierPlans} />
+                <PolicyField
+                  label="Plan Type"
+                  name="planType"
+                  placeholder="MAPD, PDP, Med Supp..."
+                  options={planTypeOptions}
+                />
+                <ShowWhen field="timing" value="future">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-sm font-medium" htmlFor="effectiveDate">
+                      Effective Date
+                    </label>
+                    <EffectiveDateSelect id="effectiveDate" name="effectiveDate" choices={effectiveChoices} />
+                    {plansByGroup.current.length > 0 && (
+                      <label className="muted mt-1 flex items-center gap-2 text-xs">
+                        <input
+                          type="checkbox"
+                          name="replacesCurrent"
+                          defaultChecked
+                          className="h-3.5 w-3.5 accent-indigo-600"
+                        />
+                        Replaces their current plan (it ends the day before this one starts)
+                      </label>
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-sm font-medium" htmlFor="submittedAt">
+                      Date Submitted
+                    </label>
+                    <input
+                      id="submittedAt"
+                      name="submittedAt"
+                      type="date"
+                      defaultValue={todayInputValue()}
+                      className="field"
+                    />
+                  </div>
+                </ShowWhen>
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm font-medium" htmlFor="commissionAmount">
+                    Commission Amount
+                  </label>
+                  <CommissionSelect
+                    id="commissionAmount"
+                    name="commissionAmount"
+                    choices={commissionChoices}
                     county={contact.county}
                   />
-                ))}
-              </div>
-            );
-          })}
-        </div>
-        {plansByGroup.previous.length > 0 && (
-          <details className="mb-4">
-            <summary className="muted cursor-pointer text-sm">
-              Previous plans ({plansByGroup.previous.length})
-            </summary>
-            <div className="mt-2 flex flex-col gap-2">
-              {plansByGroup.previous.map((p) => (
-                <PolicyCard
-                  key={p.id}
-                  contactId={contact.id}
-                  policy={p}
-                  group="previous"
-                  effectiveChoices={effectiveChoices}
-                  carrierPlans={carrierPlans}
-                  commissionChoices={commissionChoices}
-                  county={contact.county}
-                />
-              ))}
-            </div>
-          </details>
-        )}
-
-        <details className="surface p-3">
-          <summary className="cursor-pointer text-sm font-medium">+ Add Health Plan</summary>
-          <SaveForm
-            action={createPolicyForContact}
-            submitLabel="Add Health Plan"
-            savedLabel="Health plan added ✓"
-            resetOnSuccess
-            primary
-            className="mt-3 grid grid-cols-2 gap-3"
+                </div>
+                <PolicyField label="Doctor" name="doctor" options={doctorOptions} />
+                <PolicyField label="Medical Group" name="medicalGroup" options={groupOptions} />
+              </SaveForm>
+            }
           >
-            <fieldset className="flex flex-col gap-1">
-              <legend className="mb-1 text-sm font-medium">
-                Client <span className="text-red-500">*</span>
-              </legend>
-              <div className="flex gap-4 text-sm">
-                <label className="flex items-center gap-2">
-                  <input type="radio" name="clientType" value="new" required className="accent-indigo-600" />
-                  New client
-                </label>
-                <label className="flex items-center gap-2">
-                  <input type="radio" name="clientType" value="current" required className="accent-indigo-600" />
-                  Current client
-                </label>
+            {(plansByGroup.current.length > 0 || plansByGroup.future.length > 0) && (
+              <div
+                className={`grid gap-3 ${plansByGroup.current.length && plansByGroup.future.length ? "md:grid-cols-2" : ""}`}
+              >
+                {(["current", "future"] as const)
+                  .filter((group) => plansByGroup[group].length > 0)
+                  .map((group) => (
+                    <div key={group} className="flex flex-col gap-2">
+                      <h3 className="muted text-xs font-medium">{group === "current" ? "Current plan" : "Future plan"}</h3>
+                      {plansByGroup[group].map((p) => (
+                        <PolicyCard
+                          key={p.id}
+                          contactId={contact.id}
+                          policy={p}
+                          group={group}
+                          effectiveChoices={effectiveChoices}
+                          carrierPlans={carrierPlans}
+                          commissionChoices={commissionChoices}
+                          county={contact.county}
+                        />
+                      ))}
+                    </div>
+                  ))}
               </div>
-            </fieldset>
-            <fieldset className="flex flex-col gap-1">
-              <legend className="mb-1 text-sm font-medium">
-                Plan <span className="text-red-500">*</span>
-              </legend>
-              <div className="flex gap-4 text-sm">
-                <label className="flex items-center gap-2">
-                  <input type="radio" name="timing" value="current" required className="accent-indigo-600" />
-                  Current plan
-                </label>
-                <label className="flex items-center gap-2">
-                  <input type="radio" name="timing" value="future" required className="accent-indigo-600" />
-                  Future plan
-                </label>
-              </div>
-            </fieldset>
-            <CarrierPlanFields idPrefix="add" {...carrierPlans} />
-            <PolicyField
-              label="Plan Type"
-              name="planType"
-              placeholder="MAPD, PDP, Med Supp..."
-              options={planTypeOptions}
-            />
-            <ShowWhen field="timing" value="future">
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium" htmlFor="effectiveDate">
-                  Effective Date
-                </label>
-                <EffectiveDateSelect id="effectiveDate" name="effectiveDate" choices={effectiveChoices} />
-                {plansByGroup.current.length > 0 && (
-                  <label className="muted mt-1 flex items-center gap-2 text-xs">
-                    <input
-                      type="checkbox"
-                      name="replacesCurrent"
-                      defaultChecked
-                      className="h-3.5 w-3.5 accent-indigo-600"
+            )}
+            {plansByGroup.previous.length > 0 && (
+              <details className="mt-2">
+                <summary className="link cursor-pointer text-xs font-medium">
+                  Plan history ({plansByGroup.previous.length} previous {plansByGroup.previous.length === 1 ? "plan" : "plans"})
+                </summary>
+                <div className="mt-2 flex flex-col gap-2">
+                  {plansByGroup.previous.map((p) => (
+                    <PolicyCard
+                      key={p.id}
+                      contactId={contact.id}
+                      policy={p}
+                      group="previous"
+                      effectiveChoices={effectiveChoices}
+                      carrierPlans={carrierPlans}
+                      commissionChoices={commissionChoices}
+                      county={contact.county}
                     />
-                    Replaces their current plan (it ends the day before this one starts)
-                  </label>
-                )}
+                  ))}
+                </div>
+              </details>
+            )}
+          </ToggleSection>
+
+          <section className="order-6 lg:order-none">
+            <h2 className="section-label mb-3">
+              Activity
+              {openRequestCount > 0 && (
+                <span className="ml-2 font-normal normal-case tracking-normal text-amber-700 dark:text-amber-300">
+                  {openRequestCount} open service {openRequestCount === 1 ? "request" : "requests"}
+                </span>
+              )}
+            </h2>
+            <div className="mb-4 flex flex-col gap-3">
+              <ActivityComposer
+                note={
+                  <SaveForm
+                    action={addNoteForContact}
+                    submitLabel="Add Note"
+                    savedLabel="Note added ✓"
+                    resetOnSuccess
+                    primary
+                    className="flex flex-col gap-2"
+                  >
+                    <textarea name="body" placeholder="Add a note…" rows={3} required className="field" />
+                  </SaveForm>
+                }
+                call={
+                  <SaveForm
+                    action={logCallForContact}
+                    submitLabel="Log Call"
+                    savedLabel="Call logged ✓"
+                    resetOnSuccess
+                    primary
+                    className="flex flex-col gap-2"
+                  >
+                    <select name="outcome" required defaultValue="" className="field" aria-label="How the call went">
+                      <option value="" disabled>
+                        How did the call go?
+                      </option>
+                      {CALL_OUTCOMES.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
+                    <input name="note" placeholder="Quick note (optional)" className="field" />
+                    <label className="muted flex items-center gap-2 text-xs">
+                      Follow up on
+                      <input type="date" name="followUp" className="field py-1" />
+                      <span>(adds a task)</span>
+                    </label>
+                  </SaveForm>
+                }
+                request={
+                  <NewServiceRequestForm
+                    bare
+                    contactId={contact.id}
+                    plans={[...plansByGroup.current, ...plansByGroup.future, ...plansByGroup.previous].map((p) => ({
+                      id: p.id,
+                      label: `${p.carrier} ${p.planName}${p.effectiveDate ? ` (eff. ${formatDateOnly(p.effectiveDate)})` : ""}`,
+                    }))}
+                  />
+                }
+              />
+              {contact.serviceRequests.length > 0 && (
+                <div className="flex flex-col gap-2">
+                  {openRequestCount > 0 && (
+                    <h3 className="muted text-xs font-medium">
+                      Open service {openRequestCount === 1 ? "request" : "requests"}
+                    </h3>
+                  )}
+                  <ServiceRequestList requests={contact.serviceRequests} />
+                </div>
+              )}
+            </div>
+
+            <ol className="relative flex flex-col gap-2 border-l border-slate-200 pl-4 dark:border-slate-800">
+              {timeline.length === 0 && <p className="muted text-sm">Nothing yet.</p>}
+              {timeline.map((item) => (
+                <li key={item.key} className="relative">
+                  <span
+                    aria-hidden="true"
+                    className={`absolute top-3 -left-[21px] h-2.5 w-2.5 rounded-full ring-2 ring-white dark:ring-slate-950 ${TIMELINE_DOT[item.kind]}`}
+                  />
+                  <div className="surface flex items-start justify-between gap-3 p-3 text-sm">
+                    <div className="min-w-0">
+                      <div className="muted text-xs">
+                        {TIMELINE_LABEL[item.kind]} · {formatDateTime(item.at)}
+                      </div>
+                      <div className="mt-1 whitespace-pre-wrap">{item.text}</div>
+                    </div>
+                    {item.remove && (
+                      <form action={item.remove}>
+                        <button type="submit" className="btn-danger-text text-xs">
+                          Remove
+                        </button>
+                      </form>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </section>
+
+          <section className="order-7 lg:order-none">
+            <h2 className="section-label mb-3">Email</h2>
+            {!contact.email && (
+              <p className="muted text-sm">Add an email address to send or track email.</p>
+            )}
+            {contact.email && !googleAccount && (
+              <p className="muted text-sm">
+                Connect your Google account on the{" "}
+                <Link href="/settings/google" className="link">
+                  Google
+                </Link>{" "}
+                settings page to send and track email here.
+              </p>
+            )}
+            {contact.email && googleAccount && emailHistoryError && (
+              <p className="text-sm text-red-600 dark:text-red-400">
+                Couldn&apos;t load email history: {emailHistoryError}. If you
+                connected Google before Gmail access was added, reconnect on the{" "}
+                <Link href="/settings/google" className="link">
+                  Google
+                </Link>{" "}
+                settings page to grant it.
+              </p>
+            )}
+            {contact.email && googleAccount && !emailHistoryError && (
+              <EmailPanel contactId={contact.id} history={emailHistory} />
+            )}
+          </section>
+        </div>
+        <div className="contents lg:flex lg:flex-col lg:gap-6">
+          <ToggleSection
+            title="Tasks"
+            className="order-1 lg:order-none"
+            note={contact.tasks.length ? undefined : "none"}
+            actionLabel="+ Add task"
+            form={
+              <SaveForm
+                action={createTask}
+                submitLabel="Add Task"
+                savedLabel="Task added ✓"
+                resetOnSuccess
+                primary
+                className="surface flex flex-wrap items-center gap-2 p-3"
+              >
+              <input type="hidden" name="contactId" value={contact.id} />
+              <input
+                name="title"
+                placeholder="Add a task or follow-up…"
+                aria-label="Task"
+                required
+                className="field min-w-48 flex-1"
+              />
+              <input name="dueDate" type="date" aria-label="Due date" title="Due date" className="field" />
+              <input name="notes" placeholder="Notes (optional)" aria-label="Notes" className="field min-w-40 flex-1" />
+              </SaveForm>
+            }
+          >
+            {contact.tasks.length > 0 && (
+              <div className="flex flex-col gap-2">
+              {contact.tasks.map((t) => {
+                const deleteTaskBound = deleteTask.bind(null, t.id);
+                return (
+                  <div key={t.id} className="surface flex items-center justify-between px-3 py-2 text-sm">
+                    <div className="flex items-center gap-3">
+                      <TaskCheckbox taskId={t.id} done={t.status === "DONE"} />
+                      <span className={t.status === "DONE" ? "muted line-through" : ""}>
+                        {t.title}
+                      </span>
+                      {t.dueDate && <span className="muted text-xs">{formatDateOnly(t.dueDate)}</span>}
+                    </div>
+                    <div className="flex items-center gap-3">
+                      {t.dueDate && (
+                        <CalendarSyncButton taskId={t.id} synced={!!t.googleEventId} />
+                      )}
+                      <form action={deleteTaskBound}>
+                        <button type="submit" className="btn-danger-text text-xs">
+                          Remove
+                        </button>
+                      </form>
+                    </div>
+                  </div>
+                );
+              })}
               </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium" htmlFor="submittedAt">
-                  Date Submitted
+            )}
+          </ToggleSection>
+
+          <ToggleSection
+            title="Client Info"
+            className="order-4 lg:order-none"
+            actionLabel="Edit"
+            closeLabel="Done"
+            hideWhenOpen
+            form={
+              <SaveForm action={updateInfoForContact} className="surface grid grid-cols-6 gap-3 p-4">
+              <Field label="First Name" name="firstName" value={contact.firstName} span={2} required />
+              <Field label="Last Name" name="lastName" value={contact.lastName} span={2} required />
+              <Field
+                label="Date of Birth"
+                name="dateOfBirth"
+                type="date"
+                value={contact.dateOfBirth ? dateInputValue(contact.dateOfBirth) : null}
+                span={2}
+              />
+              <Field label="Phone" name="phone" type="tel" value={contact.phone} span={2} />
+              <div className="col-span-2 flex flex-col gap-1">
+                <label className="text-sm font-medium" htmlFor="info-cellPhone">
+                  Cell Phone
                 </label>
                 <input
-                  id="submittedAt"
-                  name="submittedAt"
-                  type="date"
-                  defaultValue={todayInputValue()}
+                  id="info-cellPhone"
+                  name="cellPhone"
+                  type="tel"
+                  defaultValue={contact.cellPhone ?? ""}
                   className="field"
                 />
+                <label className="muted flex items-center gap-2 text-xs">
+                  <input
+                    type="checkbox"
+                    name="cellPreferred"
+                    defaultChecked={contact.cellPreferred}
+                    className="h-3.5 w-3.5 accent-indigo-600"
+                  />
+                  Preferred — Call button dials the cell
+                </label>
               </div>
-            </ShowWhen>
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium" htmlFor="commissionAmount">
-                Commission Amount
+              <Field label="Email" name="email" type="email" value={contact.email} span={2} />
+              <Field label="Address" name="address" value={contact.address} span={3} />
+              <Field label="City" name="city" value={contact.city} span={1} />
+              <Field label="State" name="state" value={contact.state} span={1} />
+              <Field label="ZIP" name="zip" value={contact.zip} span={1} />
+              <div className="col-span-2 flex flex-col gap-1">
+                <label className="text-sm font-medium" htmlFor="info-county">
+                  County
+                </label>
+                <input
+                  id="info-county"
+                  name="county"
+                  list="county-options"
+                  defaultValue={contact.county ?? ""}
+                  placeholder="Filled from the ZIP if blank"
+                  className="field"
+                />
+                <datalist id="county-options">
+                  {COUNTY_OPTIONS.map((c) => (
+                    <option key={c} value={c} />
+                  ))}
+                </datalist>
+              </div>
+              <div className="col-span-4 flex flex-wrap items-end gap-x-6 gap-y-2 pb-2 text-sm">
+                <label className="flex items-center gap-2">
+                  <input type="checkbox" name="medicaid" defaultChecked={contact.medicaid} className="h-4 w-4 accent-indigo-600" />
+                  Medi-Cal
+                </label>
+                <label className="flex items-center gap-2">
+                  <input type="checkbox" name="extraHelp" defaultChecked={contact.extraHelp} className="h-4 w-4 accent-indigo-600" />
+                  Extra Help (LIS)
+                </label>
+              </div>
+              <label className="col-span-6 flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  name="hasMailingAddress"
+                  defaultChecked={contact.hasMailingAddress}
+                  className="h-4 w-4 accent-indigo-600"
+                />
+                Different mailing address
               </label>
-              <CommissionSelect
-                id="commissionAmount"
-                name="commissionAmount"
-                choices={commissionChoices}
-                county={contact.county}
+              <ShowWhen field="hasMailingAddress" value="on" initial={contact.hasMailingAddress ? "on" : ""}>
+                <Field label="Mailing Address" name="mailingAddress" value={contact.mailingAddress} span={3} />
+                <Field label="City" name="mailingCity" value={contact.mailingCity} span={1} />
+                <Field label="State" name="mailingState" value={contact.mailingState} span={1} />
+                <Field label="ZIP" name="mailingZip" value={contact.mailingZip} span={1} />
+              </ShowWhen>
+              <Field label="Medicare Number" name="medicareId" value={contact.medicareId} span={2} />
+              <Field
+                label="Part A Effective"
+                name="partAEffectiveDate"
+                type="date"
+                value={contact.partAEffectiveDate ? dateInputValue(contact.partAEffectiveDate) : null}
+                span={2}
               />
-            </div>
-            <PolicyField label="Doctor" name="doctor" options={doctorOptions} />
-            <PolicyField label="Medical Group" name="medicalGroup" options={groupOptions} />
-          </SaveForm>
-        </details>
-      </section>
-
-      <section>
-        <h2 className="section-label mb-3">Client Info</h2>
-        <SaveForm action={updateInfoForContact} className="surface grid grid-cols-6 gap-3 p-4">
-          <Field label="First Name" name="firstName" value={contact.firstName} span={2} required />
-          <Field label="Last Name" name="lastName" value={contact.lastName} span={2} required />
-          <Field
-            label="Date of Birth"
-            name="dateOfBirth"
-            type="date"
-            value={contact.dateOfBirth ? dateInputValue(contact.dateOfBirth) : null}
-            span={2}
-          />
-          <Field label="Phone" name="phone" type="tel" value={contact.phone} span={2} />
-          <div className="col-span-2 flex flex-col gap-1">
-            <label className="text-sm font-medium" htmlFor="info-cellPhone">
-              Cell Phone
-            </label>
-            <input
-              id="info-cellPhone"
-              name="cellPhone"
-              type="tel"
-              defaultValue={contact.cellPhone ?? ""}
-              className="field"
-            />
-            <label className="muted flex items-center gap-2 text-xs">
-              <input
-                type="checkbox"
-                name="cellPreferred"
-                defaultChecked={contact.cellPreferred}
-                className="h-3.5 w-3.5 accent-indigo-600"
+              <Field
+                label="Part B Effective"
+                name="partBEffectiveDate"
+                type="date"
+                value={contact.partBEffectiveDate ? dateInputValue(contact.partBEffectiveDate) : null}
+                span={2}
               />
-              Preferred — Call button dials the cell
-            </label>
-          </div>
-          <Field label="Email" name="email" type="email" value={contact.email} span={2} />
-          <Field label="Address" name="address" value={contact.address} span={3} />
-          <Field label="City" name="city" value={contact.city} span={1} />
-          <Field label="State" name="state" value={contact.state} span={1} />
-          <Field label="ZIP" name="zip" value={contact.zip} span={1} />
-          <div className="col-span-2 flex flex-col gap-1">
-            <label className="text-sm font-medium" htmlFor="info-county">
-              County
-            </label>
-            <input
-              id="info-county"
-              name="county"
-              list="county-options"
-              defaultValue={contact.county ?? ""}
-              placeholder="Filled from the ZIP if blank"
-              className="field"
-            />
-            <datalist id="county-options">
-              {COUNTY_OPTIONS.map((c) => (
-                <option key={c} value={c} />
-              ))}
-            </datalist>
-          </div>
-          <div className="col-span-4 flex flex-wrap items-end gap-x-6 gap-y-2 pb-2 text-sm">
-            <label className="flex items-center gap-2">
-              <input type="checkbox" name="medicaid" defaultChecked={contact.medicaid} className="h-4 w-4 accent-indigo-600" />
-              Medi-Cal
-            </label>
-            <label className="flex items-center gap-2">
-              <input type="checkbox" name="extraHelp" defaultChecked={contact.extraHelp} className="h-4 w-4 accent-indigo-600" />
-              Extra Help (LIS)
-            </label>
-          </div>
-          <label className="col-span-6 flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              name="hasMailingAddress"
-              defaultChecked={contact.hasMailingAddress}
-              className="h-4 w-4 accent-indigo-600"
-            />
-            Different mailing address
-          </label>
-          <ShowWhen field="hasMailingAddress" value="on" initial={contact.hasMailingAddress ? "on" : ""}>
-            <Field label="Mailing Address" name="mailingAddress" value={contact.mailingAddress} span={3} />
-            <Field label="City" name="mailingCity" value={contact.mailingCity} span={1} />
-            <Field label="State" name="mailingState" value={contact.mailingState} span={1} />
-            <Field label="ZIP" name="mailingZip" value={contact.mailingZip} span={1} />
-          </ShowWhen>
-          <Field label="Medicare Number" name="medicareId" value={contact.medicareId} span={2} />
-          <Field
-            label="Part A Effective"
-            name="partAEffectiveDate"
-            type="date"
-            value={contact.partAEffectiveDate ? dateInputValue(contact.partAEffectiveDate) : null}
-            span={2}
-          />
-          <Field
-            label="Part B Effective"
-            name="partBEffectiveDate"
-            type="date"
-            value={contact.partBEffectiveDate ? dateInputValue(contact.partBEffectiveDate) : null}
-            span={2}
-          />
-        </SaveForm>
-      </section>
-
-      <section>
-        <h2 className="section-label mb-1">Contact Person</h2>
-        <p className="muted mb-3 text-sm">
-          A son, daughter, spouse or caregiver who handles things for this client.
-        </p>
-        <SaveForm action={updatePersonForContact} className="surface grid grid-cols-6 gap-3 p-4">
-          <Field label="Name" name="altContactName" value={contact.altContactName} span={2} />
-          <Field
-            label="Relationship"
-            name="altContactRelationship"
-            value={contact.altContactRelationship}
-            span={2}
-          />
-          <Field label="Phone" name="altContactPhone" type="tel" value={contact.altContactPhone} span={2} />
-          <Field label="Email" name="altContactEmail" type="email" value={contact.altContactEmail} span={3} />
-          <label className="col-span-3 flex items-center gap-2 self-end pb-2 text-sm">
-            <input
-              type="checkbox"
-              name="altContactPreferred"
-              defaultChecked={contact.altContactPreferred}
-              className="h-4 w-4 accent-indigo-600"
-            />
-            Call this person instead of the client
-          </label>
-        </SaveForm>
-      </section>
-
-      <section>
-        <h2 className="section-label mb-3">Activity</h2>
-        <div className="mb-4 grid gap-3 md:grid-cols-2">
-          <SaveForm
-            action={addNoteForContact}
-            submitLabel="Add Note"
-            savedLabel="Note added ✓"
-            resetOnSuccess
-            className="surface flex flex-col gap-2 p-3"
+              </SaveForm>
+            }
           >
-            <textarea name="body" placeholder="Add a note…" rows={3} required className="field" />
-          </SaveForm>
-          <SaveForm
-            action={logCallForContact}
-            submitLabel="Log Call"
-            savedLabel="Call logged ✓"
-            resetOnSuccess
-            className="surface flex flex-col gap-2 p-3"
+            <InfoSummary
+              items={[
+                ["Date of birth", contact.dateOfBirth ? `${formatDateOnly(contact.dateOfBirth)} (age ${ageFrom(contact.dateOfBirth)})` : null],
+                ["Medicare number", contact.medicareId],
+                ["County", contact.county],
+                ["Phone", contact.phone],
+                ["Cell", contact.cellPhone ? `${contact.cellPhone}${contact.cellPreferred ? " (preferred)" : ""}` : null],
+                ["Email", contact.email],
+                ["Address", joinAddress(contact.address, contact.city, contact.state, contact.zip)],
+                ...(contact.hasMailingAddress
+                  ? [["Mailing address", joinAddress(contact.mailingAddress, contact.mailingCity, contact.mailingState, contact.mailingZip)] as [string, string | null]]
+                  : []),
+                [
+                  "Part A / Part B",
+                  contact.partAEffectiveDate || contact.partBEffectiveDate
+                    ? `${contact.partAEffectiveDate ? formatDateOnly(contact.partAEffectiveDate) : "—"} / ${
+                        contact.partBEffectiveDate ? formatDateOnly(contact.partBEffectiveDate) : "—"
+                      }`
+                    : null,
+                ],
+                ["Medi-Cal / Extra Help", [contact.medicaid && "Medi-Cal", contact.extraHelp && "Extra Help"].filter(Boolean).join(", ") || "No"],
+              ]}
+            />
+          </ToggleSection>
+
+          <ToggleSection
+            title="Contact Person"
+            className="order-5 lg:order-none"
+            note={contact.altContactName ? undefined : "none"}
+            actionLabel={contact.altContactName ? "Edit" : "+ Add"}
+            closeLabel="Done"
+            hideWhenOpen
+            form={
+              <SaveForm action={updatePersonForContact} className="surface grid grid-cols-6 gap-3 p-4">
+                <p className="muted col-span-6 text-sm">A son, daughter, spouse or caregiver who handles things for this client.</p>
+              <Field label="Name" name="altContactName" value={contact.altContactName} span={2} />
+              <Field
+                label="Relationship"
+                name="altContactRelationship"
+                value={contact.altContactRelationship}
+                span={2}
+              />
+              <Field label="Phone" name="altContactPhone" type="tel" value={contact.altContactPhone} span={2} />
+              <Field label="Email" name="altContactEmail" type="email" value={contact.altContactEmail} span={3} />
+              <label className="col-span-3 flex items-center gap-2 self-end pb-2 text-sm">
+                <input
+                  type="checkbox"
+                  name="altContactPreferred"
+                  defaultChecked={contact.altContactPreferred}
+                  className="h-4 w-4 accent-indigo-600"
+                />
+                Call this person instead of the client
+              </label>
+              </SaveForm>
+            }
           >
-            <select name="outcome" required defaultValue="" className="field" aria-label="How the call went">
-              <option value="" disabled>
-                How did the call go?
-              </option>
-              {CALL_OUTCOMES.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-            <input name="note" placeholder="Quick note (optional)" className="field" />
-            <label className="muted flex items-center gap-2 text-xs">
-              Follow up on
-              <input type="date" name="followUp" className="field py-1" />
-              <span>(adds a task)</span>
-            </label>
-          </SaveForm>
+            {contact.altContactName && (
+              <p className="surface px-4 py-3 text-sm">
+                <span className="font-medium">{contact.altContactName}</span>
+                {[
+                  contact.altContactRelationship,
+                  contact.altContactPhone,
+                  contact.altContactEmail,
+                  contact.altContactPreferred ? "call this person instead of the client" : null,
+                ]
+                  .filter(Boolean)
+                  .map((x) => ` · ${x}`)
+                  .join("")}
+              </p>
+            )}
+          </ToggleSection>
         </div>
-
-        <ol className="relative flex flex-col gap-2 border-l border-slate-200 pl-4 dark:border-slate-800">
-          {timeline.length === 0 && <p className="muted text-sm">Nothing yet.</p>}
-          {timeline.map((item) => (
-            <li key={item.key} className="relative">
-              <span
-                aria-hidden="true"
-                className={`absolute top-3 -left-[21px] h-2.5 w-2.5 rounded-full ring-2 ring-white dark:ring-slate-950 ${TIMELINE_DOT[item.kind]}`}
-              />
-              <div className="surface flex items-start justify-between gap-3 p-3 text-sm">
-                <div className="min-w-0">
-                  <div className="muted text-xs">
-                    {TIMELINE_LABEL[item.kind]} · {formatDateTime(item.at)}
-                  </div>
-                  <div className="mt-1 whitespace-pre-wrap">{item.text}</div>
-                </div>
-                {item.remove && (
-                  <form action={item.remove}>
-                    <button type="submit" className="btn-danger-text text-xs">
-                      Remove
-                    </button>
-                  </form>
-                )}
-              </div>
-            </li>
-          ))}
-        </ol>
-      </section>
-
-      <section>
-        <h2 className="section-label mb-3">Email</h2>
-        {!contact.email && (
-          <p className="muted text-sm">Add an email address to send or track email.</p>
-        )}
-        {contact.email && !googleAccount && (
-          <p className="muted text-sm">
-            Connect your Google account on the{" "}
-            <Link href="/settings/google" className="link">
-              Google
-            </Link>{" "}
-            settings page to send and track email here.
-          </p>
-        )}
-        {contact.email && googleAccount && emailHistoryError && (
-          <p className="text-sm text-red-600 dark:text-red-400">
-            Couldn&apos;t load email history: {emailHistoryError}. If you
-            connected Google before Gmail access was added, reconnect on the{" "}
-            <Link href="/settings/google" className="link">
-              Google
-            </Link>{" "}
-            settings page to grant it.
-          </p>
-        )}
-        {contact.email && googleAccount && !emailHistoryError && (
-          <EmailPanel contactId={contact.id} history={emailHistory} />
-        )}
-      </section>
+      </div>
     </div>
   );
+}
+
+// Read-only Client Info: label / value pairs, a dash for anything blank.
+function InfoSummary({ items }: { items: [string, string | null | undefined][] }) {
+  return (
+    // Three columns where there's room, two in the narrow side column.
+    <div className="@container">
+      <dl className="surface grid grid-cols-2 gap-x-6 gap-y-3 p-4 text-sm @lg:grid-cols-3">
+        {items.map(([label, value]) => (
+          <div key={label} className="min-w-0">
+            <dt className="muted text-xs">{label}</dt>
+            <dd className="break-words">{value || <span className="muted">—</span>}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
+}
+
+// "123 Main St Anaheim, CA 92801", or null when there's nothing.
+function joinAddress(street: string | null, city: string | null, state: string | null, zip: string | null): string | null {
+  return [street, city, [state, zip].filter(Boolean).join(" ")].filter(Boolean).join(", ") || null;
+}
+
+// Age today (Pacific) from a date of birth stored as a calendar date.
+function ageFrom(dob: Date): number {
+  const [y, m, d] = todayInputValue().split("-").map(Number);
+  const before = m < dob.getUTCMonth() + 1 || (m === dob.getUTCMonth() + 1 && d < dob.getUTCDate());
+  return y - dob.getUTCFullYear() - (before ? 1 : 0);
 }
 
 // Grid spans for the 6-column Client Info layout (literal class names so
@@ -875,82 +997,40 @@ function PolicyCard({
   const savePolicy = updatePolicy.bind(null, contactId, p.id);
   const fid = (name: string) => `policy-${p.id}-${name}`;
   const month = p.effectiveDate ? coverageMonth(p.effectiveDate) : null;
+  // The plan type is often in the name already ("Value Script (PDP)").
+  const showType = p.planType && !p.planName.toLowerCase().includes(p.planType.toLowerCase());
+  const showCarrier = !looseKey(p.planName).includes(looseKey(p.carrier).split(" ")[0]);
+  const facts = [
+    p.clientType === "new" ? "New client" : p.clientType === "current" ? "Current client" : null,
+    group === "current" && month !== null ? `Month ${month}` : null,
+    p.effectiveDate ? `${group === "future" ? "Starts" : "Effective"} ${formatDateOnly(p.effectiveDate)}` : null,
+    p.submittedAt ? `Submitted ${formatDateOnly(p.submittedAt)}` : null,
+    p.termDate ? `${group === "previous" ? "Ended" : "Ends"} ${formatDateOnly(p.termDate)}` : null,
+    p.commissionAmount != null
+      ? `$${p.commissionAmount.toLocaleString("en-US", { maximumFractionDigits: 2 })} commission`
+      : null,
+    p.policyNumber ? `Policy #${p.policyNumber}` : null,
+    p.doctor ? (/^dr\.?\s/i.test(p.doctor) ? p.doctor : `Dr. ${p.doctor}`) : null,
+    p.medicalGroup,
+  ].filter(Boolean);
+  // One compact card; clicking it opens the edit panel underneath.
   return (
-    <div className="surface flex items-start justify-between gap-3 p-3 text-sm">
-      <div>
-        <div className="flex flex-wrap items-center gap-2 font-medium">
-          {p.carrier} — {p.planName} {p.planType && `(${p.planType})`}
-          {p.clientType && (
-            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-              {p.clientType === "new" ? "New client" : "Current client"}
-            </span>
-          )}
-          {group === "current" && p.effectiveDate && month !== null && (
-            <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300">
-              Month {month}
-            </span>
-          )}
+    <details className="surface group text-sm">
+      <summary className="flex cursor-pointer list-none items-start justify-between gap-3 p-3 [&::-webkit-details-marker]:hidden">
+        <div className="min-w-0">
+          <div className="font-medium">
+            {p.planName}
+            {showType && ` (${p.planType})`}
+            {showCarrier && <span className="muted font-normal"> · {p.carrier}</span>}
+          </div>
+          {facts.length > 0 && <div className="muted mt-0.5 text-xs">{facts.join(" · ")}</div>}
         </div>
-        <div className="muted mt-1 flex flex-wrap gap-4">
-          {group !== "future" && p.effectiveDate && <span>Effective {formatDateOnly(p.effectiveDate)}</span>}
-          {p.submittedAt && <span>Submitted {formatDateOnly(p.submittedAt)}</span>}
-          {p.termDate && <span>{group === "previous" ? "Ended" : "Ends"} {formatDateOnly(p.termDate)}</span>}
-          {p.policyNumber && <span>Policy #{p.policyNumber}</span>}
-          {p.commissionAmount != null && <span>Commission ${p.commissionAmount.toFixed(2)}</span>}
-          {p.doctor && <span>{/^dr\.?\s/i.test(p.doctor) ? p.doctor : `Dr. ${p.doctor}`}</span>}
-          {p.medicalGroup && <span>{p.medicalGroup}</span>}
-        </div>
-        <details className="mt-2">
-          <summary className="link cursor-pointer text-xs">Edit details</summary>
-          <SaveForm action={savePolicy} className="mt-2 grid grid-cols-2 gap-2">
-            <CarrierPlanFields
-              idPrefix={`policy-${p.id}`}
-              {...carrierPlans}
-              defaultCarrier={p.carrier}
-              defaultPlan={p.planName}
-              labelClass="text-xs font-medium"
-            />
-            <EditPolicyField label="Plan Type" id={fid("planType")} name="planType" value={p.planType} />
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium" htmlFor={fid("clientType")}>
-                New / Current client
-              </label>
-              <select id={fid("clientType")} name="clientType" defaultValue={p.clientType ?? ""} className="field">
-                <option value="">Not set</option>
-                <option value="new">New client</option>
-                <option value="current">Current client</option>
-              </select>
-            </div>
-            <div className="col-span-2 flex flex-col gap-1">
-              <label className="text-xs font-medium" htmlFor={fid("commissionAmount")}>
-                Commission Amount
-              </label>
-              <CommissionSelect
-                id={fid("commissionAmount")}
-                name="commissionAmount"
-                choices={commissionChoices}
-                county={county}
-                initialCarrier={p.carrier}
-                initialPlan={p.planName}
-                defaultAmount={p.commissionAmount}
-              />
-            </div>
-            <EditPolicyField label="Doctor" id={fid("doctor")} name="doctor" value={p.doctor} />
-            <EditPolicyField label="Medical Group" id={fid("medicalGroup")} name="medicalGroup" value={p.medicalGroup} />
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium" htmlFor={fid("submittedAt")}>
-                Date Submitted
-              </label>
-              <input
-                id={fid("submittedAt")}
-                name="submittedAt"
-                type="date"
-                defaultValue={p.submittedAt ? dateInputValue(p.submittedAt) : ""}
-                className="field"
-              />
-            </div>
-          </SaveForm>
-        </details>
+        <span className="link shrink-0 text-xs">
+          <span className="group-open:hidden">Edit</span>
+          <span className="hidden group-open:inline">Close</span>
+        </span>
+      </summary>
+      <div className="flex flex-col gap-3 border-t border-slate-200 p-3 dark:border-slate-800">
         {group === "future" && (
           <SaveForm action={setEffectiveDate} className="mt-2 flex flex-wrap items-end gap-2">
             <label className="flex flex-col gap-1 text-xs font-medium">
@@ -963,15 +1043,74 @@ function PolicyCard({
             </label>
           </SaveForm>
         )}
-      </div>
-      <div className="flex items-center gap-3">
+        <SaveForm action={savePolicy} className="mt-2 grid grid-cols-2 gap-2">
+          <CarrierPlanFields
+            idPrefix={`policy-${p.id}`}
+            {...carrierPlans}
+            defaultCarrier={p.carrier}
+            defaultPlan={p.planName}
+            labelClass="text-xs font-medium"
+          />
+          <EditPolicyField label="Plan Type" id={fid("planType")} name="planType" value={p.planType} />
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium" htmlFor={fid("clientType")}>
+              New / Current client
+            </label>
+            <select id={fid("clientType")} name="clientType" defaultValue={p.clientType ?? ""} className="field">
+              <option value="">Not set</option>
+              <option value="new">New client</option>
+              <option value="current">Current client</option>
+            </select>
+          </div>
+          <div className="col-span-2 flex flex-col gap-1">
+            <label className="text-xs font-medium" htmlFor={fid("commissionAmount")}>
+              Commission Amount
+            </label>
+            <CommissionSelect
+              id={fid("commissionAmount")}
+              name="commissionAmount"
+              choices={commissionChoices}
+              county={county}
+              initialCarrier={p.carrier}
+              initialPlan={p.planName}
+              defaultAmount={p.commissionAmount}
+            />
+          </div>
+          <EditPolicyField label="Doctor" id={fid("doctor")} name="doctor" value={p.doctor} />
+          <EditPolicyField label="Medical Group" id={fid("medicalGroup")} name="medicalGroup" value={p.medicalGroup} />
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium" htmlFor={fid("submittedAt")}>
+              Date Submitted
+            </label>
+            <input
+              id={fid("submittedAt")}
+              name="submittedAt"
+              type="date"
+              defaultValue={p.submittedAt ? dateInputValue(p.submittedAt) : ""}
+              className="field"
+            />
+          </div>
+            <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium" htmlFor={fid("termDate")}>
+              End date
+            </label>
+            <input
+              id={fid("termDate")}
+              name="termDate"
+              type="date"
+              defaultValue={p.termDate ? dateInputValue(p.termDate) : ""}
+              title="The last day of coverage; after it the plan moves to Plan history"
+              className="field"
+            />
+          </div>
+        </SaveForm>
         <form action={deletePolicyForContact}>
           <button type="submit" className="btn-danger-text text-xs">
-            Remove
+            Remove this plan
           </button>
         </form>
       </div>
-    </div>
+    </details>
   );
 }
 

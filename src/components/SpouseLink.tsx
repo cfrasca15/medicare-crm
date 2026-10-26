@@ -20,7 +20,7 @@ export function SpouseLink({
 
   if (spouse && !picking) {
     return (
-      <div className="mt-2 flex flex-wrap items-center gap-3 text-sm">
+      <div className="flex flex-wrap items-center gap-3 text-sm">
         <span className="muted">Spouse:</span>
         <Link href={`/contacts/${spouse.id}`} target="_top" className="link font-medium">
           {spouse.name}
@@ -46,14 +46,14 @@ export function SpouseLink({
 
   if (!picking) {
     return (
-      <button type="button" onClick={() => setPicking(true)} className="link mt-2 text-sm">
+      <button type="button" onClick={() => setPicking(true)} className="link text-sm">
         + Link spouse
       </button>
     );
   }
 
   return (
-    <div className="surface mt-2 flex max-w-md flex-col gap-2 p-3 text-sm">
+    <div className="surface flex w-full max-w-md flex-col gap-2 p-3 text-sm">
       <form
         className="flex items-center gap-2"
         onSubmit={(e) => {

@@ -139,6 +139,7 @@ export async function updatePolicy(contactId: string, policyId: string, formData
       doctor: emptyToNull(formData.get("doctor")) ?? null,
       medicalGroup: emptyToNull(formData.get("medicalGroup")) ?? null,
       submittedAt: toDate(formData.get("submittedAt")) ?? null,
+      termDate: toDate(formData.get("termDate")) ?? null,
     },
   });
   revalidatePath(`/contacts/${contactId}`);

@@ -21,74 +21,75 @@ export interface ServiceRequestItem {
   updates: { id: string; summary: string; createdAt: Date }[];
 }
 
-// The Service Requests section of a contact's page: open issues with their
-// latest updates, a form to open a new one, and the resolved ones folded away.
-export function ServiceRequests({
+// The form for opening a service request on a contact's page.
+export function NewServiceRequestForm({
   contactId,
-  requests,
   plans,
+  bare = false,
 }: {
   contactId: string;
-  requests: ServiceRequestItem[];
   plans: { id: string; label: string }[];
+  bare?: boolean; // no card of its own (inside the Activity box)
 }) {
+  return (
+    <SaveForm
+      action={createServiceRequest.bind(null, contactId)}
+      submitLabel="Open request"
+      savedLabel="Request opened ✓"
+      resetOnSuccess
+      primary
+      className={`grid gap-2 sm:grid-cols-2 ${bare ? "" : "surface p-3"}`}
+    >
+      <select name="category" required defaultValue="" className="field" aria-label="Kind of request">
+        <option value="" disabled>
+          What kind of request?
+        </option>
+        {SERVICE_CATEGORIES.map((c) => (
+          <option key={c.value} value={c.value}>
+            {c.label}
+          </option>
+        ))}
+      </select>
+      <input name="title" required placeholder="What's the issue? e.g. New ID card not received" className="field" aria-label="Issue" />
+      {plans.length > 0 && (
+        <select name="policyId" defaultValue="" className="field" aria-label="Plan">
+          <option value="">Not about a specific plan</option>
+          {plans.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.label}
+            </option>
+          ))}
+        </select>
+      )}
+      <select name="status" defaultValue="open" className="field" aria-label="Status">
+        {STATUS_CHOICES.filter((c) => c.value !== "resolved").map((c) => (
+          <option key={c.value} value={c.value}>
+            {c.label}
+          </option>
+        ))}
+      </select>
+      <label className="muted flex items-center gap-2 text-xs">
+        Follow up on
+        <input type="date" name="followUpOn" min={todayInputValue()} className="field py-1" />
+      </label>
+      <input name="note" placeholder="Details (optional)" className="field sm:col-span-2" aria-label="Details" />
+    </SaveForm>
+  );
+}
+
+// A contact's open service requests with their latest updates, and the
+// resolved ones folded away.
+export function ServiceRequestList({ requests }: { requests: ServiceRequestItem[] }) {
   const open = requests.filter((r) => r.status !== "resolved");
   const resolved = requests.filter((r) => r.status === "resolved");
   const today = todayInputValue();
+  if (!requests.length) return null;
 
   return (
-    <div className="flex flex-col gap-3">
-      <details className="surface p-3">
-        <summary className="link cursor-pointer text-sm font-medium">+ New service request</summary>
-        <SaveForm
-          action={createServiceRequest.bind(null, contactId)}
-          submitLabel="Open request"
-          savedLabel="Request opened ✓"
-          resetOnSuccess
-          primary
-          className="mt-3 grid gap-2 sm:grid-cols-2"
-        >
-          <select name="category" required defaultValue="" className="field" aria-label="Kind of request">
-            <option value="" disabled>
-              What kind of request?
-            </option>
-            {SERVICE_CATEGORIES.map((c) => (
-              <option key={c.value} value={c.value}>
-                {c.label}
-              </option>
-            ))}
-          </select>
-          <input name="title" required placeholder="What's the issue? e.g. New ID card not received" className="field" aria-label="Issue" />
-          {plans.length > 0 && (
-            <select name="policyId" defaultValue="" className="field" aria-label="Plan">
-              <option value="">Not about a specific plan</option>
-              {plans.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.label}
-                </option>
-              ))}
-            </select>
-          )}
-          <select name="status" defaultValue="open" className="field" aria-label="Status">
-            {STATUS_CHOICES.filter((c) => c.value !== "resolved").map((c) => (
-              <option key={c.value} value={c.value}>
-                {c.label}
-              </option>
-            ))}
-          </select>
-          <label className="muted flex items-center gap-2 text-xs">
-            Follow up on
-            <input type="date" name="followUpOn" min={today} className="field py-1" />
-          </label>
-          <input name="note" placeholder="Details (optional)" className="field sm:col-span-2" aria-label="Details" />
-        </SaveForm>
-      </details>
-
-      {open.length === 0 && <p className="muted text-sm">No open service requests.</p>}
+    <div className="flex flex-col gap-2">
       {open.map((r) => (
         <RequestCard key={r.id} r={r} today={today} />
       ))}
-
       {resolved.length > 0 && (
         <details>
           <summary className="link cursor-pointer text-sm">
