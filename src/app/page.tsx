@@ -8,6 +8,7 @@ import { TaskCheckbox } from "@/components/TaskCheckbox";
 import { DashboardInsights } from "@/components/DashboardInsights";
 import { loadServiceRequests, isDue } from "@/lib/serviceQueries";
 import { STATUS_STYLE, statusLabel } from "@/lib/service";
+import { aepSeason, loadAepWorklist } from "@/lib/aep";
 
 // Always render fresh (queries the database) — without this, Next.js tries
 // to statically pre-render this page at build time, which fails since no
@@ -33,6 +34,8 @@ export default async function DashboardPage() {
     getGoogleAccount(),
     loadServiceRequests("open"),
   ]);
+  // The AEP worklist's progress, from Oct 1 until AEP ends Dec 7.
+  const aep = aepSeason().active ? await loadAepWorklist() : null;
 
   let calendarEvents: UpcomingEvent[] = [];
   let calendarError: string | null = null;
@@ -56,6 +59,45 @@ export default async function DashboardPage() {
         <h1 className="text-2xl font-semibold">Dashboard</h1>
         <p className="muted mt-1 text-sm">Pipeline overview and upcoming follow-ups.</p>
       </div>
+
+      {aep && (
+        <section>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="section-label">AEP {aep.season.year}</h2>
+            <Link href="/aep" className="link text-sm">
+              Open worklist
+            </Link>
+          </div>
+          <Link
+            href="/aep"
+            className="surface flex flex-col gap-2 p-4 transition-colors hover:border-indigo-300 dark:hover:border-indigo-700"
+          >
+            <div className="flex flex-wrap items-baseline justify-between gap-2 text-sm">
+              <span>
+                <span className="font-semibold">
+                  {aep.counts.reviewed} of {aep.counts.total}
+                </span>{" "}
+                clients reviewed
+                {aep.counts.urgentLeft > 0 && (
+                  <span className="font-medium text-red-600 dark:text-red-400"> · {aep.counts.urgentLeft} urgent left</span>
+                )}
+                <span className="muted"> · {aep.counts.notContacted} not contacted</span>
+              </span>
+              <span className="muted">
+                {aep.season.started
+                  ? `${aep.season.daysLeft} day${aep.season.daysLeft === 1 ? "" : "s"} to Dec 7`
+                  : `Starts in ${aep.season.daysToStart} day${aep.season.daysToStart === 1 ? "" : "s"}`}
+              </span>
+            </div>
+            <div className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+              <div
+                className="h-full rounded-full bg-indigo-600"
+                style={{ width: `${aep.counts.total ? Math.round((aep.counts.reviewed / aep.counts.total) * 100) : 0}%` }}
+              />
+            </div>
+          </Link>
+        </section>
+      )}
 
       <section>
         <h2 className="section-label mb-3">Pipeline</h2>

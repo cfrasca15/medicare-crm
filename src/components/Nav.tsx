@@ -26,6 +26,7 @@ const ICONS: Record<string, string> = {
   lifebuoy: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8M5.6 5.6l3.6 3.6M14.8 14.8l3.6 3.6M18.4 5.6l-3.6 3.6M9.2 14.8l-3.6 3.6",
   menu: "M4 6h16M4 12h16M4 18h16",
   close: "M6 6l12 12M18 6L6 18",
+  list: "M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01",
   bell:"M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0",
 };
 
@@ -35,6 +36,7 @@ const SECTIONS: { title?: string; links: { href: string; label: string; icon: st
       { href: "/", label: "Dashboard", icon: "home" },
       { href: "/contacts", label: "Contacts", icon: "users" },
       { href: "/tasks", label: "Tasks", icon: "check" },
+      { href: "/aep", label: "AEP Worklist", icon: "list" },
       { href: "/service", label: "Service Requests", icon: "lifebuoy" },
       { href: "/calendar", label: "Calendar", icon: "calendar" },
       { href: "/book", label: "Book Appointment", icon: "clock" },
