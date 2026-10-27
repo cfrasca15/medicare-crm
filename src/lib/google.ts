@@ -247,17 +247,6 @@ async function fetchEvents(params: URLSearchParams): Promise<UpcomingEvent[]> {
   }));
 }
 
-export async function listUpcomingEvents(maxResults = 5): Promise<UpcomingEvent[]> {
-  return fetchEvents(
-    new URLSearchParams({
-      timeMin: new Date().toISOString(),
-      maxResults: String(maxResults),
-      singleEvents: "true",
-      orderBy: "startTime",
-    })
-  );
-}
-
 export async function listEventsInRange(
   timeMin: Date,
   timeMax: Date

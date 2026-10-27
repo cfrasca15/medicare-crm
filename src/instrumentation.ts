@@ -15,6 +15,7 @@ export async function register() {
   const cron = await import("node-cron");
   const { runMilestoneEmailCheck } = await import("@/lib/milestoneEmails");
   const { advanceEnrolledStages } = await import("@/lib/stageAutomation");
+  const { closePastAppointmentTasks } = await import("@/lib/taskAutomation");
 
   // Once daily at 9:00 AM server time.
   cron.schedule("0 9 * * *", () => {
@@ -24,7 +25,15 @@ export async function register() {
     advanceEnrolledStages().catch((err) => {
       console.error("Stage automation check failed:", err);
     });
+    closePastAppointmentTasks().catch((err) => {
+      console.error("Closing past appointment tasks failed:", err);
+    });
   });
+
+  // Calendly appointments that already happened shouldn't sit as overdue tasks.
+  closePastAppointmentTasks()
+    .then(({ closed }) => closed && console.log(`Marked ${closed} past Calendly appointment task(s) done.`))
+    .catch((err) => console.error("Closing past appointment tasks failed:", err));
 
   // Contacts with a ZIP but no county get one filled in from the ZIP.
   import("@/lib/countyBackfill")
@@ -32,5 +41,5 @@ export async function register() {
     .then((n) => n && console.log(`Filled in the county for ${n} contact(s) from their ZIP.`))
     .catch((err) => console.error("County fill from ZIP failed:", err));
 
-  console.log("Daily checks scheduled (milestone emails + stage automation, 9:00 AM server time).");
+  console.log("Daily checks scheduled (milestone emails, stage automation, past appointments; 9:00 AM server time).");
 }

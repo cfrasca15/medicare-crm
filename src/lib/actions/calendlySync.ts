@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { listUpcomingCalendlyEvents, listEventInvitees } from "@/lib/calendly";
 import { revalidatePath } from "next/cache";
+import { closePastAppointmentTasks } from "@/lib/taskAutomation";
 
 function splitName(fullName: string): { firstName: string; lastName: string } {
   const parts = fullName.trim().split(/\s+/);
@@ -73,6 +74,8 @@ export async function syncCalendlyEvents(): Promise<{
       tasksCreated++;
     }
   }
+
+  await closePastAppointmentTasks();
 
   revalidatePath("/tasks");
   revalidatePath("/contacts");
