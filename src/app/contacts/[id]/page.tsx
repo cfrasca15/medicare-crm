@@ -753,6 +753,9 @@ export default async function ContactDetailPage({
                   Extra Help (LIS)
                 </label>
               </div>
+              <ShowWhen field="medicaid" value="on" initial={contact.medicaid ? "on" : ""}>
+                <Field label="Medi-Cal Number" name="medicaidId" value={contact.medicaidId} span={2} />
+              </ShowWhen>
               <label className="col-span-full flex items-center gap-2 text-sm">
                 <input
                   type="checkbox"
@@ -791,6 +794,7 @@ export default async function ContactDetailPage({
               items={[
                 ["Date of birth", contact.dateOfBirth ? `${formatDateOnly(contact.dateOfBirth)} (age ${ageFrom(contact.dateOfBirth)})` : null],
                 ["Medicare number", contact.medicareId],
+                ...(contact.medicaid ? [["Medi-Cal number", contact.medicaidId] as [string, string | null]] : []),
                 ["County", contact.county],
                 ["Phone", contact.phone],
                 ["Cell", contact.cellPhone ? `${contact.cellPhone}${contact.cellPreferred ? " (preferred)" : ""}` : null],

@@ -43,6 +43,7 @@ model Contact {
   county            String?       // from Integrity, or worked out from the ZIP
   // Medi-Cal (Medicaid) and Extra Help (LIS): both allow plan changes outside AEP.
   medicaid          Boolean       @default(false)
+  medicaidId        String?       // Medi-Cal number (CIN), when on Medi-Cal
   extraHelp         Boolean       @default(false)
   // A separate mailing address, used when hasMailingAddress is on.
   hasMailingAddress Boolean       @default(false)

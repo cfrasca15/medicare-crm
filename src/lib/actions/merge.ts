@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 // Fields copied from a duplicate when the kept contact has them blank.
 const FILLABLE = [
   "email", "phone", "cellPhone", "address", "city", "state", "zip", "county",
-  "mailingAddress", "mailingCity", "mailingState", "mailingZip", "dateOfBirth", "medicareId",
+  "mailingAddress", "mailingCity", "mailingState", "mailingZip", "dateOfBirth", "medicareId", "medicaidId",
   "partAEffectiveDate", "partBEffectiveDate", "insuranceCompany", "planName", "doctor", "medicalGroup",
   "leadSource", "lastWebsiteLeadAt", "altContactName", "altContactRelationship", "altContactPhone",
   "altContactEmail", "spouseId", "referredById",

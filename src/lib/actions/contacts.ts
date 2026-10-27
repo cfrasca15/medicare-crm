@@ -94,6 +94,8 @@ export async function updateContactInfo(contactId: string, formData: FormData) {
       zip: orNull(formData.get("zip")),
       county: normalizeCounty(orNull(formData.get("county"))) ?? countyForZip(orNull(formData.get("zip"))),
       medicaid: formData.get("medicaid") === "on",
+      // Only shown while Medi-Cal is checked; unchecking keeps the number on file.
+      ...(formData.has("medicaidId") ? { medicaidId: orNull(formData.get("medicaidId")) } : {}),
       extraHelp: formData.get("extraHelp") === "on",
       hasMailingAddress: hasMailing,
       mailingAddress: mailing("mailingAddress"),
