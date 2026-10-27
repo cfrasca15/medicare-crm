@@ -21,7 +21,7 @@ export function SyncContactButton({ contactId }: { contactId: string }) {
             const res = await syncIntegrityContact(contactId);
             if (res.error) setMessage(res.error);
             else {
-              setMessage("Updated ✓");
+              setMessage(res.message ?? "Updated ✓");
               router.refresh();
             }
           })

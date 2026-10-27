@@ -21,6 +21,7 @@ import type { PipelineStage } from "@/generated/prisma/client";
 import { countyForZip, normalizeCounty } from "@/lib/county";
 import { integrityLeadSource, isWebsiteSource } from "@/lib/leadSource";
 import { logStageChanges } from "@/lib/activity";
+import { STAGE_LABELS } from "@/lib/constants";
 
 // The CRM stage a newly seen Integrity status starts mapped to (changeable on
 // the Integrity Stages page). Statuses not listed start at New Lead.
@@ -34,8 +35,52 @@ const DEFAULT_STAGE_FOR_STATUS: Record<string, PipelineStage | undefined> = {
 
 type StageMappings = Map<number, { code: number; label: string; pipelineStage: PipelineStage | null }>;
 
+// What a sync changed on one contact, in words for the result message.
+const DETAIL_LABELS: Record<string, string> = {
+  firstName: "name",
+  lastName: "name",
+  email: "email",
+  phone: "phone",
+  address: "address",
+  city: "address",
+  state: "address",
+  zip: "address",
+  dateOfBirth: "birthday",
+  medicareId: "Medicare ID",
+  partAEffectiveDate: "Part A date",
+  partBEffectiveDate: "Part B date",
+  integrityLeadStage: "Integrity status",
+  county: "county",
+  medicaid: "Medi-Cal",
+  leadSource: "lead source",
+};
+
+function changedDetails(existing: Record<string, unknown>, data: Record<string, unknown>): string[] {
+  const changed = new Set<string>();
+  for (const [key, value] of Object.entries(data)) {
+    const label = DETAIL_LABELS[key];
+    if (value === undefined || !label) continue;
+    const current = existing[key];
+    const same =
+      value instanceof Date ? current instanceof Date && current.getTime() === value.getTime() : current === value;
+    if (!same) changed.add(label);
+  }
+  return [...changed];
+}
+
+type LeadResult =
+  | { kind: "imported"; id: string; name: string }
+  | { kind: "updated"; id: string; name: string; details: string[]; movedTo?: PipelineStage };
+
+export interface SyncResult {
+  imported: { id: string; name: string }[];
+  moved: { id: string; name: string; to: string }[];
+  changed: { id: string; name: string; details: string[] }[];
+  unchanged: number;
+}
+
 // Creates or updates the CRM contact for one Integrity lead.
-async function applyLead(lead: IntegrityLead, mappingByCode: StageMappings): Promise<"imported" | "updated"> {
+async function applyLead(lead: IntegrityLead, mappingByCode: StageMappings): Promise<LeadResult> {
   const integrityContactId = String(lead.leadId);
   const existing = await prisma.contact.findUnique({
     where: { integrityContactId },
@@ -81,6 +126,7 @@ async function applyLead(lead: IntegrityLead, mappingByCode: StageMappings): Pro
   };
   // Integrity's lead source, unless the website already set one.
   const source = integrityLeadSource(lead.leadSourceName);
+  const name = `${lead.firstName} ${lead.lastName}`.trim();
 
   if (existing) {
     const statusChanged = existing.integrityLeadStage != null && existing.integrityLeadStage !== lead.stage;
@@ -88,13 +134,14 @@ async function applyLead(lead: IntegrityLead, mappingByCode: StageMappings): Pro
       mappedStage && mappedStage !== existing.stage && (statusChanged || existing.stage === "NEW_LEAD")
         ? mappedStage
         : undefined;
+    const data = {
+      ...sharedFields,
+      ...(source && !isWebsiteSource(existing.leadSource) ? { leadSource: source } : {}),
+    };
+    const details = changedDetails(existing, data);
     await prisma.contact.update({
       where: { id: existing.id },
-      data: {
-        ...sharedFields,
-        ...(moveTo ? { stage: moveTo } : {}),
-        ...(source && !isWebsiteSource(existing.leadSource) ? { leadSource: source } : {}),
-      },
+      data: { ...data, ...(moveTo ? { stage: moveTo } : {}) },
     });
     if (moveTo) {
       await logStageChanges(
@@ -102,9 +149,9 @@ async function applyLead(lead: IntegrityLead, mappingByCode: StageMappings): Pro
         statusChanged ? "Integrity status changed" : "Matched Integrity status"
       );
     }
-    return "updated";
+    return { kind: "updated", id: existing.id, name, details, movedTo: moveTo };
   }
-  await prisma.contact.create({
+  const created = await prisma.contact.create({
     data: {
       ...sharedFields,
       stage: mappedStage,
@@ -112,7 +159,7 @@ async function applyLead(lead: IntegrityLead, mappingByCode: StageMappings): Pro
       leadSource: source ?? undefined,
     },
   });
-  return "imported";
+  return { kind: "imported", id: created.id, name };
 }
 
 async function loadMappings(): Promise<StageMappings> {
@@ -120,10 +167,7 @@ async function loadMappings(): Promise<StageMappings> {
   return new Map(mappings.map((m) => [m.code, m]));
 }
 
-export async function syncIntegrityLeads(): Promise<{
-  imported: number;
-  updated: number;
-}> {
+export async function syncIntegrityLeads(): Promise<SyncResult> {
   const [leads, mappingByCode, ignoredRows] = await Promise.all([
     getIntegrityLeads(),
     loadMappings(),
@@ -131,37 +175,49 @@ export async function syncIntegrityLeads(): Promise<{
   ]);
   const ignored = new Set(ignoredRows.map((r) => r.integrityContactId));
 
-  let imported = 0;
-  let updated = 0;
+  const result: SyncResult = { imported: [], moved: [], changed: [], unchanged: 0 };
   for (const lead of leads) {
     if (ignored.has(String(lead.leadId))) continue;
-    if ((await applyLead(lead, mappingByCode)) === "imported") imported++;
-    else updated++;
+    const r = await applyLead(lead, mappingByCode);
+    if (r.kind === "imported") {
+      result.imported.push({ id: r.id, name: r.name });
+      continue;
+    }
+    if (r.movedTo) result.moved.push({ id: r.id, name: r.name, to: STAGE_LABELS[r.movedTo] ?? r.movedTo });
+    // A stage move already says the Integrity status changed.
+    const details = r.movedTo ? r.details.filter((d) => d !== "Integrity status") : r.details;
+    if (details.length) result.changed.push({ id: r.id, name: r.name, details });
+    if (!r.movedTo && !details.length) result.unchanged++;
   }
 
   revalidatePath("/contacts");
   revalidatePath("/");
 
-  return { imported, updated };
+  return result;
 }
 
 // Refreshes one contact from Integrity (the button on the contact page).
-export async function syncIntegrityContact(contactId: string): Promise<{ error?: string }> {
+export async function syncIntegrityContact(contactId: string): Promise<{ error?: string; message?: string }> {
   const contact = await prisma.contact.findUnique({
     where: { id: contactId },
     select: { integrityContactId: true },
   });
   if (!contact?.integrityContactId) return { error: "This contact isn't linked to Integrity." };
+  let message: string;
   try {
     const [lead, mappingByCode] = await Promise.all([getIntegrityLead(contact.integrityContactId), loadMappings()]);
     if (!lead) return { error: "Integrity has no lead with this contact's ID any more." };
-    await applyLead(lead, mappingByCode);
+    const r = await applyLead(lead, mappingByCode);
+    const details = r.kind === "updated" ? r.details.filter((d) => !r.movedTo || d !== "Integrity status") : [];
+    const moved = r.kind === "updated" && r.movedTo ? `Moved to ${STAGE_LABELS[r.movedTo] ?? r.movedTo}` : null;
+    const updated = details.length ? `${moved ? "updated" : "Updated"} ${details.join(", ")}` : null;
+    message = moved || updated ? `${[moved, updated].filter(Boolean).join("; ")} ✓` : "Already up to date ✓";
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Couldn't reach Integrity." };
   }
   revalidatePath(`/contacts/${contactId}`);
   revalidatePath("/contacts");
-  return {};
+  return { message };
 }
 
 export async function searchPharmacies(params: IntegrityPharmacySearchParams) {
