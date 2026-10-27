@@ -25,9 +25,10 @@ export default async function IntegrityStagesPage() {
         <h1 className="text-2xl font-semibold">Integrity Stages</h1>
         <p className="muted mt-1 text-sm">
           Pick the CRM stage that goes with each status in Integrity. &quot;Sync from
-          Integrity&quot; uses it when a contact is first brought in, and again whenever their
-          status changes in Integrity (for example, marked Lost there). Leave it blank for New
-          Lead. Syncing when nothing changed in Integrity leaves your CRM stages alone.
+          Integrity&quot; uses it when a contact is first brought in, whenever their status
+          changes in Integrity (for example, marked Lost there), and for anyone still at New
+          Lead. Leave it blank for New Lead. Anyone you&apos;ve moved yourself stays put until
+          their status changes in Integrity.
         </p>
       </div>
 
@@ -72,10 +73,10 @@ export default async function IntegrityStagesPage() {
       <div className="surface flex flex-col gap-2 p-4">
         <h2 className="text-sm font-medium">Apply to contacts already in the CRM</h2>
         <p className="muted text-sm">
-          The stages above only apply when a contact is first imported. This moves contacts
-          already in the CRM that are still at New Lead into the stage picked for their
-          Integrity status. Anyone you&apos;ve moved yourself is left alone. Save your choices
-          above first.
+          The next &quot;Sync from Integrity&quot; does this too. This moves contacts already in
+          the CRM that are still at New Lead into the stage picked for their Integrity status
+          right away, without waiting for a sync. Anyone you&apos;ve moved yourself is left
+          alone. Save your choices above first.
         </p>
         <ul className="muted text-sm">
           {mappings

@@ -21,11 +21,10 @@ export async function saveStageMappings(formData: FormData) {
   revalidatePath("/settings/integrity-stages");
 }
 
-// A mapping is only applied automatically when a lead is first imported, so
-// contacts synced before a mapping existed are stuck at the CRM's default
-// (New Lead) even after you set one up. This lets you push mappings onto
-// those existing contacts in bulk, without touching anything you've since
-// moved manually — only contacts still sitting at New Lead are eligible.
+// Contacts synced before a mapping existed sit at the CRM's default (New
+// Lead). The next Integrity sync moves them; this does it right away, in
+// bulk, without touching anything you've since moved manually — only
+// contacts still sitting at New Lead are eligible.
 export async function reapplyStageMappings(): Promise<{ updated: number }> {
   const mappings = await prisma.integrityStageMapping.findMany({
     where: { pipelineStage: { not: null } },

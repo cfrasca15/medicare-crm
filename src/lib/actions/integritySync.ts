@@ -54,10 +54,11 @@ async function applyLead(lead: IntegrityLead, mappingByCode: StageMappings): Pro
     mappingByCode.set(lead.stage, created);
   }
 
-  // The mapped pipeline stage applies on first import, and again whenever
-  // the lead's status changes in Integrity (e.g. marked Lost there). A
-  // re-sync with the same Integrity status never touches a stage changed
-  // by hand in the CRM.
+  // The mapped pipeline stage applies on first import, whenever the lead's
+  // status changes in Integrity (e.g. marked Lost there), and to anyone still
+  // sitting at New Lead (e.g. already a Client in Integrity before that status
+  // had a stage). A re-sync with the same Integrity status never touches a
+  // stage changed by hand in the CRM.
   const mappedStage = mappingByCode.get(lead.stage)?.pipelineStage ?? undefined;
 
   const sharedFields = {
@@ -83,16 +84,23 @@ async function applyLead(lead: IntegrityLead, mappingByCode: StageMappings): Pro
 
   if (existing) {
     const statusChanged = existing.integrityLeadStage != null && existing.integrityLeadStage !== lead.stage;
+    const moveTo =
+      mappedStage && mappedStage !== existing.stage && (statusChanged || existing.stage === "NEW_LEAD")
+        ? mappedStage
+        : undefined;
     await prisma.contact.update({
       where: { id: existing.id },
       data: {
         ...sharedFields,
-        ...(statusChanged && mappedStage ? { stage: mappedStage } : {}),
+        ...(moveTo ? { stage: moveTo } : {}),
         ...(source && !isWebsiteSource(existing.leadSource) ? { leadSource: source } : {}),
       },
     });
-    if (statusChanged && mappedStage) {
-      await logStageChanges([{ contactId: existing.id, from: existing.stage, to: mappedStage }], "Integrity status changed");
+    if (moveTo) {
+      await logStageChanges(
+        [{ contactId: existing.id, from: existing.stage, to: moveTo }],
+        statusChanged ? "Integrity status changed" : "Matched Integrity status"
+      );
     }
     return "updated";
   }
