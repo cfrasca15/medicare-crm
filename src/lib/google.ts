@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { buildMimeEmail } from "@/lib/emailMime";
 
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID!;
 const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET!;
@@ -416,18 +417,51 @@ export interface SendEmailInput {
   body: string;
 }
 
+// The name, address and signature Gmail itself puts on new mail (the default
+// "Send mail as" in Gmail settings). Read with the gmail.readonly permission
+// the CRM already has, and kept for a few minutes so a batch of milestone
+// emails asks once.
+let sendAsCache: { at: number; account: string; email: string; displayName: string | null; signature: string | null } | null = null;
+
+async function getGmailSendAs(accountEmail: string) {
+  if (sendAsCache?.account === accountEmail && Date.now() - sendAsCache.at < 5 * 60 * 1000) return sendAsCache;
+  const res = await gmailFetch(`/users/me/settings/sendAs`);
+  if (!res.ok) {
+    // Better to send without the signature than not at all.
+    console.warn(`Couldn't read the Gmail signature: ${res.status}`);
+    return { email: accountEmail, displayName: null, signature: null };
+  }
+  const data = (await res.json()) as {
+    sendAs?: { sendAsEmail: string; displayName?: string; signature?: string; isDefault?: boolean; isPrimary?: boolean }[];
+  };
+  const list = data.sendAs ?? [];
+  const pick =
+    list.find((s) => s.isDefault) ??
+    list.find((s) => s.sendAsEmail.toLowerCase() === accountEmail.toLowerCase()) ??
+    list.find((s) => s.isPrimary);
+  sendAsCache = {
+    at: Date.now(),
+    account: accountEmail,
+    email: pick?.sendAsEmail ?? accountEmail,
+    displayName: pick?.displayName || null,
+    signature: pick?.signature || null,
+  };
+  return sendAsCache;
+}
+
 export async function sendGmailMessage(input: SendEmailInput): Promise<{ id: string }> {
   const account = await getGoogleAccount();
   if (!account) throw new Error("Google account isn't connected.");
 
-  const message = [
-    `From: ${account.email}`,
-    `To: ${input.to}`,
-    `Subject: ${input.subject}`,
-    "Content-Type: text/plain; charset=utf-8",
-    "",
-    input.body,
-  ].join("\r\n");
+  const sendAs = await getGmailSendAs(account.email);
+  const message = buildMimeEmail({
+    fromEmail: sendAs.email,
+    fromName: sendAs.displayName,
+    to: input.to,
+    subject: input.subject,
+    body: input.body,
+    signatureHtml: sendAs.signature,
+  });
 
   const res = await gmailFetch(`/users/me/messages/send`, {
     method: "POST",
