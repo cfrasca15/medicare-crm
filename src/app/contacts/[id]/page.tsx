@@ -341,9 +341,10 @@ export default async function ContactDetailPage({
       </div>
 
       {/* Two columns on wide screens: plans and activity on the left; tasks,
-          client info and contact person on the right. Narrower screens get one
-          column, in the order set by each section's order- class. */}
-      <div className="contents lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start lg:gap-6">
+          client info and contact person on the right (a little wider on big
+          screens). Narrower screens get one column, in the order set by each
+          section's order- class. */}
+      <div className="contents lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] xl:grid-cols-[minmax(0,1fr)_25rem] lg:items-start lg:gap-6">
         <div className="contents lg:flex lg:min-w-0 lg:flex-col lg:gap-6">
           <ToggleSection
             title="Health Plans"
@@ -686,7 +687,8 @@ export default async function ContactDetailPage({
             closeLabel="Done"
             hideWhenOpen
             form={
-              <SaveForm action={updateInfoForContact} className="surface grid grid-cols-6 gap-3 p-4">
+              <div className="@container">
+              <SaveForm action={updateInfoForContact} className={INFO_FORM}>
               <Field label="First Name" name="firstName" value={contact.firstName} span={2} required />
               <Field label="Last Name" name="lastName" value={contact.lastName} span={2} required />
               <Field
@@ -697,7 +699,7 @@ export default async function ContactDetailPage({
                 span={2}
               />
               <Field label="Phone" name="phone" type="tel" value={contact.phone} span={2} />
-              <div className="col-span-2 flex flex-col gap-1">
+              <div className="col-span-1 flex min-w-0 flex-col gap-1 @lg:col-span-2">
                 <label className="text-sm font-medium" htmlFor="info-cellPhone">
                   Cell Phone
                 </label>
@@ -718,12 +720,12 @@ export default async function ContactDetailPage({
                   Preferred — Call button dials the cell
                 </label>
               </div>
-              <Field label="Email" name="email" type="email" value={contact.email} span={2} />
+              <Field label="Email" name="email" type="email" value={contact.email} span={2} wide />
               <Field label="Address" name="address" value={contact.address} span={3} />
-              <Field label="City" name="city" value={contact.city} span={1} />
+              <Field label="City" name="city" value={contact.city} span={1} wide />
               <Field label="State" name="state" value={contact.state} span={1} />
               <Field label="ZIP" name="zip" value={contact.zip} span={1} />
-              <div className="col-span-2 flex flex-col gap-1">
+              <div className="col-span-1 flex min-w-0 flex-col gap-1 @lg:col-span-2">
                 <label className="text-sm font-medium" htmlFor="info-county">
                   County
                 </label>
@@ -741,7 +743,7 @@ export default async function ContactDetailPage({
                   ))}
                 </datalist>
               </div>
-              <div className="col-span-4 flex flex-wrap items-end gap-x-6 gap-y-2 pb-2 text-sm">
+              <div className="col-span-2 flex flex-wrap items-end gap-x-6 gap-y-2 pb-2 text-sm @lg:col-span-4">
                 <label className="flex items-center gap-2">
                   <input type="checkbox" name="medicaid" defaultChecked={contact.medicaid} className="h-4 w-4 accent-indigo-600" />
                   Medi-Cal
@@ -751,7 +753,7 @@ export default async function ContactDetailPage({
                   Extra Help (LIS)
                 </label>
               </div>
-              <label className="col-span-6 flex items-center gap-2 text-sm">
+              <label className="col-span-full flex items-center gap-2 text-sm">
                 <input
                   type="checkbox"
                   name="hasMailingAddress"
@@ -762,7 +764,7 @@ export default async function ContactDetailPage({
               </label>
               <ShowWhen field="hasMailingAddress" value="on" initial={contact.hasMailingAddress ? "on" : ""}>
                 <Field label="Mailing Address" name="mailingAddress" value={contact.mailingAddress} span={3} />
-                <Field label="City" name="mailingCity" value={contact.mailingCity} span={1} />
+                <Field label="City" name="mailingCity" value={contact.mailingCity} span={1} wide />
                 <Field label="State" name="mailingState" value={contact.mailingState} span={1} />
                 <Field label="ZIP" name="mailingZip" value={contact.mailingZip} span={1} />
               </ShowWhen>
@@ -782,6 +784,7 @@ export default async function ContactDetailPage({
                 span={2}
               />
               </SaveForm>
+              </div>
             }
           >
             <InfoSummary
@@ -817,8 +820,9 @@ export default async function ContactDetailPage({
             closeLabel="Done"
             hideWhenOpen
             form={
-              <SaveForm action={updatePersonForContact} className="surface grid grid-cols-6 gap-3 p-4">
-                <p className="muted col-span-6 text-sm">A son, daughter, spouse or caregiver who handles things for this client.</p>
+              <div className="@container">
+              <SaveForm action={updatePersonForContact} className={INFO_FORM}>
+                <p className="muted col-span-full text-sm">A son, daughter, spouse or caregiver who handles things for this client.</p>
               <Field label="Name" name="altContactName" value={contact.altContactName} span={2} />
               <Field
                 label="Relationship"
@@ -827,8 +831,8 @@ export default async function ContactDetailPage({
                 span={2}
               />
               <Field label="Phone" name="altContactPhone" type="tel" value={contact.altContactPhone} span={2} />
-              <Field label="Email" name="altContactEmail" type="email" value={contact.altContactEmail} span={3} />
-              <label className="col-span-3 flex items-center gap-2 self-end pb-2 text-sm">
+              <Field label="Email" name="altContactEmail" type="email" value={contact.altContactEmail} span={3} wide />
+              <label className="col-span-2 flex items-center gap-2 self-end pb-2 text-sm @lg:col-span-3">
                 <input
                   type="checkbox"
                   name="altContactPreferred"
@@ -838,6 +842,7 @@ export default async function ContactDetailPage({
                 Call this person instead of the client
               </label>
               </SaveForm>
+              </div>
             }
           >
             {contact.altContactName && (
@@ -890,9 +895,22 @@ function ageFrom(dob: Date): number {
   return y - dob.getUTCFullYear() - (before ? 1 : 0);
 }
 
-// Grid spans for the 6-column Client Info layout (literal class names so
-// Tailwind picks them up).
-const SPANS: Record<number, string> = { 1: "col-span-1", 2: "col-span-2", 3: "col-span-3" };
+// Client Info and Contact Person forms: two boxes to a row in the narrow
+// right-hand column, six-column rows when the form has the page's width.
+const INFO_FORM = "surface grid grid-cols-2 gap-3 p-4 @lg:grid-cols-6";
+
+// Grid spans for that layout (literal class names so Tailwind picks them
+// up). Half a row when narrow; a span of 3, or `wide`, takes the full row.
+const SPANS: Record<number, string> = {
+  1: "col-span-1 @lg:col-span-1",
+  2: "col-span-1 @lg:col-span-2",
+  3: "col-span-2 @lg:col-span-3",
+};
+const WIDE_SPANS: Record<number, string> = {
+  1: "col-span-2 @lg:col-span-1",
+  2: "col-span-2 @lg:col-span-2",
+  3: "col-span-2 @lg:col-span-3",
+};
 
 function Field({
   label,
@@ -900,6 +918,7 @@ function Field({
   value,
   type = "text",
   span,
+  wide = false,
   required = false,
 }: {
   label: string;
@@ -907,12 +926,13 @@ function Field({
   value?: string | null;
   type?: string;
   span?: number;
+  wide?: boolean; // full row in the narrow layout
   required?: boolean;
 }) {
   // Prefixed so these don't collide with the Add Policy form's ids.
   const id = `info-${name}`;
   return (
-    <div className={`flex flex-col gap-1 ${span ? SPANS[span] : ""}`}>
+    <div className={`flex min-w-0 flex-col gap-1 ${span ? (wide ? WIDE_SPANS : SPANS)[span] : ""}`}>
       <label className="text-sm font-medium" htmlFor={id}>
         {label}
         {required && <span className="text-red-500"> *</span>}
