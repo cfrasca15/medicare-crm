@@ -49,9 +49,11 @@ function SyncSummary({ r, onNavigate }: { r: SyncResult; onNavigate: () => void 
   const nothing = !r.imported.length && !r.moved.length && !r.changed.length;
   return (
     <div className="flex flex-col gap-1.5">
-      <div className="font-medium">Synced from Integrity</div>
+      <div className="font-medium">
+        Synced {total} contact{total === 1 ? "" : "s"} from Integrity
+      </div>
       {nothing ? (
-        <div className="muted">Everything already matched Integrity ({total} contacts checked).</div>
+        <div className="muted">Everything already matched Integrity.</div>
       ) : (
         <ul className="flex flex-col gap-1.5">
           {r.imported.length > 0 && (
