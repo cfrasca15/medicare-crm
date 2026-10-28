@@ -339,9 +339,18 @@ export async function sendContactToIntegrity(
       stage = lead.stage;
     } catch (err) {
       if (!(err instanceof IntegrityApiError) || err.status < 500) throw err;
-      // Did Integrity make the lead before failing? Look among leads that weren't there before.
+      // Integrity usually makes the lead before failing. Look among leads that
+      // weren't there before (by name too, since they're brand new), giving
+      // its list a few seconds to catch up, before making another.
       const known = new Set([...ignored, ...before.map((l) => String(l.leadId))]);
-      const made = findMatch(contact, await getIntegrityLeads(), known);
+      const name = `${contact.firstName} ${contact.lastName}`.trim().toLowerCase();
+      let made: { leadId: string } | null = null;
+      for (let attempt = 0; attempt < 4 && !made; attempt++) {
+        if (attempt) await new Promise((r) => setTimeout(r, 2000));
+        const fresh = (await getIntegrityLeads()).filter((l) => !known.has(String(l.leadId)));
+        const byName = fresh.find((l) => `${l.firstName} ${l.lastName}`.trim().toLowerCase() === name);
+        made = findMatch(contact, fresh, known) ?? (byName ? { leadId: String(byName.leadId) } : null);
+      }
       if (made) {
         leadId = made.leadId;
       } else {
