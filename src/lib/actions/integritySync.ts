@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import {
+  createIntegrityLead,
   getIntegrityLead,
   getIntegrityLeads,
   type IntegrityLead,
@@ -18,7 +19,7 @@ import {
 } from "@/lib/integrity";
 import { revalidatePath } from "next/cache";
 import type { PipelineStage } from "@/generated/prisma/client";
-import { countyForZip, normalizeCounty } from "@/lib/county";
+import { countyFips, countyForZip, normalizeCounty } from "@/lib/county";
 import { integrityLeadSource, isWebsiteSource } from "@/lib/leadSource";
 import { logStageChanges } from "@/lib/activity";
 import { STAGE_LABELS } from "@/lib/constants";
@@ -110,7 +111,8 @@ async function applyLead(lead: IntegrityLead, mappingByCode: StageMappings): Pro
     firstName: lead.firstName,
     lastName: lead.lastName,
     email: lead.email ?? undefined,
-    phone: lead.phone ?? undefined,
+    // The same number written differently (5551234567 vs (555) 123-4567) keeps the CRM's.
+    phone: lead.phone && phoneDigits(lead.phone) !== phoneDigits(existing?.phone) ? lead.phone : undefined,
     address: lead.address1 ?? undefined,
     city: lead.city ?? undefined,
     state: lead.stateCode ?? undefined,
@@ -218,6 +220,163 @@ export async function syncIntegrityContact(contactId: string): Promise<{ error?:
   revalidatePath(`/contacts/${contactId}`);
   revalidatePath("/contacts");
   return { message };
+}
+
+// An Integrity lead that looks like the same person as a CRM contact.
+type IntegrityMatch = { leadId: string; name: string; why: string };
+
+const phoneDigits = (s: string | null | undefined) => (s ?? "").replace(/\D/g, "").slice(-10);
+const ymd = (d: Date | string | null | undefined) => (d ? new Date(d).toISOString().slice(0, 10) : "");
+
+// Is this person already a lead in Integrity? Same phone, email, or name and birthday.
+async function findIntegrityMatch(contact: {
+  firstName: string;
+  lastName: string;
+  phone: string | null;
+  cellPhone: string | null;
+  email: string | null;
+  dateOfBirth: Date | null;
+}): Promise<IntegrityMatch | null> {
+  const [leads, ignoredRows] = await Promise.all([
+    getIntegrityLeads(),
+    prisma.ignoredIntegrityLead.findMany({ select: { integrityContactId: true } }),
+  ]);
+  const ignored = new Set(ignoredRows.map((r) => r.integrityContactId));
+  const phones = [contact.phone, contact.cellPhone].map(phoneDigits).filter((p) => p.length === 10);
+  const email = contact.email?.trim().toLowerCase();
+  const name = `${contact.firstName} ${contact.lastName}`.trim().toLowerCase();
+  const dob = ymd(contact.dateOfBirth);
+
+  for (const lead of leads) {
+    if (ignored.has(String(lead.leadId))) continue;
+    const leadName = `${lead.firstName} ${lead.lastName}`.trim();
+    const why = phones.includes(phoneDigits(lead.phone))
+      ? "same phone"
+      : email && lead.email?.trim().toLowerCase() === email
+        ? "same email"
+        : dob && leadName.toLowerCase() === name && ymd(lead.birthdate) === dob
+          ? "same name and birthday"
+          : null;
+    if (why) return { leadId: String(lead.leadId), name: leadName, why };
+  }
+  return null;
+}
+
+// Creates this contact as a new lead in Integrity, so they show up in
+// MedicareCENTER, and links the two. Checks for the same person there first
+// (returned as `match`) unless createAnyway is set.
+export async function sendContactToIntegrity(
+  contactId: string,
+  createAnyway = false
+): Promise<{ error?: string; match?: IntegrityMatch; message?: string }> {
+  const contact = await prisma.contact.findUnique({ where: { id: contactId }, include: { providers: true, pharmacies: true } });
+  if (!contact) return { error: "Contact not found." };
+  if (contact.integrityContactId) return { error: "This contact is already linked to Integrity." };
+
+  let message: string;
+  try {
+    if (!createAnyway) {
+      const match = await findIntegrityMatch(contact);
+      if (match) {
+        const linked = await prisma.contact.findUnique({
+          where: { integrityContactId: match.leadId },
+          select: { firstName: true, lastName: true },
+        });
+        if (linked) {
+          return {
+            error: `${match.name} (${match.why}) is already in MedicareCENTER, linked to ${linked.firstName} ${linked.lastName} here. If they're the same person, merge them on the Duplicates page.`,
+          };
+        }
+        return { match };
+      }
+    }
+
+    const phones = [...new Set((contact.cellPreferred ? [contact.cellPhone, contact.phone] : [contact.phone, contact.cellPhone]).map(phoneDigits))].filter(
+      (p) => p.length === 10
+    );
+    const lead = await createIntegrityLead({
+      firstName: contact.firstName,
+      lastName: contact.lastName,
+      birthDate: ymd(contact.dateOfBirth) || undefined,
+      medicareBeneficiaryId: contact.medicareId ?? undefined,
+      partA: contact.partAEffectiveDate?.toISOString(),
+      partB: contact.partBEffectiveDate?.toISOString(),
+      hasMedicAid: contact.medicaid ? 1 : 0,
+      medicaidId: (contact.medicaid && contact.medicaidId) || undefined,
+      phones: phones.map((phoneNumber) => ({ phoneNumber })),
+      emails: contact.email?.trim() ? [{ email: contact.email.trim() }] : [],
+      addresses:
+        contact.address && contact.city && contact.state && contact.zip
+          ? [
+              {
+                address1: contact.address,
+                city: contact.city,
+                stateCode: contact.state,
+                postalCode: contact.zip,
+                county: contact.county ?? undefined,
+                countyFips: countyFips(contact.county),
+              },
+            ]
+          : [],
+    });
+    if (!lead.leadId) throw new Error("Integrity didn't send back the new lead's ID.");
+    const leadId = String(lead.leadId);
+
+    await prisma.contact.update({
+      where: { id: contactId },
+      data: { integrityContactId: leadId, integrityLeadStage: lead.stage ?? undefined },
+    });
+    await prisma.activity.create({ data: { contactId, type: "stage", summary: "Sent to MedicareCENTER (new Integrity lead)" } });
+
+    // Doctors already on the contact go along too. Pharmacies can't: the CRM
+    // doesn't keep the pharmacy NPI Integrity needs.
+    const doctors = contact.providers.filter((p) => p.npi && !p.syncedToIntegrity);
+    let doctorsSent = 0;
+    if (doctors.length) {
+      try {
+        await saveIntegrityLeadProviders(
+          leadId,
+          doctors.map((d, i) => ({ npi: d.npi!, isPrimary: i === 0 }))
+        );
+        await prisma.contactProvider.updateMany({
+          where: { id: { in: doctors.map((d) => d.id) } },
+          data: { syncedToIntegrity: true },
+        });
+        doctorsSent = doctors.length;
+      } catch {
+        // The lead is made; doctors can be added in MedicareCENTER.
+      }
+    }
+    const pharmaciesLeft = contact.pharmacies.filter((p) => !p.syncedToIntegrity).length;
+    message =
+      "Sent to MedicareCENTER ✓" +
+      (doctorsSent ? ` with ${doctorsSent} doctor${doctorsSent === 1 ? "" : "s"}` : "") +
+      (doctors.length > doctorsSent ? ". Doctors didn't go through; add them there" : "") +
+      (pharmaciesLeft ? ". Add the pharmacy there" : "");
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Couldn't reach Integrity." };
+  }
+  revalidatePath(`/contacts/${contactId}`);
+  revalidatePath("/contacts");
+  return { message };
+}
+
+// Links a contact to a lead already in Integrity (instead of making a
+// duplicate), then pulls that lead's details in.
+export async function linkContactToIntegrity(contactId: string, leadId: string): Promise<{ error?: string; message?: string }> {
+  const [contact, taken] = await Promise.all([
+    prisma.contact.findUnique({ where: { id: contactId }, select: { integrityContactId: true } }),
+    prisma.contact.findUnique({ where: { integrityContactId: leadId }, select: { firstName: true, lastName: true } }),
+  ]);
+  if (!contact) return { error: "Contact not found." };
+  if (contact.integrityContactId) return { error: "This contact is already linked to Integrity." };
+  if (taken) return { error: `That lead is already linked to ${taken.firstName} ${taken.lastName}.` };
+
+  await prisma.contact.update({ where: { id: contactId }, data: { integrityContactId: leadId } });
+  await prisma.activity.create({ data: { contactId, type: "stage", summary: "Linked to their existing MedicareCENTER lead" } });
+  const res = await syncIntegrityContact(contactId);
+  if (res.error) return res;
+  return { message: !res.message || res.message === "Already up to date ✓" ? "Linked ✓" : `Linked. ${res.message}` };
 }
 
 export async function searchPharmacies(params: IntegrityPharmacySearchParams) {

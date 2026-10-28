@@ -573,3 +573,43 @@ export async function pushIntegrityLeadMedicareInfo(
 
   return res.json().catch(() => null);
 }
+
+export interface CreateIntegrityLeadInput {
+  firstName: string;
+  lastName: string;
+  birthDate?: string; // yyyy-mm-dd
+  medicareBeneficiaryId?: string;
+  partA?: string; // ISO date
+  partB?: string; // ISO date
+  hasMedicAid?: 0 | 1;
+  medicaidId?: string;
+  phones?: { phoneNumber: string }[];
+  emails?: { email: string }[];
+  addresses?: IntegrityLeadAddressInput[];
+}
+
+// Creates a new lead (shows up in MedicareCENTER), assigned to this agent.
+// Integrity answers 422 for a duplicate or other rule it won't allow.
+export async function createIntegrityLead(lead: CreateIntegrityLeadInput): Promise<IntegrityLead> {
+  const res = await integrityFetch("/partners/leads", {
+    method: "POST",
+    body: JSON.stringify({ options: { forceValidation: false }, lead: { agentNpn: AGENT_NPN, ...lead } }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    // ProblemDetails: prefer its human-readable detail/title over raw JSON.
+    let reason = body;
+    try {
+      const p = JSON.parse(body) as { detail?: string; title?: string; message?: string };
+      reason = p.detail || p.message || p.title || body;
+    } catch {}
+    throw new Error(
+      res.status === 422
+        ? `Integrity wouldn't create the lead: ${reason}`
+        : `Integrity create lead failed: ${res.status} ${res.statusText} ${reason}`
+    );
+  }
+
+  return mapLead((await res.json()) as RawIntegrityLead);
+}

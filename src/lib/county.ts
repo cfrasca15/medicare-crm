@@ -31,3 +31,9 @@ export function countyForZip(zip: string | null | undefined): string | null {
 
 // Counties offered in the County box.
 export const COUNTY_OPTIONS = ["Los Angeles", "Orange", "Riverside", "San Bernardino", "San Diego", "Ventura"];
+
+// The FIPS code for a county name Integrity knows by code, if listed.
+export function countyFips(name: string | null | undefined): string | undefined {
+  const n = normalizeCounty(name);
+  return Object.entries(CA_FIPS).find(([, county]) => county === n)?.[0];
+}

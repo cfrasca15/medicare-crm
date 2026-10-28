@@ -29,7 +29,7 @@ import { primaryPhone } from "@/lib/phone";
 import { CalendarSyncButton } from "@/components/CalendarSyncButton";
 import { SpouseLink } from "@/components/SpouseLink";
 import { ReferralLink } from "@/components/ReferralLink";
-import { SyncContactButton } from "@/components/SyncContactButton";
+import { SendToIntegrityButton } from "@/components/SendToIntegrityButton";
 import { logCall, deleteActivity } from "@/lib/actions/activity";
 import { CALL_OUTCOMES } from "@/lib/activity";
 import { COUNTY_OPTIONS } from "@/lib/county";
@@ -328,7 +328,7 @@ export default async function ContactDetailPage({
               Open in Integrity ↗
             </a>
           )}
-          {contact.integrityContactId && <SyncContactButton contactId={contact.id} />}
+          <SendToIntegrityButton contactId={contact.id} linked={!!contact.integrityContactId} />
           <Link href={`/book?contact=${contact.id}`} className="btn-secondary whitespace-nowrap">
             Book appointment
           </Link>
