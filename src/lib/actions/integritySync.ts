@@ -3,6 +3,10 @@
 import { prisma } from "@/lib/prisma";
 import {
   createIntegrityLead,
+  IntegrityApiError,
+  pushIntegrityLeadAddress,
+  pushIntegrityLeadEmail,
+  pushIntegrityLeadMedicareInfo,
   getIntegrityLead,
   getIntegrityLeads,
   type IntegrityLead,
@@ -225,30 +229,28 @@ export async function syncIntegrityContact(contactId: string): Promise<{ error?:
 // An Integrity lead that looks like the same person as a CRM contact.
 type IntegrityMatch = { leadId: string; name: string; why: string };
 
-const phoneDigits = (s: string | null | undefined) => (s ?? "").replace(/\D/g, "").slice(-10);
-const ymd = (d: Date | string | null | undefined) => (d ? new Date(d).toISOString().slice(0, 10) : "");
-
-// Is this person already a lead in Integrity? Same phone, email, or name and birthday.
-async function findIntegrityMatch(contact: {
+type MatchableContact = {
   firstName: string;
   lastName: string;
   phone: string | null;
   cellPhone: string | null;
   email: string | null;
   dateOfBirth: Date | null;
-}): Promise<IntegrityMatch | null> {
-  const [leads, ignoredRows] = await Promise.all([
-    getIntegrityLeads(),
-    prisma.ignoredIntegrityLead.findMany({ select: { integrityContactId: true } }),
-  ]);
-  const ignored = new Set(ignoredRows.map((r) => r.integrityContactId));
+};
+
+const phoneDigits = (s: string | null | undefined) => (s ?? "").replace(/\D/g, "").slice(-10);
+const ymd = (d: Date | string | null | undefined) => (d ? new Date(d).toISOString().slice(0, 10) : "");
+
+// The first of these leads that looks like this person: same phone, email,
+// or name and birthday.
+function findMatch(contact: MatchableContact, leads: IntegrityLead[], skip: Set<string>): IntegrityMatch | null {
   const phones = [contact.phone, contact.cellPhone].map(phoneDigits).filter((p) => p.length === 10);
   const email = contact.email?.trim().toLowerCase();
   const name = `${contact.firstName} ${contact.lastName}`.trim().toLowerCase();
   const dob = ymd(contact.dateOfBirth);
 
   for (const lead of leads) {
-    if (ignored.has(String(lead.leadId))) continue;
+    if (skip.has(String(lead.leadId))) continue;
     const leadName = `${lead.firstName} ${lead.lastName}`.trim();
     const why = phones.includes(phoneDigits(lead.phone))
       ? "same phone"
@@ -265,6 +267,12 @@ async function findIntegrityMatch(contact: {
 // Creates this contact as a new lead in Integrity, so they show up in
 // MedicareCENTER, and links the two. Checks for the same person there first
 // (returned as `match`) unless createAnyway is set.
+//
+// The lead is made with the basics (name, birthday, phones, email, address);
+// Medicare and Medi-Cal details follow through the lead update Integrity
+// already accepts from the CSV import. If Integrity fails on its side (500),
+// it may have made the lead anyway, so that's checked before trying again
+// with just name and phone and adding the rest one piece at a time.
 export async function sendContactToIntegrity(
   contactId: string,
   createAnyway = false
@@ -275,8 +283,12 @@ export async function sendContactToIntegrity(
 
   let message: string;
   try {
+    const ignored = new Set(
+      (await prisma.ignoredIntegrityLead.findMany({ select: { integrityContactId: true } })).map((r) => r.integrityContactId)
+    );
+    const before = await getIntegrityLeads();
     if (!createAnyway) {
-      const match = await findIntegrityMatch(contact);
+      const match = findMatch(contact, before, ignored);
       if (match) {
         const linked = await prisma.contact.findUnique({
           where: { integrityContactId: match.leadId },
@@ -291,47 +303,82 @@ export async function sendContactToIntegrity(
       }
     }
 
-    const phones = [...new Set((contact.cellPreferred ? [contact.cellPhone, contact.phone] : [contact.phone, contact.cellPhone]).map(phoneDigits))].filter(
-      (p) => p.length === 10
-    );
-    const lead = await createIntegrityLead({
+    const phones = [
+      ...new Set((contact.cellPreferred ? [contact.cellPhone, contact.phone] : [contact.phone, contact.cellPhone]).map(phoneDigits)),
+    ].filter((p) => p.length === 10);
+    const email = contact.email?.trim() || null;
+    const address =
+      contact.address && contact.city && contact.state && contact.zip
+        ? {
+            address1: contact.address,
+            city: contact.city,
+            stateCode: contact.state,
+            postalCode: contact.zip,
+            county: contact.county ?? undefined,
+            countyFips: countyFips(contact.county),
+          }
+        : null;
+    const basics = {
       firstName: contact.firstName,
       lastName: contact.lastName,
-      birthDate: ymd(contact.dateOfBirth) || undefined,
-      medicareBeneficiaryId: contact.medicareId ?? undefined,
-      partA: contact.partAEffectiveDate?.toISOString(),
-      partB: contact.partBEffectiveDate?.toISOString(),
-      hasMedicAid: contact.medicaid ? 1 : 0,
-      medicaidId: (contact.medicaid && contact.medicaidId) || undefined,
+      primaryCommunication: phones.length || !email ? "Phone" : "Email",
       phones: phones.map((phoneNumber) => ({ phoneNumber })),
-      emails: contact.email?.trim() ? [{ email: contact.email.trim() }] : [],
-      addresses:
-        contact.address && contact.city && contact.state && contact.zip
-          ? [
-              {
-                address1: contact.address,
-                city: contact.city,
-                stateCode: contact.state,
-                postalCode: contact.zip,
-                county: contact.county ?? undefined,
-                countyFips: countyFips(contact.county),
-              },
-            ]
-          : [],
-    });
-    if (!lead.leadId) throw new Error("Integrity didn't send back the new lead's ID.");
-    const leadId = String(lead.leadId);
+    };
+
+    let leadId: string;
+    let stage: number | undefined;
+    const missed: string[] = [];
+    try {
+      const lead = await createIntegrityLead({
+        ...basics,
+        birthDate: ymd(contact.dateOfBirth) || undefined,
+        emails: email ? [{ email }] : [],
+        addresses: address ? [address] : [],
+      });
+      leadId = String(lead.leadId ?? "");
+      stage = lead.stage;
+    } catch (err) {
+      if (!(err instanceof IntegrityApiError) || err.status < 500) throw err;
+      // Did Integrity make the lead before failing? Look among leads that weren't there before.
+      const known = new Set([...ignored, ...before.map((l) => String(l.leadId))]);
+      const made = findMatch(contact, await getIntegrityLeads(), known);
+      if (made) {
+        leadId = made.leadId;
+      } else {
+        const lead = await createIntegrityLead(basics);
+        leadId = String(lead.leadId ?? "");
+        stage = lead.stage;
+        if (leadId && email) {
+          await pushIntegrityLeadEmail(leadId, email).catch(() => missed.push("email"));
+        }
+        if (leadId && address) {
+          await pushIntegrityLeadAddress(leadId, address).catch(() => missed.push("address"));
+        }
+        if (contact.dateOfBirth) missed.push("birthday");
+      }
+    }
+    if (!leadId) throw new Error("Integrity didn't send back the new lead's ID.");
 
     await prisma.contact.update({
       where: { id: contactId },
-      data: { integrityContactId: leadId, integrityLeadStage: lead.stage ?? undefined },
+      data: { integrityContactId: leadId, integrityLeadStage: stage },
     });
     await prisma.activity.create({ data: { contactId, type: "stage", summary: "Sent to MedicareCENTER (new Integrity lead)" } });
+
+    // Medicare and Medi-Cal details, through the partial lead update.
+    const medicare = {
+      medicareBeneficiaryId: contact.medicareId ?? undefined,
+      partA: ymd(contact.partAEffectiveDate) || undefined,
+      partB: ymd(contact.partBEffectiveDate) || undefined,
+      ...(contact.medicaid ? { hasMedicAid: 1 as const, medicaidId: contact.medicaidId ?? undefined } : {}),
+    };
+    if (Object.values(medicare).some((v) => v !== undefined)) {
+      await pushIntegrityLeadMedicareInfo(leadId, medicare).catch(() => missed.push("Medicare info"));
+    }
 
     // Doctors already on the contact go along too. Pharmacies can't: the CRM
     // doesn't keep the pharmacy NPI Integrity needs.
     const doctors = contact.providers.filter((p) => p.npi && !p.syncedToIntegrity);
-    let doctorsSent = 0;
     if (doctors.length) {
       try {
         await saveIntegrityLeadProviders(
@@ -342,17 +389,18 @@ export async function sendContactToIntegrity(
           where: { id: { in: doctors.map((d) => d.id) } },
           data: { syncedToIntegrity: true },
         });
-        doctorsSent = doctors.length;
       } catch {
-        // The lead is made; doctors can be added in MedicareCENTER.
+        missed.push(doctors.length === 1 ? "doctor" : "doctors");
       }
     }
-    const pharmaciesLeft = contact.pharmacies.filter((p) => !p.syncedToIntegrity).length;
+    if (contact.pharmacies.some((p) => !p.syncedToIntegrity)) missed.push("pharmacy");
+
     message =
       "Sent to MedicareCENTER ✓" +
-      (doctorsSent ? ` with ${doctorsSent} doctor${doctorsSent === 1 ? "" : "s"}` : "") +
-      (doctors.length > doctorsSent ? ". Doctors didn't go through; add them there" : "") +
-      (pharmaciesLeft ? ". Add the pharmacy there" : "");
+      (doctors.length && !missed.some((m) => m.startsWith("doctor"))
+        ? ` with ${doctors.length} doctor${doctors.length === 1 ? "" : "s"}`
+        : "") +
+      (missed.length ? `. Add there: ${missed.join(", ")}` : "");
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Couldn't reach Integrity." };
   }

@@ -553,6 +553,8 @@ export interface IntegrityLeadMedicareInfoInput {
   medicareBeneficiaryId?: string;
   partA?: string; // ISO date
   partB?: string; // ISO date
+  hasMedicAid?: 0 | 1;
+  medicaidId?: string;
 }
 
 export async function pushIntegrityLeadMedicareInfo(
@@ -578,36 +580,52 @@ export interface CreateIntegrityLeadInput {
   firstName: string;
   lastName: string;
   birthDate?: string; // yyyy-mm-dd
-  medicareBeneficiaryId?: string;
-  partA?: string; // ISO date
-  partB?: string; // ISO date
-  hasMedicAid?: 0 | 1;
-  medicaidId?: string;
+  primaryCommunication?: string; // "Phone" or "Email"
   phones?: { phoneNumber: string }[];
   emails?: { email: string }[];
   addresses?: IntegrityLeadAddressInput[];
 }
 
+// An Integrity error that keeps the HTTP status, so callers can tell a
+// refusal (422) from Integrity failing on its side (500).
+export class IntegrityApiError extends Error {
+  constructor(message: string, public status: number) {
+    super(message);
+  }
+}
+
 // Creates a new lead (shows up in MedicareCENTER), assigned to this agent.
 // Integrity answers 422 for a duplicate or other rule it won't allow.
+// Sent in the shape of Integrity's own example: blank name parts as "",
+// and lists left out rather than sent empty.
 export async function createIntegrityLead(lead: CreateIntegrityLeadInput): Promise<IntegrityLead> {
+  const body = {
+    agentNpn: AGENT_NPN,
+    prefix: "",
+    middleName: "",
+    suffix: "",
+    ...Object.fromEntries(Object.entries(lead).filter(([, v]) => v !== undefined && !(Array.isArray(v) && !v.length))),
+  };
   const res = await integrityFetch("/partners/leads", {
     method: "POST",
-    body: JSON.stringify({ options: { forceValidation: false }, lead: { agentNpn: AGENT_NPN, ...lead } }),
+    body: JSON.stringify({ options: { forceValidation: false }, lead: body }),
   });
 
   if (!res.ok) {
-    const body = await res.text().catch(() => "");
+    const text = await res.text().catch(() => "");
     // ProblemDetails: prefer its human-readable detail/title over raw JSON.
-    let reason = body;
+    let reason = text;
     try {
-      const p = JSON.parse(body) as { detail?: string; title?: string; message?: string };
-      reason = p.detail || p.message || p.title || body;
+      const p = JSON.parse(text) as { detail?: string; title?: string; message?: string };
+      reason = p.detail || p.message || p.title || text;
     } catch {}
-    throw new Error(
+    // Field names only (no client details), to help work out what Integrity choked on.
+    console.error(`Integrity create lead ${res.status}; fields sent: ${Object.keys(body).join(", ")}. ${text}`);
+    throw new IntegrityApiError(
       res.status === 422
         ? `Integrity wouldn't create the lead: ${reason}`
-        : `Integrity create lead failed: ${res.status} ${res.statusText} ${reason}`
+        : `Integrity create lead failed: ${res.status} ${res.statusText} ${reason}`.trim(),
+      res.status
     );
   }
 
