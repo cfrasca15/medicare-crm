@@ -72,16 +72,24 @@ async function generateSeasonalReminders(
     created++;
   }
 
-  revalidatePath("/tasks");
-  revalidatePath("/");
-
   return { created, skipped };
 }
 
 export async function generateAepReminders() {
-  return generateSeasonalReminders(AEP);
+  const result = await generateSeasonalReminders(AEP);
+  revalidatePath("/tasks");
+  revalidatePath("/");
+  return result;
 }
 
 export async function generateOepReminders() {
-  return generateSeasonalReminders(OEP);
+  const result = await generateSeasonalReminders(OEP);
+  revalidatePath("/tasks");
+  revalidatePath("/");
+  return result;
+}
+
+// Without revalidatePath, for the scheduled run (see integritySync.ts).
+export async function runSeasonalReminders(season: "AEP" | "OEP") {
+  return generateSeasonalReminders(season === "AEP" ? AEP : OEP);
 }

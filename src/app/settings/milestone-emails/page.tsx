@@ -31,6 +31,7 @@ export default async function MilestoneEmailsPage() {
   ]);
 
   const templateById = Object.fromEntries(templates.map((t) => [t.id, t]));
+  const birthday = templateById.birthday;
 
   const recentSends = recentPolicies
     .flatMap((p) => {
@@ -53,7 +54,7 @@ export default async function MilestoneEmailsPage() {
   return (
     <div className="max-w-2xl mx-auto flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold">30/60/90-Day Milestone Emails</h1>
+        <h1 className="text-2xl font-semibold">Milestone &amp; Birthday Emails</h1>
         <p className="muted mt-1 text-sm">
           Automatically checks once a day for any policy that has crossed a
           30/60/90-day mark since its effective date and hasn&apos;t gotten
@@ -109,6 +110,31 @@ export default async function MilestoneEmailsPage() {
           );
         })}
       </div>
+
+      <section>
+        <h2 className="section-label mb-1">Birthday</h2>
+        <p className="muted mb-3 text-sm">
+          Sent the morning of a client&apos;s birthday (Enrolled, Retained or Current Client, with an
+          email address), once a year. Placeholders: {"{{firstName}}"}, {"{{lastName}}"}.
+        </p>
+        {birthday ? (
+          <form action={updateMilestoneTemplate.bind(null, "birthday")} className="flex flex-col gap-2">
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" name="enabled" defaultChecked={birthday.enabled} />
+              Send birthday emails
+            </label>
+            <input name="subject" defaultValue={birthday.subject} placeholder="Subject" required className="field" />
+            <textarea name="body" defaultValue={birthday.body} rows={6} required className="field" />
+            <div>
+              <button type="submit" className="btn-secondary">
+                Save
+              </button>
+            </div>
+          </form>
+        ) : (
+          <p className="muted text-sm">Restart the server so the database update runs.</p>
+        )}
+      </section>
 
       <section>
         <h2 className="section-label mb-3">Recently Sent</h2>

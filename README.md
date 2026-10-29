@@ -45,6 +45,22 @@ Check container logs on startup for "Daily checks scheduled" to confirm it
 registered. A global flag guards against double-registration from dev-mode
 hot reloads.
 
+The built server (`next start`, not `next dev`) also schedules these, in
+Pacific time (`src/lib/scheduledJobs.ts`):
+
+- **Syncs** every 30 minutes, 7 AM–8:30 PM: Integrity leads, Calendly
+  bookings and website leads. Each is skipped when its credentials aren't set.
+- **Morning digest** at 7:30 AM, emailed to the connected Google account:
+  today's appointments and to-dos, emails waiting on a reply (also at
+  `/inbox`), service follow-ups, birthdays, people turning 65, new contacts,
+  change alerts and unpaid commissions. Links use `CRM_URL`, or the address in
+  `GOOGLE_REDIRECT_URI`.
+- **Birthday emails** at 9 AM to clients with an email address, once a year.
+  Off until switched on at Settings → Milestone Emails.
+- **AEP / OEP reminder tasks** on Sept 1 and Dec 1.
+
+Look for "Scheduled: syncs every 30 min…" in the logs on startup.
+
 ## Deploying to a home server (Docker)
 
 1. Copy `docker.env.example` to `docker.env` and fill in real values.

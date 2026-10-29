@@ -38,6 +38,16 @@ export type WebsiteLeadsSyncResult =
 // Server action errors are replaced with a generic "Minified React error #441"
 // in production, so return failures as data and show the real reason in the UI.
 export async function syncWebsiteLeads(): Promise<WebsiteLeadsSyncResult> {
+  const result = await runWebsiteLeadsSync();
+  if (result.ok) {
+    revalidatePath("/contacts");
+    revalidatePath("/");
+  }
+  return result;
+}
+
+// The sync without revalidatePath, for the scheduled run (see integritySync.ts).
+export async function runWebsiteLeadsSync(): Promise<WebsiteLeadsSyncResult> {
   try {
     return { ok: true, ...(await runSync()) };
   } catch (err) {
@@ -151,9 +161,6 @@ async function runSync(): Promise<{
     // The CRM now holds the record, including the consent line; remove it from Airtable.
     if (!(await deleteWebsiteLead(lead.recordId))) cleanupFailed++;
   }
-
-  revalidatePath("/contacts");
-  revalidatePath("/");
 
   return { imported, matched, skipped, cleanupFailed };
 }

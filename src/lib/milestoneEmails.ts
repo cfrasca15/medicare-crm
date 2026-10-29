@@ -13,7 +13,7 @@ const MILESTONES: Milestone[] = [
   { days: 90, field: "milestone90SentAt", templateId: "day90" },
 ];
 
-function renderTemplate(
+export function renderTemplate(
   template: string,
   vars: Record<string, string>
 ): string {

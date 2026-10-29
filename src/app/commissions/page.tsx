@@ -2,28 +2,13 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { CARRIER_NAMES, canonicalCarrier } from "@/lib/carriers";
 import { formatDateOnly } from "@/lib/date";
+import { loadUnpaid } from "@/lib/unpaidCommissions";
 import { CommissionImport } from "@/components/CommissionImport";
 import { UndoStatementButton } from "@/components/UndoStatementButton";
 
 export const dynamic = "force-dynamic";
 
 const money = (n: number) => n.toLocaleString("en-US", { style: "currency", currency: "USD" });
-
-// Plans that started 60+ days ago with an expected commission and nothing
-// received: the payments to chase.
-async function loadUnpaid(now = new Date()) {
-  return prisma.policy.findMany({
-    where: {
-      effectiveDate: { lte: new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000) },
-      termDate: null,
-      commissionAmount: { gt: 0 },
-      OR: [{ commissionReceived: null }, { commissionReceived: 0 }],
-      contact: { stage: { not: "LOST" } },
-    },
-    include: { contact: { select: { id: true, firstName: true, lastName: true } } },
-    orderBy: [{ carrier: "asc" }, { effectiveDate: "asc" }],
-  });
-}
 
 export default async function CommissionsPage() {
   const [statements, unpaid, usedCarriers] = await Promise.all([

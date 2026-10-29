@@ -174,6 +174,16 @@ async function loadMappings(): Promise<StageMappings> {
 }
 
 export async function syncIntegrityLeads(): Promise<SyncResult> {
+  const result = await runIntegrityLeadSync();
+  revalidatePath("/contacts");
+  revalidatePath("/");
+  return result;
+}
+
+// The sync itself, without revalidatePath: the scheduled run (scheduledJobs.ts)
+// happens outside any request, where revalidatePath throws. Pages are dynamic,
+// so they show the new data on the next visit anyway.
+export async function runIntegrityLeadSync(): Promise<SyncResult> {
   const [leads, mappingByCode, ignoredRows] = await Promise.all([
     getIntegrityLeads(),
     loadMappings(),
@@ -195,9 +205,6 @@ export async function syncIntegrityLeads(): Promise<SyncResult> {
     if (details.length) result.changed.push({ id: r.id, name: r.name, details });
     if (!r.movedTo && !details.length) result.unchanged++;
   }
-
-  revalidatePath("/contacts");
-  revalidatePath("/");
 
   return result;
 }

@@ -338,6 +338,85 @@ export async function listGmailMessagesForContact(
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }
 
+export interface AwaitingReplyThread {
+  threadId: string;
+  subject: string;
+  from: string; // the From header, e.g. "Pat Lee <pat@example.com>"
+  fromEmail: string; // just the address, lowercased
+  date: string; // ISO, of the newest message
+  snippet: string;
+  unread: boolean;
+  bulk: boolean; // newest message has a List-Unsubscribe header (newsletters, marketing)
+  url: string; // opens the conversation in Gmail
+}
+
+// Inbox conversations on the Primary tab from the last `days` days whose
+// newest message is someone else's, i.e. you haven't answered yet. Archiving
+// the conversation in Gmail takes it off the list.
+export async function listThreadsAwaitingReply(days = 30, max = 60): Promise<AwaitingReplyThread[]> {
+  const account = await getGoogleAccount();
+  if (!account) throw new Error("Google account isn't connected.");
+
+  const q = `in:inbox category:primary newer_than:${days}d`;
+  const listRes = await gmailFetch(`/users/me/threads?q=${encodeURIComponent(q)}&maxResults=${max}`);
+  // Connected before the CRM asked for permission to read mail.
+  if (listRes.status === 403) {
+    throw new Error("Google needs to be reconnected (Settings → Google) so the CRM can read your inbox.");
+  }
+  if (!listRes.ok) {
+    const body = await listRes.text().catch(() => "");
+    throw new Error(`Failed to list Gmail conversations: ${listRes.status} ${body}`);
+  }
+  const ids: string[] = ((await listRes.json()).threads ?? []).map((t: { id: string }) => t.id);
+
+  const threads: AwaitingReplyThread[] = [];
+  // A few at a time, to stay well under Gmail's per-user rate limit.
+  for (let i = 0; i < ids.length; i += 10) {
+    const batch = await Promise.all(
+      ids.slice(i, i + 10).map(async (id): Promise<AwaitingReplyThread | null> => {
+        const res = await gmailFetch(
+          `/users/me/threads/${id}?format=metadata&metadataHeaders=Subject&metadataHeaders=From&metadataHeaders=List-Unsubscribe`
+        );
+        if (!res.ok) return null;
+        const data: {
+          messages?: {
+            labelIds?: string[];
+            internalDate: string;
+            snippet?: string;
+            payload?: { headers?: { name: string; value: string }[] };
+          }[];
+        } = await res.json();
+
+        const messages = (data.messages ?? []).filter((m) => !m.labelIds?.includes("DRAFT"));
+        const last = messages[messages.length - 1];
+        if (!last || last.labelIds?.includes("SENT")) return null;
+
+        const headers = last.payload?.headers ?? [];
+        const getHeader = (name: string) =>
+          headers.find((h) => h.name.toLowerCase() === name.toLowerCase())?.value ?? "";
+        const from = getHeader("From");
+        const fromEmail = (from.match(/<([^>]+)>/)?.[1] ?? from).trim().toLowerCase();
+        if (fromEmail === account.email.toLowerCase()) return null;
+
+        return {
+          threadId: id,
+          subject: getHeader("Subject") || "(no subject)",
+          from,
+          fromEmail,
+          date: new Date(Number(last.internalDate)).toISOString(),
+          snippet: last.snippet ?? "",
+          unread: messages.some((m) => m.labelIds?.includes("UNREAD")),
+          bulk: Boolean(getHeader("List-Unsubscribe")),
+          url: `https://mail.google.com/mail/?authuser=${encodeURIComponent(account.email)}#all/${id}`,
+        };
+      })
+    );
+    threads.push(...batch.filter((t): t is AwaitingReplyThread => t !== null));
+  }
+
+  return threads.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+}
+
 function base64UrlEncode(str: string): string {
   return Buffer.from(str, "utf-8")
     .toString("base64")
@@ -404,6 +483,8 @@ export interface SendEmailInput {
   to: string;
   subject: string;
   body: string;
+  /** Leave off the Gmail signature (e.g. the morning digest, sent to yourself). */
+  noSignature?: boolean;
 }
 
 // The name, address and signature Gmail itself puts on new mail (the default
@@ -449,7 +530,7 @@ export async function sendGmailMessage(input: SendEmailInput): Promise<{ id: str
     to: input.to,
     subject: input.subject,
     body: input.body,
-    signatureHtml: sendAs.signature,
+    signatureHtml: input.noSignature ? null : sendAs.signature,
   });
 
   const res = await gmailFetch(`/users/me/messages/send`, {

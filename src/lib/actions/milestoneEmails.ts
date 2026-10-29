@@ -9,7 +9,7 @@ export async function triggerMilestoneEmailCheck(): Promise<MilestoneEmailResult
 }
 
 export async function updateMilestoneTemplate(
-  templateId: "day30" | "day60" | "day90",
+  templateId: "day30" | "day60" | "day90" | "birthday",
   formData: FormData
 ) {
   const subject = String(formData.get("subject") ?? "").trim();
@@ -20,7 +20,8 @@ export async function updateMilestoneTemplate(
 
   await prisma.milestoneEmailTemplate.update({
     where: { id: templateId },
-    data: { subject, body },
+    // Only the birthday email has an on/off switch.
+    data: { subject, body, ...(templateId === "birthday" ? { enabled: formData.get("enabled") === "on" } : {}) },
   });
 
   revalidatePath("/settings/milestone-emails");

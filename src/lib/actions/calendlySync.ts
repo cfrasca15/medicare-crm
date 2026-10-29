@@ -11,11 +11,18 @@ function splitName(fullName: string): { firstName: string; lastName: string } {
   return { firstName: parts[0], lastName: parts.slice(1).join(" ") };
 }
 
-export async function syncCalendlyEvents(): Promise<{
-  tasksCreated: number;
-  contactsCreated: number;
-  skipped: number;
-}> {
+type CalendlySyncResult = { tasksCreated: number; contactsCreated: number; skipped: number };
+
+export async function syncCalendlyEvents(): Promise<CalendlySyncResult> {
+  const result = await runCalendlySync();
+  revalidatePath("/tasks");
+  revalidatePath("/contacts");
+  revalidatePath("/");
+  return result;
+}
+
+// The sync without revalidatePath, for the scheduled run (see integritySync.ts).
+export async function runCalendlySync(): Promise<CalendlySyncResult> {
   const events = await listUpcomingCalendlyEvents(90);
 
   let tasksCreated = 0;
@@ -76,10 +83,6 @@ export async function syncCalendlyEvents(): Promise<{
   }
 
   await closePastAppointmentTasks();
-
-  revalidatePath("/tasks");
-  revalidatePath("/contacts");
-  revalidatePath("/");
 
   return { tasksCreated, contactsCreated, skipped };
 }

@@ -36,6 +36,7 @@ const SECTIONS: { title?: string; links: { href: string; label: string; icon: st
       { href: "/", label: "Dashboard", icon: "home" },
       { href: "/contacts", label: "Contacts", icon: "users" },
       { href: "/tasks", label: "Tasks", icon: "check" },
+      { href: "/inbox", label: "Needs a Reply", icon: "mail" },
       { href: "/aep", label: "AEP Worklist", icon: "list" },
       { href: "/service", label: "Service Requests", icon: "lifebuoy" },
       { href: "/calendar", label: "Calendar", icon: "calendar" },

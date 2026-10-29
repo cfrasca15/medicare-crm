@@ -52,6 +52,8 @@ model Contact {
   mailingState      String?
   mailingZip        String?
   dateOfBirth       DateTime?
+  // The year the birthday email last went out (see birthdayEmails.ts).
+  birthdayEmailYear Int?
   medicareId        String?
   partAEffectiveDate DateTime?
   partBEffectiveDate DateTime?
@@ -277,9 +279,10 @@ model Policy {
 // general list, so no create/delete UI, just editing the subject/body of
 // each milestone's email.
 model MilestoneEmailTemplate {
-  id      String @id
+  id      String  @id // day30, day60, day90, birthday
   subject String
   body    String
+  enabled Boolean @default(true)
 }
 
 model IntegrityStageMapping {
