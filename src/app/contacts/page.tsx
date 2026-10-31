@@ -56,7 +56,10 @@ export default async function ContactsPage({
   const chips = [
     q && { key: "q", label: `“${q}”` },
     stage && STAGE_LABELS[stage] && { key: "stage", label: STAGE_LABELS[stage] },
-    source && { key: "source", label: source === "website" ? "Website leads" : `Source: ${source}` },
+    source && {
+      key: "source",
+      label: source === "website" ? "Website leads" : source === "none" ? "No source" : `Source: ${source}`,
+    },
     flag && flagLabels[flag] && { key: "flag", label: flagLabels[flag] },
     county && { key: "county", label: `${county} County` },
     effectiveRange && { key: "eff", label: `Effective ${formatDateOnly(effectiveRange.gte)}` },

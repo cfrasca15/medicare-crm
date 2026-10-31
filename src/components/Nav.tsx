@@ -27,6 +27,7 @@ const ICONS: Record<string, string> = {
   menu: "M4 6h16M4 12h16M4 18h16",
   close: "M6 6l12 12M18 6L6 18",
   list: "M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01",
+  target: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8M12 12h.01",
   bell:"M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0",
 };
 
@@ -50,6 +51,7 @@ const SECTIONS: { title?: string; links: { href: string; label: string; icon: st
       { href: "/enrollments", label: "Enrollments", icon: "chart" },
       { href: "/commissions", label: "Commissions", icon: "dollar" },
       { href: "/book-of-business", label: "Book of Business", icon: "briefcase" },
+      { href: "/lead-sources", label: "Lead Sources", icon: "target" },
       { href: "/alerts", label: "Change Alerts", icon: "bell" },
     ],
   },

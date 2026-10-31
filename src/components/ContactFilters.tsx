@@ -82,7 +82,7 @@ export function ContactFilters({
       </select>
       <DropdownMenu label={moreCount ? `Filters (${moreCount})` : "Filters"}>
         <div className="flex w-64 flex-col gap-3 p-2">
-          {select("source", "Source", [{ value: "", label: "All sources" }, { value: "website", label: "Website leads" }, ...sources])}
+          {select("source", "Source", [{ value: "", label: "All sources" }, { value: "website", label: "Website leads" }, { value: "none", label: "No source" }, ...sources])}
           {select("flag", "Medi-Cal / Extra Help", [
             { value: "", label: "Any" },
             { value: "either", label: "Medi-Cal or Extra Help" },

@@ -5,7 +5,7 @@ import { monthRange } from "@/lib/date";
 export interface ContactFilterParams {
   stage?: string | null;
   q?: string | null;
-  source?: string | null; // "website", or a lead source name
+  source?: string | null; // "website", "none", or a lead source name
   flag?: string | null; // "medicaid", "extraHelp" or "either"
   county?: string | null;
   eff?: string | null; // yyyy-mm
@@ -18,6 +18,8 @@ export function contactWhere(p: ContactFilterParams): Prisma.ContactWhereInput {
   if (p.stage && STAGE_ORDER.includes(p.stage)) and.push({ stage: p.stage as PipelineStage });
   if (p.source === "website") {
     and.push({ OR: [{ leadSource: { startsWith: "Website" } }, { lastWebsiteLeadAt: { not: null } }] });
+  } else if (p.source === "none") {
+    and.push({ leadSource: null, lastWebsiteLeadAt: null });
   } else if (p.source) {
     and.push({ leadSource: p.source });
   }
