@@ -24,7 +24,7 @@ import {
 import { revalidatePath } from "next/cache";
 import type { PipelineStage } from "@/generated/prisma/client";
 import { countyFips, countyForZip, normalizeCounty } from "@/lib/county";
-import { integrityLeadSource, isWebsiteSource } from "@/lib/leadSource";
+import { integrityLeadSource } from "@/lib/leadSource";
 import { logStageChanges } from "@/lib/activity";
 import { STAGE_LABELS } from "@/lib/constants";
 
@@ -130,7 +130,7 @@ async function applyLead(lead: IntegrityLead, mappingByCode: StageMappings): Pro
     // Only ever turned on from Integrity, so a box ticked in the CRM stays.
     ...(lead.hasMedicaid ? { medicaid: true } : {}),
   };
-  // Integrity's lead source, unless the website already set one.
+  // Integrity's lead source fills a blank one; it never replaces one already set.
   const source = integrityLeadSource(lead.leadSourceName);
   const name = `${lead.firstName} ${lead.lastName}`.trim();
 
@@ -142,7 +142,7 @@ async function applyLead(lead: IntegrityLead, mappingByCode: StageMappings): Pro
         : undefined;
     const data = {
       ...sharedFields,
-      ...(source && !isWebsiteSource(existing.leadSource) ? { leadSource: source } : {}),
+      ...(source && !existing.leadSource ? { leadSource: source } : {}),
     };
     const details = changedDetails(existing, data);
     await prisma.contact.update({

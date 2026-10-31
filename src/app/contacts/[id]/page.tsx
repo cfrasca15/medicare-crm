@@ -34,6 +34,8 @@ import { logCall, deleteActivity } from "@/lib/actions/activity";
 import { CALL_OUTCOMES } from "@/lib/activity";
 import { COUNTY_OPTIONS } from "@/lib/county";
 import { isWebsiteSource } from "@/lib/leadSource";
+import { leadSourceOptions } from "@/lib/leadSourceOptions";
+import { LeadSourceField } from "@/components/LeadSourceField";
 import { NewServiceRequestForm, ServiceRequestList } from "@/components/ServiceRequests";
 import { ToggleSection } from "@/components/ToggleSection";
 import { ActivityComposer } from "@/components/ActivityComposer";
@@ -71,6 +73,7 @@ export default async function ContactDetailPage({
           where: { code: contact.integrityLeadStage },
         })
       : null;
+  const sourceOptions = await leadSourceOptions();
 
   const [carrierPlanRows, planTypeRows, groupRows, doctorRows] = await Promise.all([
     prisma.policy.findMany({ distinct: ["carrier", "planName"], select: { carrier: true, planName: true } }),
@@ -756,6 +759,7 @@ export default async function ContactDetailPage({
               <ShowWhen field="medicaid" value="on" initial={contact.medicaid ? "on" : ""}>
                 <Field label="Medi-Cal Number" name="medicaidId" value={contact.medicaidId} span={2} />
               </ShowWhen>
+              <LeadSourceField id="info-leadSource" value={contact.leadSource} options={sourceOptions} className={WIDE_SPANS[2]} />
               <label className="col-span-full flex items-center gap-2 text-sm">
                 <input
                   type="checkbox"
@@ -796,6 +800,7 @@ export default async function ContactDetailPage({
                 ["Medicare number", contact.medicareId],
                 ...(contact.medicaid ? [["Medi-Cal number", contact.medicaidId] as [string, string | null]] : []),
                 ["County", contact.county],
+                ["Lead source", contact.leadSource],
                 ["Phone", contact.phone],
                 ["Cell", contact.cellPhone ? `${contact.cellPhone}${contact.cellPreferred ? " (preferred)" : ""}` : null],
                 ["Email", contact.email],

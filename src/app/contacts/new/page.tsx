@@ -1,6 +1,12 @@
 import { createContact } from "@/lib/actions/contacts";
+import { leadSourceOptions } from "@/lib/leadSourceOptions";
+import { LeadSourceField } from "@/components/LeadSourceField";
 
-export default function NewContactPage() {
+export const dynamic = "force-dynamic";
+
+export default async function NewContactPage() {
+  const sources = await leadSourceOptions();
+
   return (
     <div className="max-w-2xl mx-auto flex flex-col gap-6">
       <h1 className="text-2xl font-semibold">New Contact</h1>
@@ -21,7 +27,10 @@ export default function NewContactPage() {
           <Field label="State" name="state" />
           <Field label="ZIP" name="zip" />
         </div>
-        <Field label="Date of birth" name="dateOfBirth" type="date" />
+        <div className="grid grid-cols-2 gap-4">
+          <Field label="Date of birth" name="dateOfBirth" type="date" />
+          <LeadSourceField id="leadSource" options={sources} />
+        </div>
         <div className="grid grid-cols-3 gap-4">
           <Field label="Medicare Number" name="medicareId" />
           <Field label="Part A Effective" name="partAEffectiveDate" type="date" />

@@ -24,3 +24,7 @@ export function integrityLeadSource(raw: string | null | undefined): string | nu
 }
 
 export const isWebsiteSource = (s: string | null | undefined) => !!s && s.startsWith("Website");
+
+// The usual answers to "where did this lead come from?" Anything else can be
+// typed in, and it's then suggested for other contacts.
+export const LEAD_SOURCES = ["Providence Phone Call", "Event", "Website", "Ad", "Referral"];

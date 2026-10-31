@@ -32,6 +32,7 @@ export async function createContact(formData: FormData) {
       medicareId: emptyToNull(formData.get("medicareId")),
       partAEffectiveDate: toDate(formData.get("partAEffectiveDate")),
       partBEffectiveDate: toDate(formData.get("partBEffectiveDate")),
+      leadSource: emptyToNull(formData.get("leadSource")),
       noteEntries: notes ? { create: [{ body: notes }] } : undefined,
     },
   });
@@ -105,6 +106,7 @@ export async function updateContactInfo(contactId: string, formData: FormData) {
       medicareId: orNull(formData.get("medicareId")),
       partAEffectiveDate: dateOrNull(formData.get("partAEffectiveDate")),
       partBEffectiveDate: dateOrNull(formData.get("partBEffectiveDate")),
+      leadSource: orNull(formData.get("leadSource")),
     },
   });
   revalidatePath(`/contacts/${contactId}`);
