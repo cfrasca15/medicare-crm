@@ -6,6 +6,8 @@ import { formatDateTime } from "@/lib/date";
 import { NAME_ONLY, type GoogleCandidate } from "@/lib/googleContactsMatch";
 import { GoogleContactButton } from "@/components/GoogleContactButton";
 import { GoogleContactsSyncButton, LinkAllNameMatchesButton } from "@/components/GoogleContactsSyncButton";
+import { GoogleContactsPreview } from "@/components/GoogleContactsPreview";
+import { setGoogleAutoSync } from "@/lib/actions/googleContacts";
 
 export const dynamic = "force-dynamic";
 
@@ -79,7 +81,7 @@ export default async function GoogleSettingsPage({
         </div>
       )}
 
-      {account && contactsOn && <GoogleContactsSection lastSync={account.lastContactsSyncAt} />}
+      {account && contactsOn && <GoogleContactsSection lastSync={account.lastContactsSyncAt} auto={account.contactsAutoSync} />}
 
       {account && (
         <p className="muted text-xs">
@@ -92,7 +94,7 @@ export default async function GoogleSettingsPage({
   );
 }
 
-async function GoogleContactsSection({ lastSync }: { lastSync: Date | null }) {
+async function GoogleContactsSection({ lastSync, auto }: { lastSync: Date | null; auto: boolean }) {
   const [inGoogle, notYet, skipped, reviews] = await Promise.all([
     prisma.contact.count({ where: { googleResourceName: { not: null } } }),
     prisma.contact.count({
@@ -124,11 +126,28 @@ async function GoogleContactsSection({ lastSync }: { lastSync: Date | null }) {
               Clients (Enrolled, Retained, Current Client) are added to your Google contacts with their name, phone
               and email, under the label &quot;Medicare CRM&quot;. Anyone already there is linked instead of added
               twice. The CRM only adds missing phones and emails to a card; it never changes or deletes anything in
-              Google. It runs every 30 minutes and when you save a client.
+              Google.
             </p>
           </div>
           <GoogleContactsSyncButton />
         </div>
+        <form
+          action={setGoogleAutoSync.bind(null, !auto)}
+          className="flex flex-wrap items-center gap-3 rounded-md bg-slate-50 px-3 py-2 text-sm dark:bg-slate-800/50"
+        >
+          <span>
+            <span className="font-medium">Automatic sync: {auto ? "On" : "Off"}.</span>{" "}
+            <span className="muted">
+              {auto
+                ? "Clients are synced every 30 minutes and when you save one."
+                : "Nothing changes in Google unless you click a button. Preview first, then turn this on."}
+            </span>
+          </span>
+          <button type="submit" className={auto ? "btn-secondary" : "btn-primary"}>
+            {auto ? "Turn off" : "Turn on"}
+          </button>
+        </form>
+        <GoogleContactsPreview />
         <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
           <span>
             <span className="font-medium">{inGoogle}</span> <span className="muted">in Google</span>

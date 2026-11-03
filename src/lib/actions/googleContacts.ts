@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import {
   linkContactToGoogleCard,
+  previewGoogleContactsSync,
   pushContactToGoogle,
   runGoogleContactsSync,
   type GoogleSyncResult,
@@ -28,6 +29,22 @@ export async function syncContactsToGoogle(): Promise<{ sync?: GoogleSyncResult;
   } finally {
     refresh();
   }
+}
+
+// What a sync would do, changing nothing in Google.
+export async function previewContactsToGoogle(): Promise<{ sync?: GoogleSyncResult; error?: string }> {
+  try {
+    return { sync: await previewGoogleContactsSync() };
+  } catch (err) {
+    return failed(err);
+  } finally {
+    refresh();
+  }
+}
+
+export async function setGoogleAutoSync(on: boolean): Promise<void> {
+  await prisma.googleAccount.updateMany({ data: { contactsAutoSync: on } });
+  revalidatePath("/settings/google");
 }
 
 // "Add to Google" on a contact; createAnyway is "Add as new" after a match was offered.

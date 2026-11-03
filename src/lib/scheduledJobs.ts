@@ -4,8 +4,7 @@ import { runWebsiteLeadsSync } from "@/lib/actions/websiteLeadsSync";
 import { runSeasonalReminders } from "@/lib/actions/reminders";
 import { sendMorningDigest } from "@/lib/morningDigest";
 import { runBirthdayEmails } from "@/lib/birthdayEmails";
-import { getGoogleAccount, hasContactsScope } from "@/lib/google";
-import { runGoogleContactsSync } from "@/lib/googleContactsSync";
+import { autoSyncOn, runGoogleContactsSync } from "@/lib/googleContactsSync";
 
 // The jobs instrumentation.ts schedules besides the 9 AM checks: the syncs
 // that used to need a button click, the morning digest, birthday emails and
@@ -30,7 +29,7 @@ export function runScheduledSyncs(): Promise<void> {
         if (!r.ok) console.error("Scheduled website leads sync failed:", r.error);
         else if (r.imported) console.log(`Imported ${r.imported} new website lead(s).`);
       }
-      if (hasContactsScope(await getGoogleAccount())) {
+      if (await autoSyncOn()) {
         const r = await runGoogleContactsSync().catch((err) => {
           console.error("Scheduled Google Contacts sync failed:", err);
           return null;

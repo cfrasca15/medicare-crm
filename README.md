@@ -168,7 +168,9 @@ deliberately — see gotchas below).
   Clients are added with name, phone and email under a "Medicare CRM"
   label, or linked to the card already there (`googleContactsMatch.ts`);
   doubtful matches are listed on Settings > Google. Runs with the
-  30-minute syncs and when a client is saved. Only ever adds to a card.
+  30-minute syncs and when a client is saved once Automatic sync is
+  turned on there (off by default; Preview shows what it would do).
+  Only ever adds to a card.
   `GOOGLE_PEOPLE_API_BASE_URL` overrides the API address (for a test server).
 - **Calendly** (`src/lib/calendly.ts`) — Personal Access Token, pulls
   scheduled events into contacts/tasks.

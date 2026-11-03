@@ -35,8 +35,10 @@ export const RECONNECT_MESSAGE =
 type Named = { id: string; name: string };
 
 export interface GoogleSyncResult {
+  preview: boolean; // nothing was changed in Google
   added: Named[];
-  linked: Named[];
+  // google/why: the card they matched and the reason (shown by the preview).
+  linked: (Named & { google: string; why: string })[];
   updated: (Named & { details: string[] })[];
   review: (Named & { reason: string })[];
   failed: (Named & { error: string })[];
@@ -173,15 +175,27 @@ let inFlight: Promise<GoogleSyncResult> | null = null;
 // Every client (and anyone linked by hand), in one pass: list Google's
 // contacts, match, then write. A run already going is shared, not repeated.
 export function runGoogleContactsSync(): Promise<GoogleSyncResult> {
-  inFlight ??= syncAll().finally(() => {
+  inFlight ??= syncAll(false).finally(() => {
     inFlight = null;
   });
   return inFlight;
 }
 
-async function syncAll(): Promise<GoogleSyncResult> {
+// What a sync would do, without changing anything in Google or any links.
+// Doubtful matches are still listed on Settings → Google for review.
+export function previewGoogleContactsSync(): Promise<GoogleSyncResult> {
+  return syncAll(true);
+}
+
+// The scheduled run and saves only sync once it's turned on in Settings → Google.
+export async function autoSyncOn(): Promise<boolean> {
+  const account = await getGoogleAccount();
+  return hasContactsScope(account) && !!account?.contactsAutoSync;
+}
+
+async function syncAll(preview: boolean): Promise<GoogleSyncResult> {
   const google = await connect();
-  const result: GoogleSyncResult = { added: [], linked: [], updated: [], review: [], failed: [], unchanged: 0 };
+  const result: GoogleSyncResult = { preview, added: [], linked: [], updated: [], review: [], failed: [], unchanged: 0 };
 
   const people = await listAllConnections();
   const byResource = new Map(people.map((p) => [p.resourceName, p]));
@@ -196,7 +210,7 @@ async function syncAll(): Promise<GoogleSyncResult> {
   });
   const taken = new Set(linkedRows.map((r) => r.googleResourceName!));
 
-  const updates: { c: SyncContact; resourceName: string; fill: FillIn; linking: boolean }[] = [];
+  const updates: { c: SyncContact; resourceName: string; fill: FillIn; linking: boolean; why: string }[] = [];
   const creates: SyncContact[] = [];
   const reviews = new Map<string, { c: SyncContact; reason: string; candidates: GoogleCandidate[] }>();
 
@@ -205,24 +219,36 @@ async function syncAll(): Promise<GoogleSyncResult> {
       const person = byResource.get(c.googleResourceName);
       if (person) {
         const fill = fillIn(person, c, null);
-        if (fill.mask.length) updates.push({ c, resourceName: person.resourceName, fill, linking: false });
+        if (fill.mask.length) updates.push({ c, resourceName: person.resourceName, fill, linking: false, why: "" });
         else result.unchanged++;
         continue;
       }
       // Deleted in Google (or merged into another card there): match again.
       taken.delete(c.googleResourceName);
-      await prisma.contact.update({ where: { id: c.id }, data: { googleResourceName: null } });
+      if (!preview) await prisma.contact.update({ where: { id: c.id }, data: { googleResourceName: null } });
     }
     const m = matchContact(c, index, taken);
     if (m.kind === "link") {
       taken.add(m.resourceName);
-      const fill = fillIn(byResource.get(m.resourceName)!, c, await google.group());
-      updates.push({ c, resourceName: m.resourceName, fill, linking: true });
+      // The preview leaves the label alone (looking it up could create it).
+      const fill = fillIn(byResource.get(m.resourceName)!, c, preview ? null : await google.group());
+      updates.push({ c, resourceName: m.resourceName, fill, linking: true, why: m.why });
     } else if (m.kind === "review") {
       reviews.set(c.id, { c, reason: m.reason, candidates: m.candidates });
     } else {
       creates.push(c);
     }
+  }
+
+  if (preview) {
+    for (const u of updates) {
+      const named = { id: u.c.id, name: fullName(u.c) };
+      if (u.linking) {
+        const added = u.fill.details.length ? `; would add ${u.fill.details.join(" and ")}` : "";
+        result.linked.push({ ...named, google: personName(byResource.get(u.resourceName)!).display, why: u.why + added });
+      } else result.updated.push({ ...named, details: u.fill.details });
+    }
+    result.added = creates.map((c) => ({ id: c.id, name: fullName(c) }));
   }
 
   // Updates, in batches that share the same fields.
@@ -231,7 +257,7 @@ async function syncAll(): Promise<GoogleSyncResult> {
     const key = u.fill.mask.join(",");
     byMask.set(key, [...(byMask.get(key) ?? []), u]);
   }
-  for (const [mask, group] of byMask) {
+  for (const [mask, group] of preview ? [] : byMask) {
     const failed = mask
       ? await batchUpdateContacts(new Map(group.map((u) => [u.resourceName, u.fill.body])), mask)
       : new Map<string, string>();
@@ -241,8 +267,9 @@ async function syncAll(): Promise<GoogleSyncResult> {
       if (error) {
         result.failed.push({ ...named, error });
       } else if (u.linking) {
+        const google = personName(byResource.get(u.resourceName)!).display;
         await setLink(u.c.id, u.resourceName)
-          .then(() => result.linked.push(named))
+          .then(() => result.linked.push({ ...named, google, why: u.why }))
           .catch((err) => result.failed.push({ ...named, error: String(err?.message ?? err) }));
       } else {
         result.updated.push({ ...named, details: u.fill.details });
@@ -250,7 +277,7 @@ async function syncAll(): Promise<GoogleSyncResult> {
     }
   }
 
-  if (creates.length) {
+  if (creates.length && !preview) {
     const group = await google.group();
     const created = await batchCreateContacts(creates.map((c) => newPerson(c, group)));
     for (const [i, r] of created.entries()) {
@@ -271,7 +298,7 @@ async function syncAll(): Promise<GoogleSyncResult> {
   }
   // Reviews for anyone settled since (linked, no longer a client, skipped).
   await prisma.googleContactReview.deleteMany({ where: { contactId: { notIn: [...reviews.keys()] } } });
-  await prisma.googleAccount.updateMany({ data: { lastContactsSyncAt: new Date() } });
+  if (!preview) await prisma.googleAccount.updateMany({ data: { lastContactsSyncAt: new Date() } });
 
   return result;
 }
@@ -347,7 +374,7 @@ export async function linkContactToGoogleCard(contactId: string, resourceName: s
 // card in step. Quiet: problems go to the server log, never to the form.
 export async function pushContactToGoogleQuietly(contactId: string): Promise<void> {
   try {
-    if (!hasContactsScope(await getGoogleAccount())) return;
+    if (!(await autoSyncOn())) return;
     const c = await prisma.contact.findUnique({
       where: { id: contactId },
       select: { stage: true, googleResourceName: true, googleSyncSkip: true },

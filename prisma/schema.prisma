@@ -343,6 +343,9 @@ model GoogleAccount {
   // The "Medicare CRM" label clients are added to in Google Contacts.
   contactsGroup String?
   lastContactsSyncAt DateTime?
+  // Off until turned on in Settings → Google: then clients are synced every
+  // 30 minutes and when saved. The buttons work either way.
+  contactsAutoSync Boolean @default(false)
 
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
