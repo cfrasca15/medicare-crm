@@ -3,9 +3,11 @@
 import { prisma } from "@/lib/prisma";
 import { PipelineStage } from "@/generated/prisma/client";
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { redirect } from "next/navigation";
 import { countyForZip, normalizeCounty } from "@/lib/county";
 import { logStageChanges } from "@/lib/activity";
+import { pushContactToGoogleQuietly } from "@/lib/googleContactsSync";
 
 export async function createContact(formData: FormData) {
   const firstName = String(formData.get("firstName") ?? "").trim();
@@ -48,6 +50,8 @@ export async function updateContactStage(contactId: string, stage: PipelineStage
     data: { stage },
   });
   if (before) await logStageChanges([{ contactId, from: before.stage, to: stage }]);
+  // A new client goes into Google Contacts after the page has its answer.
+  after(() => pushContactToGoogleQuietly(contactId));
   revalidatePath("/contacts");
   revalidatePath(`/contacts/${contactId}`);
   revalidatePath("/");
@@ -109,6 +113,8 @@ export async function updateContactInfo(contactId: string, formData: FormData) {
       leadSource: orNull(formData.get("leadSource")),
     },
   });
+  // A new phone or email goes onto their Google Contacts card too.
+  after(() => pushContactToGoogleQuietly(contactId));
   revalidatePath(`/contacts/${contactId}`);
   revalidatePath("/contacts");
 }

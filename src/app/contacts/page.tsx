@@ -8,6 +8,7 @@ import { ContactFilters } from "@/components/ContactFilters";
 import { DropdownMenu } from "@/components/DropdownMenu";
 import { SyncButton } from "@/components/SyncButton";
 import { WebsiteLeadsSyncButton } from "@/components/WebsiteLeadsSyncButton";
+import { GoogleContactsSyncButton } from "@/components/GoogleContactsSyncButton";
 import { CallButton } from "@/components/CallButton";
 import { primaryPhone } from "@/lib/phone";
 import { planGroup } from "@/lib/coverage";
@@ -79,6 +80,7 @@ export default async function ContactsPage({
           <SyncButton />
           <DropdownMenu label="More ▾">
             <WebsiteLeadsSyncButton className="menu-item" />
+            <GoogleContactsSyncButton className="menu-item" />
             <Link href="/contacts/import" className="menu-item">
               Import CSV
             </Link>

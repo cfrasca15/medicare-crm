@@ -83,7 +83,7 @@ function SyncSummary({ r, onNavigate }: { r: SyncResult; onNavigate: () => void 
 
 const SHOW = 5;
 
-function Names<T extends { id: string; name: string }>({
+export function Names<T extends { id: string; name: string }>({
   items,
   note,
   onNavigate,

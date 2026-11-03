@@ -1,5 +1,15 @@
-import { getGoogleAccount } from "@/lib/google";
+import Link from "next/link";
+import { prisma } from "@/lib/prisma";
+import { getGoogleAccount, hasContactsScope } from "@/lib/google";
 import { disconnectGoogle } from "@/lib/actions/googleCalendar";
+import { formatDateTime } from "@/lib/date";
+import { NAME_ONLY, type GoogleCandidate } from "@/lib/googleContactsMatch";
+import { GoogleContactButton } from "@/components/GoogleContactButton";
+import { GoogleContactsSyncButton, LinkAllNameMatchesButton } from "@/components/GoogleContactsSyncButton";
+
+export const dynamic = "force-dynamic";
+
+const CLIENT_STAGES = ["ENROLLED", "RETAINED", "CURRENT_CLIENT"] as const;
 
 export default async function GoogleSettingsPage({
   searchParams,
@@ -8,6 +18,7 @@ export default async function GoogleSettingsPage({
 }) {
   const { connected, error } = await searchParams;
   const account = await getGoogleAccount();
+  const contactsOn = hasContactsScope(account);
 
   return (
     <div className="max-w-2xl mx-auto flex flex-col gap-6">
@@ -15,9 +26,9 @@ export default async function GoogleSettingsPage({
         <h1 className="text-2xl font-semibold">Google</h1>
         <p className="muted mt-1 text-sm">
           Connect your Google account so tasks with a due date can be added to
-          your calendar as 30-minute reminders (9:00 AM on the due date), and
-          so you can send and track email with contacts from the CRM using
-          Gmail.
+          your calendar as 30-minute reminders (9:00 AM on the due date), so
+          you can send and track email with contacts from the CRM using
+          Gmail, and so your clients are in your Google Contacts.
         </p>
       </div>
 
@@ -60,13 +71,121 @@ export default async function GoogleSettingsPage({
         )}
       </div>
 
+      {account && !contactsOn && (
+        <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-500/10 dark:text-amber-200">
+          <span className="font-medium">Google Contacts isn&apos;t on yet.</span> Click Reconnect and allow the CRM to
+          see and change your contacts. The People API also has to be turned on in the CRM&apos;s Google Cloud project
+          (APIs &amp; Services → Library → People API).
+        </div>
+      )}
+
+      {account && contactsOn && <GoogleContactsSection lastSync={account.lastContactsSyncAt} />}
+
       {account && (
         <p className="muted text-xs">
-          If you connected Google before Gmail send/read access was added,
+          If you connected Google before Gmail or Contacts access was added,
           click Reconnect to grant the new permissions — it won&apos;t affect
           your existing calendar sync.
         </p>
       )}
     </div>
+  );
+}
+
+async function GoogleContactsSection({ lastSync }: { lastSync: Date | null }) {
+  const [inGoogle, notYet, skipped, reviews] = await Promise.all([
+    prisma.contact.count({ where: { googleResourceName: { not: null } } }),
+    prisma.contact.count({
+      where: { stage: { in: [...CLIENT_STAGES] }, googleResourceName: null, googleSyncSkip: false, googleReview: null },
+    }),
+    prisma.contact.findMany({
+      where: { googleSyncSkip: true },
+      select: { id: true, firstName: true, lastName: true },
+      orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+    }),
+    prisma.googleContactReview.findMany({
+      include: { contact: { select: { id: true, firstName: true, lastName: true, googleResourceName: true } } },
+      orderBy: { contact: { lastName: "asc" } },
+    }),
+  ]);
+  const rows = reviews.map((r) => ({
+    ...r,
+    candidates: JSON.parse(r.candidatesJson) as GoogleCandidate[],
+  }));
+  const nameMatches = rows.filter((r) => r.reason === NAME_ONLY && r.candidates.length === 1).length;
+
+  return (
+    <>
+      <div className="surface flex flex-col gap-3 p-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="font-semibold">Google Contacts</h2>
+            <p className="muted mt-1 text-sm">
+              Clients (Enrolled, Retained, Current Client) are added to your Google contacts with their name, phone
+              and email, under the label &quot;Medicare CRM&quot;. Anyone already there is linked instead of added
+              twice. The CRM only adds missing phones and emails to a card; it never changes or deletes anything in
+              Google. It runs every 30 minutes and when you save a client.
+            </p>
+          </div>
+          <GoogleContactsSyncButton />
+        </div>
+        <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
+          <span>
+            <span className="font-medium">{inGoogle}</span> <span className="muted">in Google</span>
+          </span>
+          <span>
+            <span className="font-medium">{notYet}</span> <span className="muted">clients not added yet</span>
+          </span>
+          <span>
+            <span className="font-medium">{rows.length}</span> <span className="muted">need a look</span>
+          </span>
+          {lastSync && <span className="muted">Last sync {formatDateTime(lastSync)}</span>}
+        </div>
+      </div>
+
+      {rows.length > 0 && (
+        <div id="review" className="surface flex flex-col gap-3 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="font-semibold">Need a look</h2>
+              <p className="muted mt-1 text-sm">
+                Google has someone who might be the same person, but not for sure. Pick their card, add them as new,
+                or leave them out.
+              </p>
+            </div>
+            {nameMatches > 0 && <LinkAllNameMatchesButton count={nameMatches} />}
+          </div>
+          <ul className="flex flex-col divide-y divide-slate-200 dark:divide-slate-800">
+            {rows.map((r) => (
+              <li key={r.id} className="flex flex-col gap-2 py-3">
+                <Link href={`/contacts/${r.contact.id}`} className="font-medium hover:underline">
+                  {r.contact.firstName} {r.contact.lastName}
+                </Link>
+                <GoogleContactButton
+                  contactId={r.contact.id}
+                  resourceName={r.contact.googleResourceName}
+                  skipped={false}
+                  review={{ reason: r.reason, candidates: r.candidates }}
+                />
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {skipped.length > 0 && (
+        <p className="muted text-sm">
+          Left out of Google ({skipped.length}):{" "}
+          {skipped.map((c, i) => (
+            <span key={c.id}>
+              {i > 0 && ", "}
+              <Link href={`/contacts/${c.id}`} className="link">
+                {c.firstName} {c.lastName}
+              </Link>
+            </span>
+          ))}
+        </p>
+      )}
+    </>
   );
 }

@@ -162,6 +162,14 @@ deliberately — see gotchas below).
   scopes existed, it needs reconnecting from Settings > Google. Also
   requires the Gmail API to be enabled on the underlying Google Cloud
   project (Google Cloud Console > APIs > Gmail API).
+- **Google Contacts** (`src/lib/googlePeople.ts`, `googleContactsSync.ts`)
+  — same connection again (`contacts` scope; reconnect from Settings >
+  Google), and the People API must be enabled on the Google Cloud project.
+  Clients are added with name, phone and email under a "Medicare CRM"
+  label, or linked to the card already there (`googleContactsMatch.ts`);
+  doubtful matches are listed on Settings > Google. Runs with the
+  30-minute syncs and when a client is saved. Only ever adds to a card.
+  `GOOGLE_PEOPLE_API_BASE_URL` overrides the API address (for a test server).
 - **Calendly** (`src/lib/calendly.ts`) — Personal Access Token, pulls
   scheduled events into contacts/tasks.
 - **Google Voice** (`src/lib/phone.ts`) — click-to-call links (unofficial

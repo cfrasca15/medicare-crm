@@ -15,7 +15,7 @@ import {
 import { SaveForm } from "@/components/SaveForm";
 import { DeleteContactButton } from "@/components/DeleteContactButton";
 import { EmailPanel } from "@/components/EmailPanel";
-import { getGoogleAccount, listGmailMessagesForContact, type GmailMessageSummary } from "@/lib/google";
+import { getGoogleAccount, hasContactsScope, listGmailMessagesForContact, type GmailMessageSummary } from "@/lib/google";
 import { formatDateOnly, formatDateTime, dateInputValue, todayInputValue, upcomingFirstsOfMonth } from "@/lib/date";
 import { EffectiveDateSelect } from "@/components/EffectiveDateSelect";
 import { CommissionSelect } from "@/components/CommissionSelect";
@@ -30,6 +30,7 @@ import { CalendarSyncButton } from "@/components/CalendarSyncButton";
 import { SpouseLink } from "@/components/SpouseLink";
 import { ReferralLink } from "@/components/ReferralLink";
 import { SendToIntegrityButton } from "@/components/SendToIntegrityButton";
+import { GoogleContactButton } from "@/components/GoogleContactButton";
 import { logCall, deleteActivity } from "@/lib/actions/activity";
 import { CALL_OUTCOMES } from "@/lib/activity";
 import { COUNTY_OPTIONS } from "@/lib/county";
@@ -55,6 +56,7 @@ export default async function ContactDetailPage({
       tasks: { orderBy: { dueDate: "asc" } },
       noteEntries: { orderBy: { createdAt: "desc" } },
       activities: { orderBy: { createdAt: "desc" } },
+      googleReview: true,
       serviceRequests: {
         orderBy: { createdAt: "desc" },
         include: {
@@ -240,7 +242,25 @@ export default async function ContactDetailPage({
                   Extra Help
                 </span>
               )}
+              {hasContactsScope(googleAccount) && !contact.googleReview && (
+                <GoogleContactButton
+                  contactId={contact.id}
+                  resourceName={contact.googleResourceName}
+                  skipped={contact.googleSyncSkip}
+                  review={null}
+                />
+              )}
             </div>
+            {hasContactsScope(googleAccount) && contact.googleReview && (
+              <div className="mt-2 rounded-md bg-sky-50 px-3 py-2 dark:bg-sky-500/10">
+                <GoogleContactButton
+                  contactId={contact.id}
+                  resourceName={contact.googleResourceName}
+                  skipped={contact.googleSyncSkip}
+                  review={{ reason: contact.googleReview.reason, candidates: JSON.parse(contact.googleReview.candidatesJson) }}
+                />
+              </div>
+            )}
             {contact.altContactName && (
               <div
                 className={`mt-2 flex flex-wrap items-center gap-2 text-sm ${

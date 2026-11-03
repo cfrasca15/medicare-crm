@@ -75,6 +75,12 @@ model Contact {
   integrityContactId String?      @unique // Integrity's leadId
   integrityLeadStage Int?         // raw numeric stage code from Integrity; meaning not yet documented
 
+  // Google Contacts linkage (see googleContactsSync.ts): clients are added to
+  // the connected Google account's contacts, or linked to the card already there.
+  googleResourceName String?      @unique // People API id, "people/c123…"
+  googleSyncSkip     Boolean      @default(false) // "Not in Google" picked by hand
+  googleReview       GoogleContactReview?
+
   // leadSource is where the lead came from: picked by hand, or filled in by the
   // website, an Integrity sync (only when blank) or a referral. For website
   // leads it is set once, when the website created this
@@ -331,9 +337,27 @@ model GoogleAccount {
   accessToken  String
   refreshToken String
   expiresAt    DateTime
+  // The permissions granted, space-separated (from Google's token response).
+  // Null when connected before the CRM started saving them.
+  scopes       String?
+  // The "Medicare CRM" label clients are added to in Google Contacts.
+  contactsGroup String?
+  lastContactsSyncAt DateTime?
 
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+}
+
+// A client the Google Contacts sync couldn't match for sure (same phone but a
+// different name, or a name match only). Cleared once linked, added or skipped.
+model GoogleContactReview {
+  id             String   @id @default(cuid())
+  contact        Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  contactId      String   @unique
+  reason         String
+  candidatesJson String   // JSON: GoogleCandidate[] (see googleContactsMatch.ts)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 }
 
 // A carrier commission statement uploaded on the Commissions page. Each line

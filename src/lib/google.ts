@@ -5,11 +5,14 @@ const CLIENT_ID = process.env.GOOGLE_CLIENT_ID!;
 const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET!;
 const REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI!;
 
+export const CONTACTS_SCOPE = "https://www.googleapis.com/auth/contacts";
+
 const SCOPES = [
   "https://www.googleapis.com/auth/calendar.events",
   "https://www.googleapis.com/auth/gmail.send",
   "https://www.googleapis.com/auth/gmail.readonly",
   "https://www.googleapis.com/auth/userinfo.email",
+  CONTACTS_SCOPE,
 ].join(" ");
 
 const GOOGLE_ACCOUNT_ID = "default";
@@ -31,6 +34,7 @@ interface GoogleTokenResponse {
   refresh_token?: string;
   expires_in: number;
   token_type: string;
+  scope?: string;
 }
 
 export async function exchangeCodeForTokens(code: string): Promise<void> {
@@ -68,12 +72,14 @@ export async function exchangeCodeForTokens(code: string): Promise<void> {
       accessToken: data.access_token,
       refreshToken: data.refresh_token,
       expiresAt: new Date(Date.now() + data.expires_in * 1000),
+      scopes: data.scope ?? null,
     },
     update: {
       email,
       accessToken: data.access_token,
       refreshToken: data.refresh_token,
       expiresAt: new Date(Date.now() + data.expires_in * 1000),
+      scopes: data.scope ?? null,
     },
   });
 }
@@ -91,13 +97,19 @@ export async function getGoogleAccount() {
   return prisma.googleAccount.findUnique({ where: { id: GOOGLE_ACCOUNT_ID } });
 }
 
+// Whether the account was connected with permission to manage contacts
+// (accounts connected before the CRM asked for it need to Reconnect).
+export function hasContactsScope(account: { scopes: string | null } | null): boolean {
+  return !!account?.scopes?.split(" ").includes(CONTACTS_SCOPE);
+}
+
 export async function disconnectGoogleAccount(): Promise<void> {
   await prisma.googleAccount.deleteMany({ where: { id: GOOGLE_ACCOUNT_ID } });
 }
 
 const EXPIRY_BUFFER_MS = 60_000;
 
-async function getValidAccessToken(): Promise<string> {
+export async function getValidAccessToken(): Promise<string> {
   const account = await getGoogleAccount();
   if (!account) throw new Error("Google Calendar isn't connected.");
 
@@ -127,6 +139,7 @@ async function getValidAccessToken(): Promise<string> {
     data: {
       accessToken: data.access_token,
       expiresAt: new Date(Date.now() + data.expires_in * 1000),
+      ...(data.scope ? { scopes: data.scope } : {}),
     },
   });
 

@@ -32,6 +32,7 @@ export async function mergeContacts(keepId: string, mergeIds: string[]) {
     if (from && from[f] !== keepId) fill[f] = from[f];
   }
   const keepIntegrity = keep.integrityContactId ?? dupes.find((d) => d.integrityContactId)?.integrityContactId ?? null;
+  const keepGoogle = keep.googleResourceName ?? dupes.find((d) => d.googleResourceName)?.googleResourceName ?? null;
   const ignoredLeads = dupes.map((d) => d.integrityContactId).filter((id): id is string => !!id && id !== keepIntegrity);
 
   await prisma.$transaction([
@@ -52,11 +53,14 @@ export async function mergeContacts(keepId: string, mergeIds: string[]) {
         update: {},
       })
     ),
-    // Free the duplicates' Integrity ids before giving one to the kept contact.
-    prisma.contact.updateMany({ where: { id: { in: others } }, data: { integrityContactId: null } }),
+    // Free the duplicates' Integrity ids and Google cards before giving one to the kept contact.
+    prisma.contact.updateMany({
+      where: { id: { in: others } },
+      data: { integrityContactId: null, googleResourceName: null },
+    }),
     prisma.contact.update({
       where: { id: keepId },
-      data: { ...fill, integrityContactId: keepIntegrity },
+      data: { ...fill, integrityContactId: keepIntegrity, googleResourceName: keepGoogle },
     }),
     prisma.activity.create({
       data: {

@@ -4,6 +4,8 @@ import { runWebsiteLeadsSync } from "@/lib/actions/websiteLeadsSync";
 import { runSeasonalReminders } from "@/lib/actions/reminders";
 import { sendMorningDigest } from "@/lib/morningDigest";
 import { runBirthdayEmails } from "@/lib/birthdayEmails";
+import { getGoogleAccount, hasContactsScope } from "@/lib/google";
+import { runGoogleContactsSync } from "@/lib/googleContactsSync";
 
 // The jobs instrumentation.ts schedules besides the 9 AM checks: the syncs
 // that used to need a button click, the morning digest, birthday emails and
@@ -11,7 +13,8 @@ import { runBirthdayEmails } from "@/lib/birthdayEmails";
 
 let syncsInFlight: Promise<void> | null = null;
 
-// Integrity, Calendly and website leads, one after another. A run already in
+// Integrity, Calendly and website leads, one after another, then new clients
+// into Google Contacts. A run already in
 // progress is shared rather than started twice (the digest waits on it too).
 export function runScheduledSyncs(): Promise<void> {
   syncsInFlight ??= (async () => {
@@ -26,6 +29,17 @@ export function runScheduledSyncs(): Promise<void> {
         const r = await runWebsiteLeadsSync();
         if (!r.ok) console.error("Scheduled website leads sync failed:", r.error);
         else if (r.imported) console.log(`Imported ${r.imported} new website lead(s).`);
+      }
+      if (hasContactsScope(await getGoogleAccount())) {
+        const r = await runGoogleContactsSync().catch((err) => {
+          console.error("Scheduled Google Contacts sync failed:", err);
+          return null;
+        });
+        if (r && (r.added.length || r.linked.length || r.failed.length)) {
+          console.log(
+            `Google Contacts: ${r.added.length} added, ${r.linked.length} linked, ${r.review.length} to review, ${r.failed.length} failed.`
+          );
+        }
       }
     } finally {
       syncsInFlight = null;

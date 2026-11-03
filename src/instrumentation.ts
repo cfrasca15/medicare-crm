@@ -53,7 +53,7 @@ export async function register() {
     job().catch((err) => console.error(`${label} failed:`, err));
   };
 
-  // Integrity, Calendly and website leads every 30 minutes, 7 AM to 8:30 PM.
+  // Integrity, Calendly, website leads and Google Contacts every 30 minutes, 7 AM to 8:30 PM.
   cron.schedule("0,30 7-20 * * *", run("Scheduled syncs", jobs.runScheduledSyncs), pacific);
   // The digest to yourself at 7:30 AM, after that half hour's syncs.
   cron.schedule("30 7 * * *", run("Morning digest", jobs.runMorningDigest), pacific);
