@@ -1,12 +1,25 @@
+import { prisma } from "@/lib/prisma";
 import { findDuplicates } from "@/lib/duplicates";
+import { getIntegrityLeads, type IntegrityLead } from "@/lib/integrity";
 import { MergeGroup } from "@/components/MergeGroup";
+import { RestoreIntegrityLeadButton } from "@/components/RestoreIntegrityLeadButton";
 import { STAGE_LABELS } from "@/lib/constants";
-import { formatDateOnly } from "@/lib/date";
+import { formatDateOnly, formatDateTime } from "@/lib/date";
 
 export const dynamic = "force-dynamic";
 
 export default async function DuplicatesPage() {
-  const groups = await findDuplicates();
+  const [groups, skipped] = await Promise.all([
+    findDuplicates(),
+    prisma.ignoredIntegrityLead.findMany({ orderBy: { createdAt: "desc" } }),
+  ]);
+  // Names come from Integrity; without them the list still shows the IDs.
+  let leads = new Map<string, IntegrityLead>();
+  if (skipped.length) {
+    try {
+      leads = new Map((await getIntegrityLeads()).map((l) => [String(l.leadId), l]));
+    } catch {}
+  }
 
   return (
     <div className="max-w-4xl mx-auto flex flex-col gap-6">
@@ -44,6 +57,36 @@ export default async function DuplicatesPage() {
           }))}
         />
       ))}
+
+      {skipped.length > 0 && (
+        <section id="skipped-integrity" className="surface flex flex-col gap-3 p-4 text-sm">
+          <div>
+            <h2 className="font-semibold">Integrity leads left out of syncs</h2>
+            <p className="muted mt-1">
+              When a merged duplicate had its own Integrity lead, that lead stops syncing so it doesn&apos;t come
+              back as a copy. Bring one back to make it its own contact again. Anything that moved over in the
+              merge (notes, plans, tasks) stays on the contact it was merged into.
+            </p>
+          </div>
+          <ul className="flex flex-col divide-y divide-slate-200 dark:divide-slate-800">
+            {skipped.map((s) => {
+              const lead = leads.get(s.integrityContactId);
+              const name = lead ? `${lead.firstName} ${lead.lastName}`.trim() : `Integrity lead ${s.integrityContactId}`;
+              return (
+                <li key={s.integrityContactId} className="flex flex-wrap items-center justify-between gap-3 py-2">
+                  <div>
+                    <div className="font-medium">{name}</div>
+                    <div className="muted text-xs">
+                      {[lead?.phone, s.reason, formatDateTime(s.createdAt)].filter(Boolean).join(" · ")}
+                    </div>
+                  </div>
+                  <RestoreIntegrityLeadButton leadId={s.integrityContactId} />
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
     </div>
   );
 }

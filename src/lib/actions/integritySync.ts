@@ -233,6 +233,23 @@ export async function syncIntegrityContact(contactId: string): Promise<{ error?:
   return { message };
 }
 
+// Takes a lead off the skip list (merging a duplicate puts it there) and
+// brings it in from Integrity as its own contact again.
+export async function restoreIntegrityLead(leadId: string): Promise<{ error?: string; id?: string; name?: string }> {
+  let r: LeadResult;
+  try {
+    const [lead, mappingByCode] = await Promise.all([getIntegrityLead(leadId), loadMappings()]);
+    if (!lead) return { error: "Integrity has no lead with this ID any more." };
+    await prisma.ignoredIntegrityLead.deleteMany({ where: { integrityContactId: leadId } });
+    r = await applyLead(lead, mappingByCode);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Couldn't reach Integrity." };
+  }
+  revalidatePath("/settings/duplicates");
+  revalidatePath("/contacts");
+  return { id: r.id, name: r.name };
+}
+
 // An Integrity lead that looks like the same person as a CRM contact.
 type IntegrityMatch = { leadId: string; name: string; why: string };
 
