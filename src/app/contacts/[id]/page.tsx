@@ -37,6 +37,7 @@ import { COUNTY_OPTIONS } from "@/lib/county";
 import { isWebsiteSource } from "@/lib/leadSource";
 import { leadSourceOptions } from "@/lib/leadSourceOptions";
 import { LeadSourceField } from "@/components/LeadSourceField";
+import { AddressAutofill } from "@/components/AddressAutofill";
 import { NewServiceRequestForm, ServiceRequestList } from "@/components/ServiceRequests";
 import { ToggleSection } from "@/components/ToggleSection";
 import { ActivityComposer } from "@/components/ActivityComposer";
@@ -744,7 +745,12 @@ export default async function ContactDetailPage({
                 </label>
               </div>
               <Field label="Email" name="email" type="email" value={contact.email} span={2} wide />
-              <Field label="Address" name="address" value={contact.address} span={3} />
+              <AddressField
+                label="Address"
+                name="address"
+                value={contact.address}
+                fill={{ city: "city", state: "state", zip: "zip", county: "county" }}
+              />
               <Field label="City" name="city" value={contact.city} span={1} wide />
               <Field label="State" name="state" value={contact.state} span={1} />
               <Field label="ZIP" name="zip" value={contact.zip} span={1} />
@@ -790,7 +796,12 @@ export default async function ContactDetailPage({
                 Different mailing address
               </label>
               <ShowWhen field="hasMailingAddress" value="on" initial={contact.hasMailingAddress ? "on" : ""}>
-                <Field label="Mailing Address" name="mailingAddress" value={contact.mailingAddress} span={3} />
+                <AddressField
+                  label="Mailing Address"
+                  name="mailingAddress"
+                  value={contact.mailingAddress}
+                  fill={{ city: "mailingCity", state: "mailingState", zip: "mailingZip" }}
+                />
                 <Field label="City" name="mailingCity" value={contact.mailingCity} span={1} wide />
                 <Field label="State" name="mailingState" value={contact.mailingState} span={1} />
                 <Field label="ZIP" name="mailingZip" value={contact.mailingZip} span={1} />
@@ -940,6 +951,29 @@ const WIDE_SPANS: Record<number, string> = {
   2: "col-span-2 @lg:col-span-2",
   3: "col-span-2 @lg:col-span-3",
 };
+
+// A street box that suggests addresses and fills the boxes named in fill.
+function AddressField({
+  label,
+  name,
+  value,
+  fill,
+}: {
+  label: string;
+  name: string;
+  value: string | null;
+  fill: { city: string; state: string; zip: string; county?: string };
+}) {
+  const id = `info-${name}`;
+  return (
+    <div className={`flex min-w-0 flex-col gap-1 ${SPANS[3]}`}>
+      <label className="text-sm font-medium" htmlFor={id}>
+        {label}
+      </label>
+      <AddressAutofill id={id} name={name} defaultValue={value} fill={fill} />
+    </div>
+  );
+}
 
 function Field({
   label,

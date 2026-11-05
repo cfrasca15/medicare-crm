@@ -172,6 +172,19 @@ deliberately — see gotchas below).
   turned on there (off by default; Preview shows what it would do).
   Only ever adds to a card.
   `GOOGLE_PEOPLE_API_BASE_URL` overrides the API address (for a test server).
+- **Address autofill** (`src/lib/addressLookup.ts`, `/api/address`,
+  `src/components/AddressAutofill.tsx`) — typing a street address on the New
+  Contact form or a contact's Info form (home or mailing address) suggests
+  addresses; picking one fills street, city, state, ZIP and county (the
+  county falls back to the ZIP lookup in `county.ts`). With
+  `GOOGLE_PLACES_API_KEY` set it uses Google Places: enable "Places
+  API (New)" on the Google Cloud project (billing must be on; one agent's
+  use stays within Google's free monthly allowance) and restrict the key to
+  that API. The key stays on the server. Without a key, or if Google errors
+  (logged), it uses Photon, a free OpenStreetMap search that needs no key but
+  knows fewer house numbers. Only the typed address is sent, never a name.
+  Typing by hand always works. `GOOGLE_PLACES_API_BASE_URL` overrides the
+  Google address (for a test server).
 - **Calendly** (`src/lib/calendly.ts`) — Personal Access Token, pulls
   scheduled events into contacts/tasks.
 - **Google Voice** (`src/lib/phone.ts`) — click-to-call links (unofficial

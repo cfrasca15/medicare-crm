@@ -1,6 +1,7 @@
 import { createContact } from "@/lib/actions/contacts";
 import { leadSourceOptions } from "@/lib/leadSourceOptions";
 import { LeadSourceField } from "@/components/LeadSourceField";
+import { AddressAutofill } from "@/components/AddressAutofill";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +22,12 @@ export default async function NewContactPage() {
           <Field label="Cell phone" name="cellPhone" type="tel" />
           <Field label="Email" name="email" type="email" />
         </div>
-        <Field label="Address" name="address" />
+        <div className="flex flex-col gap-1">
+          <label className="text-sm font-medium" htmlFor="address">
+            Address
+          </label>
+          <AddressAutofill id="address" name="address" fill={{ city: "city", state: "state", zip: "zip" }} />
+        </div>
         <div className="grid grid-cols-3 gap-4">
           <Field label="City" name="city" />
           <Field label="State" name="state" />
