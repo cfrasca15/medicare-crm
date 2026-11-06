@@ -146,9 +146,12 @@ export async function getValidAccessToken(): Promise<string> {
   return data.access_token;
 }
 
+// Overridable for a local test server.
+const CALENDAR_API_BASE_URL = process.env.GOOGLE_CALENDAR_API_BASE_URL ?? "https://www.googleapis.com/calendar/v3";
+
 async function googleFetch(path: string, init: RequestInit = {}): Promise<Response> {
   const token = await getValidAccessToken();
-  return fetch(`https://www.googleapis.com/calendar/v3${path}`, {
+  return fetch(`${CALENDAR_API_BASE_URL}${path}`, {
     ...init,
     headers: {
       ...init.headers,
@@ -233,6 +236,8 @@ export interface UpcomingEvent {
   start: string;
   isAllDay: boolean;
   htmlLink: string;
+  /** Guests' emails, lowercased, not counting the calendar's owner. */
+  attendeeEmails: string[];
 }
 
 async function fetchEvents(params: URLSearchParams): Promise<UpcomingEvent[]> {
@@ -249,6 +254,7 @@ async function fetchEvents(params: URLSearchParams): Promise<UpcomingEvent[]> {
     summary?: string;
     htmlLink: string;
     start: { dateTime?: string; date?: string };
+    attendees?: { email?: string; self?: boolean }[];
   }> = data.items ?? [];
 
   return items.map((item) => ({
@@ -257,6 +263,7 @@ async function fetchEvents(params: URLSearchParams): Promise<UpcomingEvent[]> {
     start: item.start.dateTime ?? item.start.date ?? "",
     isAllDay: !item.start.dateTime,
     htmlLink: item.htmlLink,
+    attendeeEmails: (item.attendees ?? []).filter((a) => !a.self && a.email).map((a) => a.email!.toLowerCase()),
   }));
 }
 

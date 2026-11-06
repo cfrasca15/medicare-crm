@@ -34,6 +34,49 @@ interface Appointment {
   time: string | null; // null for all-day
   href: string;
   external: boolean;
+  contacts?: ContactRef[];
+}
+
+type ContactRef = { id: string; name: string };
+type CalendarTask = {
+  googleEventId: string | null;
+  calendlyEventUri: string | null;
+  dueDate: Date | null;
+  contact: { id: string; firstName: string; lastName: string } | null;
+};
+
+// Lowercase words with single spaces around each, for finding a name in a title.
+const words = (s: string) =>
+  ` ${s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, " ").trim()} `;
+
+// Who each calendar event is with: the contact on the CRM task that put it on
+// the calendar or on the Calendly booking at the same time, a guest's email,
+// or, failing those, a contact's full name in the title.
+async function eventContacts(events: UpcomingEvent[], tasks: CalendarTask[], ownEmail: string) {
+  const contacts = await prisma.contact.findMany({ select: { id: true, firstName: true, lastName: true, email: true } });
+  const ref = (c: { id: string; firstName: string; lastName: string }) => ({ id: c.id, name: `${c.firstName} ${c.lastName}`.trim() });
+  const byEmail = new Map<string, ContactRef>();
+  for (const c of contacts) if (c.email) byEmail.set(c.email.trim().toLowerCase(), ref(c));
+  const named = contacts
+    .filter((c) => c.firstName.trim() && c.lastName.trim() && c.email?.trim().toLowerCase() !== ownEmail.toLowerCase())
+    .map((c) => ({ ...ref(c), key: words(`${c.firstName} ${c.lastName}`) }));
+
+  const result = new Map<string, ContactRef[]>();
+  for (const e of events) {
+    const found = new Map<string, ContactRef>();
+    const add = (c: ContactRef | undefined) => c && found.set(c.id, { id: c.id, name: c.name });
+    const start = e.isAllDay ? NaN : Date.parse(e.start);
+    for (const t of tasks) {
+      if (t.contact && (t.googleEventId === e.id || (t.calendlyEventUri && t.dueDate?.getTime() === start))) add(ref(t.contact));
+    }
+    for (const email of e.attendeeEmails) add(byEmail.get(email));
+    if (!found.size) {
+      const title = words(e.title);
+      for (const c of named) if (title.includes(c.key)) add(c);
+    }
+    if (found.size) result.set(e.id, [...found.values()].slice(0, 3));
+  }
+  return result;
 }
 
 const pacificDay = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: TZ });
@@ -74,17 +117,19 @@ export default async function DashboardPage() {
   if (googleAccount) {
     try {
       const now = Date.now();
-      const events = await listEventsInRange(new Date(now - 24 * 3600 * 1000), new Date(now + 8 * 24 * 3600 * 1000));
-      appointments = events
-        .filter((e) => !isCanceled(e))
-        .map((e) => ({
-          key: e.id,
-          title: e.title,
-          day: e.isAllDay ? e.start : pacificDay(new Date(e.start)),
-          time: e.isAllDay ? null : pacificTime(new Date(e.start)),
-          href: e.htmlLink,
-          external: true,
-        }));
+      const events = (
+        await listEventsInRange(new Date(now - 24 * 3600 * 1000), new Date(now + 8 * 24 * 3600 * 1000))
+      ).filter((e) => !isCanceled(e));
+      const withContacts = await eventContacts(events, openTasks, googleAccount.email);
+      appointments = events.map((e) => ({
+        key: e.id,
+        title: e.title,
+        day: e.isAllDay ? e.start : pacificDay(new Date(e.start)),
+        time: e.isAllDay ? null : pacificTime(new Date(e.start)),
+        href: e.htmlLink,
+        external: true,
+        contacts: withContacts.get(e.id),
+      }));
     } catch (err) {
       calendarError = err instanceof Error ? err.message : "Couldn't load calendar.";
     }
@@ -318,18 +363,28 @@ function AppointmentList({ items, empty, showDay = false }: { items: Appointment
   return (
     <ul className="flex flex-col divide-y divide-slate-200 dark:divide-slate-800">
       {items.map((a) => (
-        <li key={a.key} className="py-2 first:pt-0 last:pb-0">
-          <a
-            href={a.href}
-            {...(a.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-            className="flex items-baseline justify-between gap-3 hover:underline"
-          >
-            <span className="min-w-0 truncate">{a.title}</span>
-            <span className="muted shrink-0 text-xs tabular-nums">
-              {showDay && `${weekdayLabel(a.day)} · `}
-              {a.time ?? "All day"}
-            </span>
-          </a>
+        <li key={a.key} className="flex items-baseline justify-between gap-3 py-2 first:pt-0 last:pb-0">
+          <span className="min-w-0">
+            <a
+              href={a.href}
+              {...(a.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+              className="block truncate hover:underline"
+            >
+              {a.title}
+            </a>
+            {a.contacts?.map((c, i) => (
+              <span key={c.id} className="muted text-xs">
+                {i > 0 && ", "}
+                <Link href={`/contacts/${c.id}`} className="hover:underline">
+                  {c.name}
+                </Link>
+              </span>
+            ))}
+          </span>
+          <span className="muted shrink-0 text-xs tabular-nums">
+            {showDay && `${weekdayLabel(a.day)} · `}
+            {a.time ?? "All day"}
+          </span>
         </li>
       ))}
     </ul>
