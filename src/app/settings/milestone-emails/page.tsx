@@ -101,7 +101,7 @@ export default async function MilestoneEmailsPage() {
                   className="field"
                 />
                 <div>
-                  <button type="submit" className="btn-secondary">
+                  <button type="submit" className="btn-primary">
                     Save
                   </button>
                 </div>
@@ -126,7 +126,7 @@ export default async function MilestoneEmailsPage() {
             <input name="subject" defaultValue={birthday.subject} placeholder="Subject" required className="field" />
             <textarea name="body" defaultValue={birthday.body} rows={6} required className="field" />
             <div>
-              <button type="submit" className="btn-secondary">
+              <button type="submit" className="btn-primary">
                 Save
               </button>
             </div>

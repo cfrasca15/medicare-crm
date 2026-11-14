@@ -12,7 +12,6 @@ export function SaveForm({
   submitLabel = "Save",
   savedLabel = "Saved ✓",
   resetOnSuccess = false,
-  primary = false,
   className,
 }: {
   action: (formData: FormData) => Promise<unknown>;
@@ -20,7 +19,6 @@ export function SaveForm({
   submitLabel?: string;
   savedLabel?: string;
   resetOnSuccess?: boolean;
-  primary?: boolean;
   className?: string;
 }) {
   const formRef = useRef<HTMLFormElement>(null);
@@ -54,7 +52,7 @@ export function SaveForm({
     <form ref={formRef} action={formAction} className={className}>
       {children}
       <div className="col-span-full flex items-center gap-3">
-        <button type="submit" disabled={pending} className={primary ? "btn-primary" : "btn-secondary"}>
+        <button type="submit" disabled={pending} className="btn-primary">
           {pending ? "Saving…" : submitLabel}
         </button>
         {!pending && showSaved && (

@@ -381,7 +381,6 @@ export default async function ContactDetailPage({
                 submitLabel="Add Health Plan"
                 savedLabel="Health plan added ✓"
                 resetOnSuccess
-                primary
                 className="surface grid grid-cols-2 gap-3 p-3"
               >
                 <fieldset className="flex flex-col gap-1">
@@ -533,7 +532,6 @@ export default async function ContactDetailPage({
                     submitLabel="Add Note"
                     savedLabel="Note added ✓"
                     resetOnSuccess
-                    primary
                     className="flex flex-col gap-2"
                   >
                     <textarea name="body" placeholder="Add a note…" rows={3} required className="field" />
@@ -545,7 +543,6 @@ export default async function ContactDetailPage({
                     submitLabel="Log Call"
                     savedLabel="Call logged ✓"
                     resetOnSuccess
-                    primary
                     className="flex flex-col gap-2"
                   >
                     <select name="outcome" required defaultValue="" className="field" aria-label="How the call went">
@@ -658,7 +655,6 @@ export default async function ContactDetailPage({
                 submitLabel="Add Task"
                 savedLabel="Task added ✓"
                 resetOnSuccess
-                primary
                 className="surface flex flex-wrap items-center gap-2 p-3"
               >
               <input type="hidden" name="contactId" value={contact.id} />

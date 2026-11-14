@@ -37,7 +37,6 @@ export function NewServiceRequestForm({
       submitLabel="Open request"
       savedLabel="Request opened ✓"
       resetOnSuccess
-      primary
       className={`grid gap-2 sm:grid-cols-2 ${bare ? "" : "surface p-3"}`}
     >
       <select name="category" required defaultValue="" className="field" aria-label="Kind of request">
