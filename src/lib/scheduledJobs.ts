@@ -4,11 +4,12 @@ import { runWebsiteLeadsSync } from "@/lib/actions/websiteLeadsSync";
 import { runSeasonalReminders } from "@/lib/actions/reminders";
 import { sendMorningDigest } from "@/lib/morningDigest";
 import { runBirthdayEmails } from "@/lib/birthdayEmails";
+import { sendEventEmails } from "@/lib/eventEmails";
 import { autoSyncOn, runGoogleContactsSync } from "@/lib/googleContactsSync";
 
 // The jobs instrumentation.ts schedules besides the 9 AM checks: the syncs
-// that used to need a button click, the morning digest, birthday emails and
-// the AEP/OEP reminder tasks. Each sync is skipped when it isn't set up.
+// that used to need a button click, the morning digest, birthday and event
+// emails and the AEP/OEP reminder tasks. Each sync is skipped when it isn't set up.
 
 let syncsInFlight: Promise<void> | null = null;
 
@@ -58,6 +59,13 @@ export async function runBirthdayEmailJob(): Promise<void> {
   const r = await runBirthdayEmails();
   if (r.sent) console.log(`Sent ${r.sent} birthday email(s).`);
   for (const e of r.errors) console.error(`Birthday email to ${e.contactName} failed: ${e.error}`);
+}
+
+// Thank-you / missed-you emails for events whose attendance was finished yesterday.
+export async function runEventEmailJob(): Promise<void> {
+  const r = await sendEventEmails();
+  if (r.sent) console.log(`Sent ${r.sent} event follow-up email(s).`);
+  for (const e of r.errors) console.error(`Event email to ${e.contactName} failed: ${e.error}`);
 }
 
 export async function runSeasonalReminderJob(season: "AEP" | "OEP"): Promise<void> {

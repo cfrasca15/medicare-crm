@@ -112,6 +112,7 @@ model Contact {
   activities        Activity[]
   serviceRequests   ServiceRequest[]
   aepReviews        AepReview[]
+  eventGuests       EventGuest[]
 
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
@@ -287,7 +288,7 @@ model Policy {
 // general list, so no create/delete UI, just editing the subject/body of
 // each milestone's email.
 model MilestoneEmailTemplate {
-  id      String  @id // day30, day60, day90, birthday
+  id      String  @id // day30, day60, day90, birthday, eventAttended, eventMissed
   subject String
   body    String
   enabled Boolean @default(true)
@@ -442,4 +443,54 @@ model AepReview {
 
   @@unique([contactId, year])
   @@index([year])
+}
+
+// An in-person event (a seminar, an open house). The people who RSVP'd or
+// walked in are EventGuest rows, kept apart from Contact until "Add to
+// Contacts" is clicked for them.
+model Event {
+  id        String   @id @default(cuid())
+  name      String
+  date      DateTime // a calendar date, like Policy.effectiveDate
+  location  String?
+  // Set by "Attendance is finished". The thank-you / missed-you emails go out
+  // at 9 AM the next morning (see eventEmails.ts); null holds them back.
+  attendanceDoneAt DateTime?
+  guests    EventGuest[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([date])
+}
+
+model EventGuest {
+  id        String   @id @default(cuid())
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  eventId   String
+
+  firstName String
+  lastName  String   // "" when only one name was given
+  email     String?
+  phone     String?
+  notes     String?
+  walkIn    Boolean  @default(false) // came without an RSVP
+  attended  Boolean? // null until marked
+  noEmail   Boolean  @default(false) // asked not to be emailed
+
+  // The contact this guest is: matched when added, or made by "Add to Contacts".
+  contact   Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  contactId String?
+  // Off the follow-up list without becoming a contact.
+  notInterested Boolean @default(false)
+
+  // The follow-up email sent for this event: "attended" or "missed".
+  emailKind   String?
+  emailSentAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([eventId])
+  @@index([contactId])
 }

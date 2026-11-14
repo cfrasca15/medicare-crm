@@ -13,6 +13,11 @@ const MILESTONES = [
   { id: "day90" as const, label: "Day 90" },
 ];
 
+const EVENT_TEMPLATES = [
+  { id: "eventAttended" as const, label: "Send a thank-you to guests who came" },
+  { id: "eventMissed" as const, label: "Send a \"sorry we missed you\" to guests who didn't come" },
+];
+
 export default async function MilestoneEmailsPage() {
   const [templates, googleAccount, recentPolicies] = await Promise.all([
     prisma.milestoneEmailTemplate.findMany(),
@@ -54,7 +59,7 @@ export default async function MilestoneEmailsPage() {
   return (
     <div className="max-w-2xl mx-auto flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold">Milestone &amp; Birthday Emails</h1>
+        <h1 className="text-2xl font-semibold">Milestone, Birthday &amp; Event Emails</h1>
         <p className="muted mt-1 text-sm">
           Automatically checks once a day for any policy that has crossed a
           30/60/90-day mark since its effective date and hasn&apos;t gotten
@@ -134,6 +139,45 @@ export default async function MilestoneEmailsPage() {
         ) : (
           <p className="muted text-sm">Restart the server so the database update runs.</p>
         )}
+      </section>
+
+      <section>
+        <h2 className="section-label mb-1">Event follow-ups</h2>
+        <p className="muted mb-3 text-sm">
+          Sent the morning after you click &ldquo;Attendance is finished&rdquo; on an{" "}
+          <Link href="/events" className="link">
+            event
+          </Link>
+          : one to the guests who came, one to those who didn&apos;t. Only guests with an email address get
+          one. Placeholders: {"{{firstName}}"}, {"{{lastName}}"}, {"{{eventName}}"}, {"{{eventDate}}"}.
+        </p>
+        <div className="flex flex-col gap-4">
+          {EVENT_TEMPLATES.map((e) => {
+            const template = templateById[e.id];
+            if (!template) {
+              return (
+                <p key={e.id} className="muted text-sm">
+                  Restart the server so the database update runs.
+                </p>
+              );
+            }
+            return (
+              <form key={e.id} action={updateMilestoneTemplate.bind(null, e.id)} className="flex flex-col gap-2">
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" name="enabled" defaultChecked={template.enabled} />
+                  {e.label}
+                </label>
+                <input name="subject" defaultValue={template.subject} placeholder="Subject" required className="field" />
+                <textarea name="body" defaultValue={template.body} rows={8} required className="field" />
+                <div>
+                  <button type="submit" className="btn-primary">
+                    Save
+                  </button>
+                </div>
+              </form>
+            );
+          })}
+        </div>
       </section>
 
       <section>

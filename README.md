@@ -57,9 +57,24 @@ Pacific time (`src/lib/scheduledJobs.ts`):
   `GOOGLE_REDIRECT_URI`.
 - **Birthday emails** at 9 AM to clients with an email address, once a year.
   Off until switched on at Settings → Milestone Emails.
+- **Event follow-up emails** at 9 AM, the morning after "Attendance is
+  finished" is clicked on an event (`/events`): a thank-you to guests who came,
+  a "sorry we missed you" to those who didn't. Wording and on/off switches are
+  at Settings → Milestone Emails.
 - **AEP / OEP reminder tasks** on Sept 1 and Dec 1.
 
 Look for "Scheduled: syncs every 30 min…" in the logs on startup.
+
+## Events
+
+`/events` tracks in-person events: paste in the RSVPs, print the sign-in sheet
+(`/events/<id>/sign-in`), mark who came, and work the follow-up list. Guests
+are kept in their own tables (`Event`, `EventGuest`) and only become a
+`Contact` when "Add to Contacts" is clicked, with the lead source
+`Event: <event name>`.
+
+The sign-in sheet shows the tree logo when `public/sign-in-logo.png` exists;
+without the file it prints with the name only.
 
 ## Deploying to a home server (Docker)
 

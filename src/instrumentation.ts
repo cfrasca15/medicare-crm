@@ -58,9 +58,10 @@ export async function register() {
   // The digest to yourself at 7:30 AM, after that half hour's syncs.
   cron.schedule("30 7 * * *", run("Morning digest", jobs.runMorningDigest), pacific);
   cron.schedule("0 9 * * *", run("Birthday emails", jobs.runBirthdayEmailJob), pacific);
+  cron.schedule("0 9 * * *", run("Event emails", jobs.runEventEmailJob), pacific);
   // AEP review tasks (due Oct 1) on Sept 1; OEP check-ins (due Dec 18) on Dec 1.
   cron.schedule("0 8 1 9 *", run("AEP reminders", () => jobs.runSeasonalReminderJob("AEP")), pacific);
   cron.schedule("0 8 1 12 *", run("OEP reminders", () => jobs.runSeasonalReminderJob("OEP")), pacific);
 
-  console.log("Scheduled: syncs every 30 min, morning digest 7:30 AM, birthday emails 9 AM, AEP/OEP reminders Sept 1/Dec 1 (Pacific).");
+  console.log("Scheduled: syncs every 30 min, morning digest 7:30 AM, birthday and event emails 9 AM, AEP/OEP reminders Sept 1/Dec 1 (Pacific).");
 }

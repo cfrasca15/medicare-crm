@@ -76,3 +76,24 @@ body {
     @apply transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/40;
   }
 }
+
+/* Printing: the page scrolls inside <main> on screen, which would cut a
+   printout off after one screenful. Let it flow, without the menu's layout. */
+@media print {
+  html,
+  body {
+    height: auto !important;
+    min-height: 0 !important;
+  }
+
+  body {
+    display: block !important;
+    background: #fff !important;
+  }
+
+  main {
+    height: auto !important;
+    overflow: visible !important;
+    padding: 0 !important;
+  }
+}

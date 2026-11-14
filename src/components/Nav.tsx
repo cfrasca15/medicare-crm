@@ -28,6 +28,7 @@ const ICONS: Record<string, string> = {
   close: "M6 6l12 12M18 6L6 18",
   list: "M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01",
   target: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8M12 12h.01",
+  pin: "M12 21s-7-6.1-7-11a7 7 0 0 1 14 0c0 4.9-7 11-7 11M12 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5",
   bell:"M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0",
 };
 
@@ -41,6 +42,7 @@ const SECTIONS: { title?: string; links: { href: string; label: string; icon: st
       { href: "/aep", label: "AEP Worklist", icon: "list" },
       { href: "/service", label: "Service Requests", icon: "lifebuoy" },
       { href: "/calendar", label: "Calendar", icon: "calendar" },
+      { href: "/events", label: "Events", icon: "pin" },
       { href: "/book", label: "Book Appointment", icon: "clock" },
       { href: "/birthdays", label: "Birthdays", icon: "cake" },
     ],
@@ -112,7 +114,7 @@ export function Nav() {
   return (
     <>
       {/* Top bar with the menu button, on narrow screens only. */}
-      <div className="flex h-14 shrink-0 items-center gap-3 border-b border-slate-200 bg-white px-3 md:hidden dark:border-slate-800 dark:bg-slate-900">
+      <div className="flex h-14 shrink-0 items-center gap-3 border-b border-slate-200 bg-white px-3 md:hidden print:hidden dark:border-slate-800 dark:bg-slate-900">
         <button
           type="button"
           onClick={() => setOpen(true)}
@@ -127,7 +129,7 @@ export function Nav() {
         <div aria-hidden="true" onClick={() => setOpen(false)} className="fixed inset-0 z-30 bg-slate-900/40 md:hidden" />
       )}
     <nav
-      className={`fixed inset-y-0 left-0 z-40 flex h-full w-72 shrink-0 flex-col border-r border-slate-200 bg-white px-3 py-4 shadow-xl transition-transform md:static md:w-60 md:translate-x-0 md:shadow-none dark:border-slate-800 dark:bg-slate-900 ${
+      className={`fixed inset-y-0 left-0 z-40 flex h-full w-72 shrink-0 flex-col border-r border-slate-200 bg-white px-3 py-4 shadow-xl transition-transform md:static md:w-60 md:translate-x-0 md:shadow-none print:hidden dark:border-slate-800 dark:bg-slate-900 ${
         open ? "translate-x-0" : "-translate-x-full"
       }`}
     >
