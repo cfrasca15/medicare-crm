@@ -21,11 +21,20 @@ const WALK_IN_LINES = 6;
 const LOGO = "sign-in-logo.png";
 const hasLogo = () => fs.existsSync(path.join(process.cwd(), "public", LOGO));
 
-type Line = { firstName: string; lastName: string; hasEmail: boolean; hasPhone: boolean } | null;
+type Line = { firstName: string; lastName: string; email: string; phone: string } | null;
 
-// The paper sign-in sheet for an event, with the RSVPs' names filled in and
-// blank lines for walk-ins. Emails and phone numbers already on file are not
-// printed (the sheet sits out where every guest can read it), only marked.
+// (949) 555-0123 for a US number; anything else prints as it was typed.
+function printPhone(phone: string | null): string {
+  if (!phone) return "";
+  const d = phone.replace(/\D/g, "").replace(/^1(?=\d{10}$)/, "");
+  return d.length === 10 ? `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}` : phone.trim();
+}
+
+// A long email steps down in size so it prints whole instead of being cut off.
+const emailSize = (email: string) => (email.length > 28 ? "signin-tiny" : email.length > 23 ? "signin-small" : undefined);
+
+// The paper sign-in sheet for an event, with the RSVPs' names, emails and
+// phone numbers filled in, and blank lines for walk-ins.
 export default async function SignInSheetPage({
   params,
   searchParams,
@@ -46,8 +55,8 @@ export default async function SignInSheetPage({
     : event.guests.map((g) => ({
         firstName: g.firstName,
         lastName: g.lastName,
-        hasEmail: Boolean(g.email),
-        hasPhone: Boolean(g.phone),
+        email: g.email?.trim() ?? "",
+        phone: printPhone(g.phone),
       }));
   const pageCount = Math.max(1, Math.ceil((filled.length + (blank ? 0 : WALK_IN_LINES)) / ROWS_PER_PAGE));
   const lines: Line[] = [...filled, ...Array<Line>(pageCount * ROWS_PER_PAGE - filled.length).fill(null)];
@@ -123,8 +132,8 @@ export default async function SignInSheetPage({
                         <td className="signin-num">{p * ROWS_PER_PAGE + i + 1}</td>
                         <td>{line?.firstName}</td>
                         <td>{line?.lastName}</td>
-                        <td>{line?.hasEmail && <span className="signin-onfile">on file</span>}</td>
-                        <td>{line?.hasPhone && <span className="signin-onfile">on file</span>}</td>
+                        <td className={line ? emailSize(line.email) : undefined}>{line?.email}</td>
+                        <td>{line?.phone}</td>
                         <td className="signin-check">
                           <span className="signin-box" />
                         </td>

@@ -151,11 +151,13 @@
   text-align: center;
 }
 
-/* We already have this email or phone, so they don't need to write it. */
-.signin-onfile {
-  color: #9aa5b5;
-  font-size: 8pt;
-  font-style: italic;
+/* A long email, stepped down so it fits its box. */
+.signin-table td.signin-small {
+  font-size: 9pt;
+}
+
+.signin-table td.signin-tiny {
+  font-size: 7pt;
 }
 
 .signin-check {
