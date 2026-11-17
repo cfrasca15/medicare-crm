@@ -3,7 +3,7 @@ import { ContactImportForm } from "@/components/ContactImportForm";
 
 export default function ContactImportPage() {
   return (
-    <div className="max-w-3xl mx-auto flex flex-col gap-6">
+    <div className="page-narrow">
       <div className="flex items-start justify-between">
         <div>
           <Link href="/contacts" className="link text-sm">

@@ -73,7 +73,7 @@ export default async function ContactsPage({
   };
 
   return (
-    <div className="max-w-5xl mx-auto flex flex-col gap-6">
+    <div className="page">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">Contacts</h1>
         <div className="flex flex-wrap items-center gap-2">

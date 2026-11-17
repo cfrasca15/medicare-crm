@@ -22,7 +22,7 @@ export default async function DuplicatesPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto flex flex-col gap-6">
+    <div className="page">
       <div>
         <h1 className="text-2xl font-semibold">Duplicates</h1>
         <p className="muted mt-1 text-sm">

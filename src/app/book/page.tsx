@@ -75,7 +75,7 @@ export default async function BookPage({
     : [];
 
   return (
-    <div className="max-w-5xl mx-auto flex flex-col gap-4">
+    <div className="page gap-4">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Book an Appointment</h1>

@@ -20,7 +20,7 @@ export default async function IntegrityStagesPage() {
     rows.find((r) => r.integrityLeadStage === code)?._count._all ?? 0;
 
   return (
-    <div className="max-w-2xl mx-auto flex flex-col gap-6">
+    <div className="page-narrow">
       <div>
         <h1 className="text-2xl font-semibold">Integrity Stages</h1>
         <p className="muted mt-1 text-sm">

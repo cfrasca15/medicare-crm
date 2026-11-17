@@ -11,7 +11,7 @@ export default async function ImportHistoryPage() {
   });
 
   return (
-    <div className="max-w-3xl mx-auto flex flex-col gap-6">
+    <div className="page-narrow">
       <div>
         <Link href="/contacts/import" className="link text-sm">
           ← Import Contacts

@@ -80,7 +80,7 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
   ];
 
   return (
-    <div className="max-w-6xl mx-auto flex flex-col gap-6">
+    <div className="page">
       <div>
         <Link href="/events" className="link text-sm">
           ← All events

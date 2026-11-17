@@ -23,7 +23,7 @@ export default async function PlanNamesPage() {
     (PLAN_CATALOG[canonicalCarrier(carrier)] ?? []).some((p) => looseKey(p) === looseKey(plan));
 
   return (
-    <div className="max-w-4xl mx-auto flex flex-col gap-6">
+    <div className="page">
       <div>
         <h1 className="text-2xl font-semibold">Carrier &amp; Plan Names</h1>
         <p className="muted mt-1 text-sm">

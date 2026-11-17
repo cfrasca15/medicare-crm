@@ -278,7 +278,13 @@ export function Nav({
           </span>
           Settings
         </Link>
-        <form action={logout}>
+        {/* One stray click here shouldn't sign you out. */}
+        <form
+          action={logout}
+          onSubmit={(e) => {
+            if (!confirm("Log out of the CRM?")) e.preventDefault();
+          }}
+        >
           <button
             type="submit"
             aria-label="Log out"

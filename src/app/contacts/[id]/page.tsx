@@ -14,6 +14,7 @@ import {
 } from "@/lib/actions/contacts";
 import { SaveForm } from "@/components/SaveForm";
 import { DeleteContactButton } from "@/components/DeleteContactButton";
+import { DropdownMenu } from "@/components/DropdownMenu";
 import { EmailPanel } from "@/components/EmailPanel";
 import { getGoogleAccount, hasContactsScope, listGmailMessagesForContact, type GmailMessageSummary } from "@/lib/google";
 import { formatDateOnly, formatDateTime, dateInputValue, todayInputValue, upcomingFirstsOfMonth } from "@/lib/date";
@@ -183,7 +184,7 @@ export default async function ContactDetailPage({
   const otherPhone = callPhone?.isCell ? contact.phone : contact.cellPhone;
 
   return (
-    <div className="max-w-6xl mx-auto flex flex-col gap-6">
+    <div className="page">
       <div className="-mb-5">
         <Link href="/contacts" className="link text-sm">
           ← All contacts
@@ -357,10 +358,14 @@ export default async function ContactDetailPage({
             Book appointment
           </Link>
           <StageSelect key={contact.stage} contactId={contact.id} stage={contact.stage} />
-          <DeleteContactButton
-            name={`${contact.firstName} ${contact.lastName}`}
-            action={deleteContactBound}
-          />
+          {/* Delete is tucked away here, clear of the stage picker. */}
+          <DropdownMenu label="More ▾">
+            <DeleteContactButton
+              name={`${contact.firstName} ${contact.lastName}`}
+              action={deleteContactBound}
+              className="menu-item text-red-600 dark:text-red-400"
+            />
+          </DropdownMenu>
         </div>
       </div>
 

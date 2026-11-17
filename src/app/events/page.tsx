@@ -14,7 +14,7 @@ export default async function EventsPage() {
   const today = todayAsDate();
 
   return (
-    <div className="max-w-6xl mx-auto flex flex-col gap-6">
+    <div className="page">
       <div>
         <h1 className="text-2xl font-semibold">Events</h1>
         <p className="muted mt-1 text-sm">

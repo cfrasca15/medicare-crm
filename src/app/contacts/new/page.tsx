@@ -9,7 +9,7 @@ export default async function NewContactPage() {
   const sources = await leadSourceOptions();
 
   return (
-    <div className="max-w-2xl mx-auto flex flex-col gap-6">
+    <div className="page-narrow">
       <h1 className="text-2xl font-semibold">New Contact</h1>
 
       <form action={createContact} className="flex flex-col gap-4">

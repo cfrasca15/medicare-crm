@@ -78,7 +78,7 @@ export default async function LeadSourcesPage({ searchParams }: { searchParams: 
   const rate = (clients: number, leads: number) => (leads ? `${Math.round((clients / leads) * 100)}%` : "—");
 
   return (
-    <div className="max-w-5xl mx-auto flex flex-col gap-6">
+    <div className="page">
       <div>
         <h1 className="text-2xl font-semibold">Lead Sources</h1>
         <p className="muted mt-1 text-sm">

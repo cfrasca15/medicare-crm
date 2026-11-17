@@ -71,7 +71,7 @@ export default async function BirthdaysPage({
     .sort((a, b) => a.days - b.days);
 
   return (
-    <div className="max-w-4xl mx-auto flex flex-col gap-8">
+    <div className="page gap-8">
       <div>
         <h1 className="text-2xl font-semibold">Birthdays &amp; Turning 65</h1>
         <p className="muted mt-1 text-sm">From the birth dates on your contacts (contacts marked Lost are left out).</p>

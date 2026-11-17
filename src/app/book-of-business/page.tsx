@@ -46,7 +46,7 @@ export default async function BookOfBusinessPage({
   };
 
   return (
-    <div className="max-w-6xl mx-auto flex flex-col gap-6">
+    <div className="page">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Book of Business</h1>

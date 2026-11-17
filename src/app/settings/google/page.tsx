@@ -23,7 +23,7 @@ export default async function GoogleSettingsPage({
   const contactsOn = hasContactsScope(account);
 
   return (
-    <div className="max-w-2xl mx-auto flex flex-col gap-6">
+    <div className="page-narrow">
       <div>
         <h1 className="text-2xl font-semibold">Google</h1>
         <p className="muted mt-1 text-sm">

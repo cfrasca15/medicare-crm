@@ -31,9 +31,9 @@ const PAGES: { href: string; label: string; about: string }[] = [
 
 export default function SettingsPage() {
   return (
-    <div className="max-w-4xl mx-auto flex flex-col gap-6">
+    <div className="page">
       <h1 className="text-2xl font-semibold">Settings</h1>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {PAGES.map((page) => (
           <Link
             key={page.href}

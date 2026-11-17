@@ -22,7 +22,7 @@ export default async function CommissionsPage() {
   const unpaidTotal = unpaid.reduce((s, p) => s + (p.commissionAmount ?? 0), 0);
 
   return (
-    <div className="max-w-6xl mx-auto flex flex-col gap-6">
+    <div className="page">
       <div>
         <h1 className="text-2xl font-semibold">Commissions</h1>
         <p className="muted mt-1 text-sm">

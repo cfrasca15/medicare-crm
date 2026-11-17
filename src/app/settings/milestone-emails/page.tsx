@@ -57,7 +57,7 @@ export default async function MilestoneEmailsPage() {
     .slice(0, 20);
 
   return (
-    <div className="max-w-2xl mx-auto flex flex-col gap-6">
+    <div className="page-narrow">
       <div>
         <h1 className="text-2xl font-semibold">Milestone, Birthday &amp; Event Emails</h1>
         <p className="muted mt-1 text-sm">
