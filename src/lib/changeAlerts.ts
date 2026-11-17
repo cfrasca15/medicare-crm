@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { planGroup } from "@/lib/coverage";
 import { canonicalCarrier, PLAN_CATALOG, planKey, samePlan } from "@/lib/carriers";
 import { groupFamily, loose } from "@/lib/bookOfBusiness";
+import { formatDateOnly } from "@/lib/date";
 
 // Upcoming medical-group and plan changes from Agent Compass, matched against
 // clients' current and upcoming plans. Agent Compass serves them at
@@ -82,7 +83,7 @@ const isKnownPlan = (carrier: string, plan: string) =>
 const fmt = (iso: string | null) => {
   if (!iso) return null;
   const d = new Date(iso);
-  return `${d.getUTCMonth() + 1}/${d.getUTCDate()}/${d.getUTCFullYear()}`;
+  return formatDateOnly(d);
 };
 
 export async function loadChangeAlerts(now = new Date()): Promise<ChangeAlertsResult> {

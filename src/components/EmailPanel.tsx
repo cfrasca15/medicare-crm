@@ -87,7 +87,7 @@ function EmailHistoryRow({ message: m }: { message: GmailMessageSummary }) {
       >
         <div className="flex items-center justify-between">
           <span className="font-medium">{m.subject}</span>
-          <span className="muted text-xs">{new Date(m.date).toLocaleDateString()}</span>
+          <span className="muted text-xs">{new Date(m.date).toLocaleDateString(undefined, { month: "2-digit", day: "2-digit", year: "numeric" })}</span>
         </div>
         <div className="muted text-xs">{m.isFromMe ? "You" : m.from}</div>
         {!expanded && <div className="muted text-xs">{m.snippet}</div>}

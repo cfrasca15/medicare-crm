@@ -107,7 +107,7 @@ export default async function CommissionsPage() {
                 {statements.map((s) => (
                   <tr key={s.id} className="border-t border-slate-200 dark:border-slate-800">
                     <td className="muted px-3 py-2 whitespace-nowrap">
-                      {s.createdAt.toLocaleDateString("en-US", { timeZone: "America/Los_Angeles" })}
+                      {s.createdAt.toLocaleDateString("en-US", { timeZone: "America/Los_Angeles", month: "2-digit", day: "2-digit", year: "numeric" })}
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap">{s.carrier}</td>
                     <td className="px-3 py-2">{s.fileName}</td>

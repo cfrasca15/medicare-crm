@@ -248,7 +248,7 @@ export default async function ContactDetailPage({
                 <span className="rounded-full bg-teal-100 px-2 py-0.5 text-xs font-medium text-teal-800 dark:bg-teal-900/40 dark:text-teal-200">
                   {isWebsiteSource(contact.leadSource) ? contact.leadSource : "Website: returning contact"}
                   {contact.lastWebsiteLeadAt
-                    ? ` · latest ${contact.lastWebsiteLeadAt.toLocaleDateString("en-US")}`
+                    ? ` · latest ${contact.lastWebsiteLeadAt.toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" })}`
                     : ""}
                 </span>
               )}

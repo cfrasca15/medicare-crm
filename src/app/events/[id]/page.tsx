@@ -67,7 +67,7 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
     contact: g.contact ? { id: g.contact.id, name: `${g.contact.firstName} ${g.contact.lastName}` } : null,
     emailSent:
       g.emailSentAt && g.emailKind
-        ? `${EVENT_EMAIL_LABEL[g.emailKind] ?? "Email"} sent ${g.emailSentAt.toLocaleDateString("en-US", { timeZone: "America/Los_Angeles" })}`
+        ? `${EVENT_EMAIL_LABEL[g.emailKind] ?? "Email"} sent ${g.emailSentAt.toLocaleDateString("en-US", { timeZone: "America/Los_Angeles", month: "2-digit", day: "2-digit", year: "numeric" })}`
         : null,
   }));
 

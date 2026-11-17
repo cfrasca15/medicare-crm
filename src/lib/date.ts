@@ -5,7 +5,9 @@
 // helpers read the UTC components directly instead.
 
 export function formatDateOnly(date: Date): string {
-  return `${date.getUTCMonth() + 1}/${date.getUTCDate()}/${date.getUTCFullYear()}`;
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  return `${month}/${day}/${date.getUTCFullYear()}`;
 }
 
 export function dateOnlyYear(date: Date): number {
@@ -17,8 +19,8 @@ export function dateOnlyYear(date: Date): number {
 // timezone rather than the UTC-safe approach.
 export function formatDateTime(date: Date): string {
   return date.toLocaleString(undefined, {
-    month: "numeric",
-    day: "numeric",
+    month: "2-digit",
+    day: "2-digit",
     year: "numeric",
     hour: "numeric",
     minute: "2-digit",

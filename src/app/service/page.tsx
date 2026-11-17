@@ -6,7 +6,7 @@ import { formatDateOnly } from "@/lib/date";
 export const dynamic = "force-dynamic";
 
 // A moment in time as a Pacific date (formatDateOnly is for calendar dates).
-const stamp = (d: Date) => d.toLocaleDateString("en-US", { timeZone: "America/Los_Angeles" });
+const stamp = (d: Date) => d.toLocaleDateString("en-US", { timeZone: "America/Los_Angeles", month: "2-digit", day: "2-digit", year: "numeric" });
 
 const FILTERS: { key: RequestFilter; label: string }[] = [
   { key: "open", label: "Open" },
