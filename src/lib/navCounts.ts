@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { dateInputValue, todayInputValue } from "@/lib/date";
 import { aepSeason, loadAepWorklist } from "@/lib/aep";
 import { loadChangeAlerts } from "@/lib/changeAlerts";
-import { loadNeedsReply } from "@/lib/needsReply";
+import { loadNeedsReply, type NeedsReplyResult } from "@/lib/needsReply";
 
 // The little counts next to the menu's "To do" links. Keyed by the link's
 // address; a link with nothing waiting gets no badge at all.
@@ -54,6 +54,12 @@ async function remember<T>(key: string, ttlMs: number, wait: boolean, load: () =
     return e.value as T;
   }
   return e.loading as Promise<T>;
+}
+
+// The Needs a Reply page checks Gmail itself each visit; it hands its answer
+// over so the menu's badge matches what the page just showed.
+export function rememberNeedsReply(result: NeedsReplyResult) {
+  remembered.set("inbox", { at: Date.now(), has: true, value: result, loading: null });
 }
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;

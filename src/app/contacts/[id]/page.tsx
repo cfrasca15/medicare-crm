@@ -1,4 +1,6 @@
+import { Suspense } from "react";
 import Link from "next/link";
+import { CardSkeleton } from "@/components/Skeleton";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { StageSelect } from "@/components/StageSelect";
@@ -16,7 +18,7 @@ import { SaveForm } from "@/components/SaveForm";
 import { DeleteContactButton } from "@/components/DeleteContactButton";
 import { DropdownMenu } from "@/components/DropdownMenu";
 import { EmailPanel } from "@/components/EmailPanel";
-import { getGoogleAccount, hasContactsScope, listGmailMessagesForContact, type GmailMessageSummary } from "@/lib/google";
+import { getGoogleAccount, hasContactsScope, listGmailMessagesForContact } from "@/lib/google";
 import { formatDateOnly, formatDateTime, dateInputValue, todayInputValue, upcomingFirstsOfMonth } from "@/lib/date";
 import { EffectiveDateSelect } from "@/components/EffectiveDateSelect";
 import { CommissionSelect } from "@/components/CommissionSelect";
@@ -43,6 +45,30 @@ import { NewServiceRequestForm, ServiceRequestList } from "@/components/ServiceR
 import { ToggleSection } from "@/components/ToggleSection";
 import { ActivityComposer } from "@/components/ActivityComposer";
 import { loadCommissionChoices, type CommissionChoices } from "@/lib/compassCommissions";
+
+// This contact's Gmail history and the box to write to them.
+async function EmailHistory({ contactId, email }: { contactId: string; email: string }) {
+  let history: Awaited<ReturnType<typeof listGmailMessagesForContact>> = [];
+  let error: string | null = null;
+  try {
+    history = await listGmailMessagesForContact(email);
+  } catch (err) {
+    error = err instanceof Error ? err.message : "Failed to load email history.";
+  }
+  if (error) {
+    return (
+      <p className="text-sm text-red-600 dark:text-red-400">
+        Couldn&apos;t load email history: {error}. If you connected Google before Gmail access was added, reconnect on
+        the{" "}
+        <Link href="/settings/google" className="link">
+          Google
+        </Link>{" "}
+        settings page to grant it.
+      </p>
+    );
+  }
+  return <EmailPanel contactId={contactId} history={history} />;
+}
 
 export default async function ContactDetailPage({
   params,
@@ -104,16 +130,6 @@ export default async function ContactDetailPage({
   ).sort();
 
   const [googleAccount, commissionChoices] = await Promise.all([getGoogleAccount(), loadCommissionChoices()]);
-  let emailHistory: GmailMessageSummary[] = [];
-  let emailHistoryError: string | null = null;
-  if (googleAccount && contact.email) {
-    try {
-      emailHistory = await listGmailMessagesForContact(contact.email);
-    } catch (err) {
-      emailHistoryError =
-        err instanceof Error ? err.message : "Failed to load email history.";
-    }
-  }
 
   const createPolicyForContact = createPolicy.bind(null, contact.id);
   const addNoteForContact = addContactNote.bind(null, contact.id);
@@ -633,18 +649,11 @@ export default async function ContactDetailPage({
                 settings page to send and track email here.
               </p>
             )}
-            {contact.email && googleAccount && emailHistoryError && (
-              <p className="text-sm text-red-600 dark:text-red-400">
-                Couldn&apos;t load email history: {emailHistoryError}. If you
-                connected Google before Gmail access was added, reconnect on the{" "}
-                <Link href="/settings/google" className="link">
-                  Google
-                </Link>{" "}
-                settings page to grant it.
-              </p>
-            )}
-            {contact.email && googleAccount && !emailHistoryError && (
-              <EmailPanel contactId={contact.id} history={emailHistory} />
+            {/* Gmail can take a few seconds; the rest of the page doesn't wait for it. */}
+            {contact.email && googleAccount && (
+              <Suspense fallback={<CardSkeleton lines={3} />}>
+                <EmailHistory contactId={contact.id} email={contact.email} />
+              </Suspense>
             )}
           </section>
         </div>

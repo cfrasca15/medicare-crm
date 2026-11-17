@@ -14,6 +14,8 @@ import { primaryPhone } from "@/lib/phone";
 import { planGroup } from "@/lib/coverage";
 import { formatDateOnly, monthRange } from "@/lib/date";
 
+const PAGE_SIZE = 100;
+
 export default async function ContactsPage({
   searchParams,
 }: {
@@ -24,20 +26,29 @@ export default async function ContactsPage({
     flag?: string;
     county?: string;
     eff?: string;
+    page?: string;
+    all?: string;
   }>;
 }) {
   const params = await searchParams;
   const { stage, q, source, flag, county, eff } = params;
+  // 100 at a time keeps the page quick; "Show all" brings back the full list
+  // (for ticking everyone in a filter at once).
+  const showAll = params.all === "1";
+  const pageNumber = Math.max(1, Math.floor(Number(params.page)) || 1);
+  const where = contactWhere(params);
   const effectiveRange = monthRange(eff);
 
-  const [contacts, sourceRows, countyRows] = await Promise.all([
+  const [contacts, total, sourceRows, countyRows] = await Promise.all([
     prisma.contact.findMany({
-      where: contactWhere(params),
-      orderBy: { lastName: "asc" },
+      where,
+      orderBy: [{ lastName: "asc" }, { firstName: "asc" }, { id: "asc" }],
+      ...(showAll ? {} : { skip: (pageNumber - 1) * PAGE_SIZE, take: PAGE_SIZE }),
       include: {
         policies: { select: { effectiveDate: true, termDate: true, timing: true, carrier: true, planName: true } },
       },
     }),
+    prisma.contact.count({ where }),
     prisma.contact.findMany({ distinct: ["leadSource"], select: { leadSource: true }, where: { leadSource: { not: null } } }),
     prisma.contact.findMany({ distinct: ["county"], select: { county: true }, where: { county: { not: null } } }),
   ]);
@@ -65,12 +76,20 @@ export default async function ContactsPage({
     county && { key: "county", label: `${county} County` },
     effectiveRange && { key: "eff", label: `Effective ${formatDateOnly(effectiveRange.gte)}` },
   ].filter(Boolean) as { key: string; label: string }[];
-  const withoutParam = (key: string) => {
+  // The address with some settings changed (blank removes one). Changing a
+  // filter always goes back to the first page.
+  const withParams = (changes: Record<string, string>) => {
     const next = new URLSearchParams(
-      Object.entries(params).filter((kv): kv is [string, string] => typeof kv[1] === "string" && kv[0] !== key && kv[1] !== "")
+      Object.entries({ ...params, page: "", ...changes }).filter(
+        (kv): kv is [string, string] => typeof kv[1] === "string" && kv[1] !== ""
+      )
     ).toString();
     return next ? `/contacts?${next}` : "/contacts";
   };
+  const withoutParam = (key: string) => withParams({ [key]: "" });
+  const firstShown = total === 0 ? 0 : showAll ? 1 : (pageNumber - 1) * PAGE_SIZE + 1;
+  const lastShown = showAll ? total : Math.min(total, (pageNumber - 1) * PAGE_SIZE + contacts.length);
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
     <div className="page">
@@ -117,7 +136,7 @@ export default async function ContactsPage({
           </Link>
         )}
         <span className="muted ml-auto">
-          {contacts.length} {contacts.length === 1 ? "contact" : "contacts"}
+          {total} {total === 1 ? "contact" : "contacts"}
         </span>
       </div>
 
@@ -202,6 +221,29 @@ export default async function ContactsPage({
           </tbody>
         </table>
       </div>
+
+      {total > PAGE_SIZE && (
+        <div className="-mt-2 flex flex-wrap items-center justify-between gap-3 text-sm">
+          <span className="muted">
+            Showing {firstShown}–{lastShown} of {total}
+          </span>
+          <div className="flex items-center gap-2">
+            {!showAll && pageNumber > 1 && (
+              <Link href={withParams({ page: pageNumber > 2 ? String(pageNumber - 1) : "" })} className="btn-secondary px-3 py-1.5">
+                ← Previous
+              </Link>
+            )}
+            {!showAll && pageNumber < pageCount && (
+              <Link href={withParams({ page: String(pageNumber + 1) })} className="btn-secondary px-3 py-1.5">
+                Next →
+              </Link>
+            )}
+            <Link href={withParams({ all: showAll ? "" : "1" })} className="link ml-2">
+              {showAll ? `Show ${PAGE_SIZE} at a time` : `Show all ${total}`}
+            </Link>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,11 +1,12 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { loadNeedsReply, senderName, waitingFor, type NeedsReplyItem } from "@/lib/needsReply";
+import { rememberNeedsReply } from "@/lib/navCounts";
+import { CardSkeleton } from "@/components/Skeleton";
 
 export const dynamic = "force-dynamic";
 
-export default async function NeedsReplyPage() {
-  const result = await loadNeedsReply();
-
+export default function NeedsReplyPage() {
   return (
     <div className="page">
       <div>
@@ -16,33 +17,51 @@ export default async function NeedsReplyPage() {
         </p>
       </div>
 
-      {result.status === "off" && (
-        <p className="surface p-4 text-sm">
-          Google isn&apos;t connected. Connect it on the{" "}
-          <Link href="/settings/google" className="link">
-            Google
-          </Link>{" "}
-          settings page.
-        </p>
-      )}
-
-      {result.status === "error" && (
-        <p className="text-sm text-red-600 dark:text-red-400">Couldn&apos;t check Gmail: {result.message}</p>
-      )}
-
-      {result.status === "ok" && (
-        <>
-          <section>
-            <h2 className="section-label mb-2">From contacts · {result.fromContacts.length}</h2>
-            <ThreadList items={result.fromContacts} empty="No contact is waiting on a reply." />
-          </section>
-          <section>
-            <h2 className="section-label mb-2">Everyone else · {result.others.length}</h2>
-            <ThreadList items={result.others} empty="Nothing else waiting." />
-          </section>
-        </>
-      )}
+      {/* Checking Gmail takes a few seconds; the page shows while it does. */}
+      <Suspense
+        fallback={
+          <>
+            <CardSkeleton lines={4} />
+            <CardSkeleton lines={4} />
+          </>
+        }
+      >
+        <Threads />
+      </Suspense>
     </div>
+  );
+}
+
+async function Threads() {
+  const result = await loadNeedsReply();
+  // The menu's badge can use this fresh answer instead of asking Gmail again.
+  rememberNeedsReply(result);
+
+  if (result.status === "off") {
+    return (
+      <p className="surface p-4 text-sm">
+        Google isn&apos;t connected. Connect it on the{" "}
+        <Link href="/settings/google" className="link">
+          Google
+        </Link>{" "}
+        settings page.
+      </p>
+    );
+  }
+  if (result.status === "error") {
+    return <p className="text-sm text-red-600 dark:text-red-400">Couldn&apos;t check Gmail: {result.message}</p>;
+  }
+  return (
+    <>
+      <section>
+        <h2 className="section-label mb-2">From contacts · {result.fromContacts.length}</h2>
+        <ThreadList items={result.fromContacts} empty="No contact is waiting on a reply." />
+      </section>
+      <section>
+        <h2 className="section-label mb-2">Everyone else · {result.others.length}</h2>
+        <ThreadList items={result.others} empty="Nothing else waiting." />
+      </section>
+    </>
   );
 }
 

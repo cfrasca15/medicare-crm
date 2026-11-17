@@ -1,4 +1,6 @@
+import { Suspense } from "react";
 import Link from "next/link";
+import { CardSkeleton } from "@/components/Skeleton";
 import { getGoogleAccount, listEventsInRange, type UpcomingEvent } from "@/lib/google";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -39,45 +41,8 @@ export default async function CalendarPage({
 
   const googleAccount = await getGoogleAccount();
 
-  const firstOfMonth = new Date(year, month, 1);
-  const lastOfMonth = new Date(year, month + 1, 0);
-  const gridStart = new Date(firstOfMonth);
-  gridStart.setDate(gridStart.getDate() - gridStart.getDay());
-  const gridEnd = new Date(lastOfMonth);
-  gridEnd.setDate(gridEnd.getDate() + (6 - gridEnd.getDay()) + 1); // exclusive upper bound
-
-  let eventsByDay = new Map<string, UpcomingEvent[]>();
-  let calendarError: string | null = null;
-
-  if (googleAccount) {
-    try {
-      const events = await listEventsInRange(gridStart, gridEnd);
-      eventsByDay = new Map();
-      for (const event of events) {
-        const key = eventDateKey(event);
-        const list = eventsByDay.get(key) ?? [];
-        list.push(event);
-        eventsByDay.set(key, list);
-      }
-    } catch (err) {
-      calendarError = err instanceof Error ? err.message : "Couldn't load calendar.";
-    }
-  }
-
-  const weeks: Date[][] = [];
-  const cursor = new Date(gridStart);
-  while (cursor < gridEnd) {
-    const week: Date[] = [];
-    for (let i = 0; i < 7; i++) {
-      week.push(new Date(cursor));
-      cursor.setDate(cursor.getDate() + 1);
-    }
-    weeks.push(week);
-  }
-
   const prevMonth = month === 0 ? { year: year - 1, month: 12 } : { year, month };
   const nextMonth = month === 11 ? { year: year + 1, month: 1 } : { year, month: month + 2 };
-  const todayKey = dateKey(now.getFullYear(), now.getMonth(), now.getDate());
 
   return (
     <div className="page">
@@ -115,70 +80,114 @@ export default async function CalendarPage({
           to see your events here.
         </p>
       )}
-      {calendarError && (
-        <p className="text-sm text-red-600 dark:text-red-400">{calendarError}</p>
+      {/* Google Calendar can take a moment; the month header shows first. */}
+      {googleAccount && (
+        <Suspense key={`${year}-${month}`} fallback={<CardSkeleton lines={8} />}>
+          <MonthGrid year={year} month={month} />
+        </Suspense>
       )}
+    </div>
+  );
+}
 
-      {googleAccount && !calendarError && (
-        <div className="surface overflow-hidden">
-          <div className="grid grid-cols-7 border-b border-slate-200 dark:border-slate-800">
-            {WEEKDAYS.map((day) => (
-              <div key={day} className="table-head px-2 py-2 text-center text-xs font-medium">
-                {day}
-              </div>
-            ))}
+// The month's events, loaded from Google Calendar.
+async function MonthGrid({ year, month }: { year: number; month: number }) {
+  const now = new Date();
+  const firstOfMonth = new Date(year, month, 1);
+  const lastOfMonth = new Date(year, month + 1, 0);
+  const gridStart = new Date(firstOfMonth);
+  gridStart.setDate(gridStart.getDate() - gridStart.getDay());
+  const gridEnd = new Date(lastOfMonth);
+  gridEnd.setDate(gridEnd.getDate() + (6 - gridEnd.getDay()) + 1); // exclusive upper bound
+
+  let eventsByDay = new Map<string, UpcomingEvent[]>();
+  let calendarError: string | null = null;
+
+  try {
+    const events = await listEventsInRange(gridStart, gridEnd);
+    eventsByDay = new Map();
+    for (const event of events) {
+      const key = eventDateKey(event);
+      const list = eventsByDay.get(key) ?? [];
+      list.push(event);
+      eventsByDay.set(key, list);
+    }
+  } catch (err) {
+    calendarError = err instanceof Error ? err.message : "Couldn't load calendar.";
+  }
+
+  const weeks: Date[][] = [];
+  const cursor = new Date(gridStart);
+  while (cursor < gridEnd) {
+    const week: Date[] = [];
+    for (let i = 0; i < 7; i++) {
+      week.push(new Date(cursor));
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    weeks.push(week);
+  }
+  const todayKey = dateKey(now.getFullYear(), now.getMonth(), now.getDate());
+
+  if (calendarError) return <p className="text-sm text-red-600 dark:text-red-400">{calendarError}</p>;
+
+  return (
+    <div className="surface overflow-hidden">
+      <div className="grid grid-cols-7 border-b border-slate-200 dark:border-slate-800">
+        {WEEKDAYS.map((day) => (
+          <div key={day} className="table-head px-2 py-2 text-center text-xs font-medium">
+            {day}
           </div>
-          {weeks.map((week, weekIndex) => (
-            <div
-              key={weekIndex}
-              className="grid grid-cols-7 border-b border-slate-200 last:border-b-0 dark:border-slate-800"
-            >
-              {week.map((day) => {
-                const inMonth = day.getMonth() === month;
-                const key = dateKey(day.getFullYear(), day.getMonth(), day.getDate());
-                const dayEvents = eventsByDay.get(key) ?? [];
-                const isToday = key === todayKey;
-                return (
-                  <div
-                    key={key}
-                    className={`min-h-[6rem] border-r border-slate-200 p-1.5 last:border-r-0 dark:border-slate-800 ${
-                      inMonth ? "" : "bg-slate-50 dark:bg-slate-900/40"
-                    }`}
-                  >
-                    <div
-                      className={
-                        isToday
-                          ? "mb-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600 text-xs font-medium text-white"
-                          : `mb-1 text-xs font-medium ${inMonth ? "" : "muted"}`
-                      }
-                    >
-                      {day.getDate()}
-                    </div>
-                    <div className="flex flex-col gap-0.5">
-                      {dayEvents.map((event) => {
-                        const time = eventTime(event);
-                        return (
-                          <a
-                            key={event.id}
-                            href={event.htmlLink}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            title={time ? `${time} ${event.title}` : event.title}
-                            className="truncate rounded bg-indigo-50 px-1 py-0.5 text-[11px] text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-500/15 dark:text-indigo-300 dark:hover:bg-indigo-500/25"
-                          >
-                            {time && <span className="mr-1 font-semibold">{time}</span>}
-                            {event.title}
-                          </a>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ))}
+        ))}
+      </div>
+      {weeks.map((week, weekIndex) => (
+        <div
+          key={weekIndex}
+          className="grid grid-cols-7 border-b border-slate-200 last:border-b-0 dark:border-slate-800"
+        >
+          {week.map((day) => {
+            const inMonth = day.getMonth() === month;
+            const key = dateKey(day.getFullYear(), day.getMonth(), day.getDate());
+            const dayEvents = eventsByDay.get(key) ?? [];
+            const isToday = key === todayKey;
+            return (
+              <div
+                key={key}
+                className={`min-h-[6rem] border-r border-slate-200 p-1.5 last:border-r-0 dark:border-slate-800 ${
+                  inMonth ? "" : "bg-slate-50 dark:bg-slate-900/40"
+                }`}
+              >
+                <div
+                  className={
+                    isToday
+                      ? "mb-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600 text-xs font-medium text-white"
+                      : `mb-1 text-xs font-medium ${inMonth ? "" : "muted"}`
+                  }
+                >
+                  {day.getDate()}
+                </div>
+                <div className="flex flex-col gap-0.5">
+                  {dayEvents.map((event) => {
+                    const time = eventTime(event);
+                    return (
+                      <a
+                        key={event.id}
+                        href={event.htmlLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title={time ? `${time} ${event.title}` : event.title}
+                        className="truncate rounded bg-indigo-50 px-1 py-0.5 text-[11px] text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-500/15 dark:text-indigo-300 dark:hover:bg-indigo-500/25"
+                      >
+                        {time && <span className="mr-1 font-semibold">{time}</span>}
+                        {event.title}
+                      </a>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
         </div>
-      )}
+      ))}
     </div>
   );
 }

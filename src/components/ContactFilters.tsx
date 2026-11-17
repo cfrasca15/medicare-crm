@@ -28,6 +28,8 @@ export function ContactFilters({
     const next = new URLSearchParams(params.toString());
     if (value) next.set(key, value);
     else next.delete(key);
+    // A different filter means a different list: start again at page 1.
+    next.delete("page");
     const qs = next.toString();
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   };

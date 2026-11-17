@@ -1,4 +1,6 @@
+import { Suspense } from "react";
 import Link from "next/link";
+import { CardSkeleton } from "@/components/Skeleton";
 import { prisma } from "@/lib/prisma";
 import { STAGE_LABELS, STAGE_ORDER } from "@/lib/constants";
 import { dateInputValue, todayInputValue } from "@/lib/date";
@@ -111,44 +113,6 @@ export default async function DashboardPage() {
     season.active ? null : loadChangeAlerts(),
   ]);
 
-  // Appointments: today, then the next week.
-  let appointments: Appointment[] = [];
-  let calendarError: string | null = null;
-  if (googleAccount) {
-    try {
-      const now = Date.now();
-      const events = (
-        await listEventsInRange(new Date(now - 24 * 3600 * 1000), new Date(now + 8 * 24 * 3600 * 1000))
-      ).filter((e) => !isCanceled(e));
-      const withContacts = await eventContacts(events, openTasks, googleAccount.email);
-      appointments = events.map((e) => ({
-        key: e.id,
-        title: e.title,
-        day: e.isAllDay ? e.start : pacificDay(new Date(e.start)),
-        time: e.isAllDay ? null : pacificTime(new Date(e.start)),
-        href: e.htmlLink,
-        external: true,
-        contacts: withContacts.get(e.id),
-      }));
-    } catch (err) {
-      calendarError = err instanceof Error ? err.message : "Couldn't load calendar.";
-    }
-  } else {
-    appointments = openTasks
-      .filter((t) => t.calendlyEventUri && t.dueDate)
-      .map((t) => ({
-        key: t.id,
-        title: t.title,
-        day: pacificDay(t.dueDate!),
-        time: pacificTime(t.dueDate!),
-        href: t.contact ? `/contacts/${t.contact.id}` : "/tasks",
-        external: false,
-      }));
-  }
-  appointments = appointments.filter((a) => a.day >= today && a.day <= addDays(today, 7));
-  const todays = appointments.filter((a) => a.day === today);
-  const upcoming = appointments.filter((a) => a.day > today).slice(0, 5);
-
   // To do: tasks due today or tomorrow, plus service follow-ups that are due.
   // Calendly bookings are appointments, not to-dos. Task due dates are
   // calendar dates (see date.ts).
@@ -248,30 +212,10 @@ export default async function DashboardPage() {
               )}
             </div>
           </div>
-          <div className="surface flex flex-col p-4 text-sm">
-            {calendarError ? (
-              <p className="text-red-600 dark:text-red-400">{calendarError}</p>
-            ) : (
-              <>
-                <AppointmentList items={todays} empty="No appointments today." />
-                {upcoming.length > 0 && (
-                  <>
-                    <div className="muted mt-4 mb-1 text-xs font-medium">Next few days</div>
-                    <AppointmentList items={upcoming} showDay />
-                  </>
-                )}
-              </>
-            )}
-            {!googleAccount && (
-              <p className="muted mt-3 text-xs">
-                Showing Calendly bookings.{" "}
-                <Link href="/settings/google" className="link">
-                  Connect Google Calendar
-                </Link>{" "}
-                to see everything on your calendar.
-              </p>
-            )}
-          </div>
+          {/* Google Calendar can take a moment; the rest of the page doesn't wait for it. */}
+          <Suspense fallback={<CardSkeleton lines={3} />}>
+            <TodayCard googleAccount={googleAccount} openTasks={openTasks} today={today} />
+          </Suspense>
         </section>
 
         <section>
@@ -359,6 +303,83 @@ export default async function DashboardPage() {
           ))}
         </div>
       </section>
+    </div>
+  );
+}
+
+// Today's appointments, then the next week: from Google Calendar, or the
+// Calendly bookings when Google isn't connected.
+async function TodayCard({
+  googleAccount,
+  openTasks,
+  today,
+}: {
+  googleAccount: Awaited<ReturnType<typeof getGoogleAccount>>;
+  openTasks: (CalendarTask & { id: string; title: string })[];
+  today: string;
+}) {
+  // Appointments: today, then the next week.
+  let appointments: Appointment[] = [];
+  let calendarError: string | null = null;
+  if (googleAccount) {
+    try {
+      const now = Date.now();
+      const events = (
+        await listEventsInRange(new Date(now - 24 * 3600 * 1000), new Date(now + 8 * 24 * 3600 * 1000))
+      ).filter((e) => !isCanceled(e));
+      const withContacts = await eventContacts(events, openTasks, googleAccount.email);
+      appointments = events.map((e) => ({
+        key: e.id,
+        title: e.title,
+        day: e.isAllDay ? e.start : pacificDay(new Date(e.start)),
+        time: e.isAllDay ? null : pacificTime(new Date(e.start)),
+        href: e.htmlLink,
+        external: true,
+        contacts: withContacts.get(e.id),
+      }));
+    } catch (err) {
+      calendarError = err instanceof Error ? err.message : "Couldn't load calendar.";
+    }
+  } else {
+    appointments = openTasks
+      .filter((t) => t.calendlyEventUri && t.dueDate)
+      .map((t) => ({
+        key: t.id,
+        title: t.title,
+        day: pacificDay(t.dueDate!),
+        time: pacificTime(t.dueDate!),
+        href: t.contact ? `/contacts/${t.contact.id}` : "/tasks",
+        external: false,
+      }));
+  }
+  appointments = appointments.filter((a) => a.day >= today && a.day <= addDays(today, 7));
+  const todays = appointments.filter((a) => a.day === today);
+  const upcoming = appointments.filter((a) => a.day > today).slice(0, 5);
+
+  return (
+    <div className="surface flex flex-col p-4 text-sm">
+      {calendarError ? (
+        <p className="text-red-600 dark:text-red-400">{calendarError}</p>
+      ) : (
+        <>
+          <AppointmentList items={todays} empty="No appointments today." />
+          {upcoming.length > 0 && (
+            <>
+              <div className="muted mt-4 mb-1 text-xs font-medium">Next few days</div>
+              <AppointmentList items={upcoming} showDay />
+            </>
+          )}
+        </>
+      )}
+      {!googleAccount && (
+        <p className="muted mt-3 text-xs">
+          Showing Calendly bookings.{" "}
+          <Link href="/settings/google" className="link">
+            Connect Google Calendar
+          </Link>{" "}
+          to see everything on your calendar.
+        </p>
+      )}
     </div>
   );
 }
