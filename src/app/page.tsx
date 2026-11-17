@@ -233,15 +233,20 @@ export default async function DashboardPage() {
         <section>
           <div className="mb-3 flex items-center justify-between">
             <h2 className="section-label">Today</h2>
-            {googleAccount ? (
-              <a href="https://calendar.google.com" target="_blank" rel="noopener noreferrer" className="link text-sm">
-                Calendar
-              </a>
-            ) : (
-              <Link href="/calendar" className="link text-sm">
-                Calendar
+            <div className="flex items-center gap-4">
+              <Link href="/book" className="link text-sm">
+                Book appointment
               </Link>
-            )}
+              {googleAccount ? (
+                <a href="https://calendar.google.com" target="_blank" rel="noopener noreferrer" className="link text-sm">
+                  Calendar
+                </a>
+              ) : (
+                <Link href="/calendar" className="link text-sm">
+                  Calendar
+                </Link>
+              )}
+            </div>
           </div>
           <div className="surface flex flex-col p-4 text-sm">
             {calendarError ? (

@@ -101,6 +101,9 @@ export default async function CalendarPage({
           >
             Next →
           </Link>
+          <Link href="/book" className="btn-primary ml-2 px-3 py-2 text-sm">
+            Book appointment
+          </Link>
         </div>
       </div>
 
