@@ -4,6 +4,8 @@ import { STAGE_COLORS, STAGE_LABELS } from "@/lib/constants";
 import { primaryPhone } from "@/lib/phone";
 import { CallButton } from "@/components/CallButton";
 
+import { inTurning65Window } from "@/lib/turning65";
+
 export const dynamic = "force-dynamic";
 
 const MONTHS = [
@@ -67,7 +69,7 @@ export default async function BirthdaysPage({
       const y = p.dateOfBirth.getUTCFullYear() + 65;
       return { p, days: daysUntil(y, p.dateOfBirth.getUTCMonth(), p.dateOfBirth.getUTCDate(), today), y };
     })
-    .filter((x) => x.days >= -92 && x.days <= 183)
+    .filter((x) => inTurning65Window(x.days))
     .sort((a, b) => a.days - b.days);
 
   return (

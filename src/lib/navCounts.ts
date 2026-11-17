@@ -98,8 +98,10 @@ async function serviceBadge(today: string): Promise<NavBadge | null> {
 
 // Gmail conversations waiting on a reply. Checking Gmail takes dozens of
 // requests, so it's looked at once every few minutes at most.
+export const needsReplyRecent = () => remember("inbox", 3 * 60_000, false, loadNeedsReply);
+
 async function inboxBadge(): Promise<NavBadge | null> {
-  const result = await remember("inbox", 3 * 60_000, false, loadNeedsReply);
+  const result = await needsReplyRecent();
   if (result.status !== "ok") return null;
   const count = result.fromContacts.length + result.others.length;
   if (!count) return null;

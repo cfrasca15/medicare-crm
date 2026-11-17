@@ -10,6 +10,8 @@ import { TaskCheckbox } from "@/components/TaskCheckbox";
 import { loadServiceRequests } from "@/lib/serviceQueries";
 import { aepSeason, loadAepWorklist } from "@/lib/aep";
 import { loadChangeAlerts } from "@/lib/changeAlerts";
+import { needsReplyRecent } from "@/lib/navCounts";
+import { countTurning65 } from "@/lib/turning65";
 
 // Always render fresh (queries the database) — without this, Next.js tries
 // to statically pre-render this page at build time, which fails since no
@@ -99,7 +101,7 @@ export default async function DashboardPage() {
   const tomorrow = addDays(today, 1);
   const season = aepSeason();
 
-  const [stageCounts, openTasks, googleAccount, openRequests, aep, alerts] = await Promise.all([
+  const [stageCounts, openTasks, googleAccount, openRequests, aep, alerts, turning65] = await Promise.all([
     prisma.contact.groupBy({ by: ["stage"], _count: { stage: true } }),
     prisma.task.findMany({
       where: { status: "OPEN" },
@@ -111,6 +113,7 @@ export default async function DashboardPage() {
     season.active ? loadAepWorklist() : null,
     // During AEP the worklist's urgent count covers Change Alerts.
     season.active ? null : loadChangeAlerts(),
+    countTurning65(),
   ]);
 
   // To do: tasks due today or tomorrow, plus service follow-ups that are due.
@@ -128,7 +131,9 @@ export default async function DashboardPage() {
   const affected = alerts?.status === "ok" ? new Set(alerts.alerts.flatMap((a) => a.clients.map((c) => c.contactId))).size : null;
   const pct = aep && aep.counts.total ? Math.round((aep.counts.reviewed / aep.counts.total) * 100) : 0;
 
-  const tiles: { label: string; value: React.ReactNode; sub?: string; href: string; alert?: boolean; bar?: number }[] = [
+  // Overdue tasks and service requests are counted in the menu and listed
+  // under To do below, so the tiles show what isn't on screen anywhere else.
+  const tiles: TileInfo[] = [
     ...(aep
       ? [
           {
@@ -153,15 +158,13 @@ export default async function DashboardPage() {
             alert: (affected ?? 0) > 0,
           },
         ]),
-    { label: "Overdue tasks", value: overdue, sub: overdue ? "past their due date" : "all caught up", href: "/tasks", alert: overdue > 0 },
-    {
-      label: "Service requests",
-      value: openRequests.length,
-      sub: serviceDue.length ? `${serviceDue.length} follow-up${serviceDue.length === 1 ? "" : "s"} due` : "open",
-      href: "/service",
-      alert: serviceDue.some((r) => dateInputValue(r.followUpOn!) <= today),
-    },
   ];
+  const turning65Tile: TileInfo = {
+    label: "Turning 65",
+    value: turning65,
+    sub: turning65 ? "in their enrollment window" : "no one in the window",
+    href: "/birthdays",
+  };
 
   return (
     <div className="page">
@@ -172,25 +175,15 @@ export default async function DashboardPage() {
         </p>
       </div>
 
-      <div className={`grid grid-cols-2 gap-3 ${tiles.length === 4 ? "md:grid-cols-4" : "md:grid-cols-3"}`}>
+      <div className={`grid grid-cols-2 gap-3 ${tiles.length === 2 ? "md:grid-cols-4" : "md:grid-cols-3"}`}>
         {tiles.map((t) => (
-          <Link
-            key={t.label}
-            href={t.href}
-            className="surface flex flex-col p-4 transition-colors hover:border-indigo-300 dark:hover:border-indigo-700"
-          >
-            <span className="muted text-xs font-medium">{t.label}</span>
-            <span className={`mt-1 text-2xl font-semibold tabular-nums ${t.alert ? "text-red-600 dark:text-red-400" : ""}`}>
-              {t.value}
-            </span>
-            {t.bar != null && (
-              <span className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-                <span className="block h-full rounded-full bg-indigo-600" style={{ width: `${t.bar}%` }} />
-              </span>
-            )}
-            {t.sub && <span className="muted mt-1 text-xs">{t.sub}</span>}
-          </Link>
+          <Tile key={t.label} {...t} />
         ))}
+        {/* Gmail can take a moment; the other tiles don't wait for it. */}
+        <Suspense fallback={<CardSkeleton lines={2} />}>
+          <ReplyTile />
+        </Suspense>
+        <Tile {...turning65Tile} />
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
@@ -304,6 +297,55 @@ export default async function DashboardPage() {
         </div>
       </section>
     </div>
+  );
+}
+
+type TileInfo = { label: string; value: React.ReactNode; sub?: string; href: string; alert?: boolean; bar?: number };
+
+// One of the big-number boxes along the top; the whole box is a link.
+function Tile({ label, value, sub, href, alert, bar }: TileInfo) {
+  return (
+    <Link
+      href={href}
+      className="surface flex flex-col p-4 transition-colors hover:border-indigo-300 dark:hover:border-indigo-700"
+    >
+      <span className="muted text-xs font-medium">{label}</span>
+      <span className={`mt-1 text-2xl font-semibold tabular-nums ${alert ? "text-red-600 dark:text-red-400" : ""}`}>
+        {value}
+      </span>
+      {bar != null && (
+        <span className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+          <span className="block h-full rounded-full bg-indigo-600" style={{ width: `${bar}%` }} />
+        </span>
+      )}
+      {sub && <span className="muted mt-1 text-xs">{sub}</span>}
+    </Link>
+  );
+}
+
+// Clients who wrote last in a Gmail conversation. Uses the same recent
+// answer as the menu's badge, so it rarely has to ask Gmail itself.
+async function ReplyTile() {
+  const result = await needsReplyRecent().catch(() => null);
+  const label = "Clients waiting on a reply";
+  if (!result || result.status !== "ok") {
+    return (
+      <Tile
+        label={label}
+        value="—"
+        sub={result?.status === "off" ? "Google not connected" : "couldn't check Gmail"}
+        href={result?.status === "off" ? "/settings/google" : "/inbox"}
+      />
+    );
+  }
+  const others = result.others.length;
+  return (
+    <Tile
+      label={label}
+      value={result.fromContacts.length}
+      sub={others ? `plus ${others} from other people` : result.fromContacts.length ? "in your Gmail inbox" : "all caught up"}
+      href="/inbox"
+    />
   );
 }
 
