@@ -44,6 +44,7 @@ import { AddressAutofill } from "@/components/AddressAutofill";
 import { NewServiceRequestForm, ServiceRequestList } from "@/components/ServiceRequests";
 import { ToggleSection } from "@/components/ToggleSection";
 import { ActivityComposer } from "@/components/ActivityComposer";
+import { ActivityTimeline } from "@/components/ActivityTimeline";
 import { loadCommissionChoices, type CommissionChoices } from "@/lib/compassCommissions";
 
 // This contact's Gmail history and the box to write to them.
@@ -195,6 +196,12 @@ export default async function ContactDetailPage({
       orderBy: { lastName: "asc" },
     }),
   ]);
+  const today = todayInputValue();
+  const openTasks = contact.tasks.filter((t) => t.status !== "DONE");
+  // Finished tasks fold away under the open ones, newest first.
+  const doneTasks = contact.tasks
+    .filter((t) => t.status === "DONE")
+    .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
   const openRequestCount = contact.serviceRequests.filter((r) => r.status !== "resolved").length;
   const callPhone = primaryPhone(contact);
   const otherPhone = callPhone?.isCell ? contact.phone : contact.cellPhone;
@@ -386,7 +393,7 @@ export default async function ContactDetailPage({
       </div>
 
       {/* Two columns on wide screens: plans and activity on the left; tasks,
-          client info and contact person on the right (a little wider on big
+          client info, tasks and contact person on the right (a little wider on big
           screens). Narrower screens get one column, in the order set by each
           section's order- class. */}
       <div className="contents lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] xl:grid-cols-[minmax(0,1fr)_25rem] lg:items-start lg:gap-6">
@@ -607,10 +614,10 @@ export default async function ContactDetailPage({
               )}
             </div>
 
-            <ol className="relative flex flex-col gap-2 border-l border-slate-200 pl-4 dark:border-slate-800">
-              {timeline.length === 0 && <p className="muted text-sm">Nothing yet.</p>}
+            <ActivityTimeline total={timeline.length} talkCount={timeline.filter((item) => WRITTEN.has(item.kind)).length}>
+              {timeline.length === 0 && <li className="muted text-sm">Nothing yet.</li>}
               {timeline.map((item) => (
-                <li key={item.key} className="relative">
+                <li key={item.key} className={`relative ${WRITTEN.has(item.kind) ? "" : AUTO_ROW}`}>
                   <span
                     aria-hidden="true"
                     className={`absolute top-3 -left-[21px] h-2.5 w-2.5 rounded-full ring-2 ring-white dark:ring-slate-950 ${TIMELINE_DOT[item.kind]}`}
@@ -632,7 +639,7 @@ export default async function ContactDetailPage({
                   </div>
                 </li>
               ))}
-            </ol>
+            </ActivityTimeline>
           </section>
 
           <section className="order-7 lg:order-none">
@@ -658,62 +665,6 @@ export default async function ContactDetailPage({
           </section>
         </div>
         <div className="contents lg:flex lg:flex-col lg:gap-6">
-          <ToggleSection
-            title="Tasks"
-            className="order-1 lg:order-none"
-            note={contact.tasks.length ? undefined : "none"}
-            actionLabel="+ Add task"
-            form={
-              <SaveForm
-                action={createTask}
-                submitLabel="Add Task"
-                savedLabel="Task added ✓"
-                resetOnSuccess
-                className="surface flex flex-wrap items-center gap-2 p-3"
-              >
-              <input type="hidden" name="contactId" value={contact.id} />
-              <input
-                name="title"
-                placeholder="Add a task or follow-up…"
-                aria-label="Task"
-                required
-                className="field min-w-48 flex-1"
-              />
-              <input name="dueDate" type="date" aria-label="Due date" title="Due date" className="field" />
-              <input name="notes" placeholder="Notes (optional)" aria-label="Notes" className="field min-w-40 flex-1" />
-              </SaveForm>
-            }
-          >
-            {contact.tasks.length > 0 && (
-              <div className="flex flex-col gap-2">
-              {contact.tasks.map((t) => {
-                const deleteTaskBound = deleteTask.bind(null, t.id);
-                return (
-                  <div key={t.id} className="surface flex items-center justify-between px-3 py-2 text-sm">
-                    <div className="flex items-center gap-3">
-                      <TaskCheckbox taskId={t.id} done={t.status === "DONE"} />
-                      <span className={t.status === "DONE" ? "muted line-through" : ""}>
-                        {t.title}
-                      </span>
-                      {t.dueDate && <span className="muted text-xs">{formatDateOnly(t.dueDate)}</span>}
-                    </div>
-                    <div className="flex items-center gap-3">
-                      {t.dueDate && (
-                        <CalendarSyncButton taskId={t.id} synced={!!t.googleEventId} />
-                      )}
-                      <form action={deleteTaskBound}>
-                        <button type="submit" className="btn-danger-text text-xs">
-                          Remove
-                        </button>
-                      </form>
-                    </div>
-                  </div>
-                );
-              })}
-              </div>
-            )}
-          </ToggleSection>
-
           <ToggleSection
             title="Client Info"
             className="order-4 lg:order-none"
@@ -860,6 +811,87 @@ export default async function ContactDetailPage({
                 ["Medi-Cal / Extra Help", [contact.medicaid && "Medi-Cal", contact.extraHelp && "Extra Help"].filter(Boolean).join(", ") || "No"],
               ]}
             />
+          </ToggleSection>
+
+          <ToggleSection
+            title="Tasks"
+            className="order-1 lg:order-none"
+            note={openTasks.length ? undefined : doneTasks.length ? "all done" : "none"}
+            actionLabel="+ Add task"
+            form={
+              <SaveForm
+                action={createTask}
+                submitLabel="Add Task"
+                savedLabel="Task added ✓"
+                resetOnSuccess
+                className="surface flex flex-wrap items-center gap-2 p-3"
+              >
+              <input type="hidden" name="contactId" value={contact.id} />
+              <input
+                name="title"
+                placeholder="Add a task or follow-up…"
+                aria-label="Task"
+                required
+                className="field min-w-48 flex-1"
+              />
+              <input name="dueDate" type="date" aria-label="Due date" title="Due date" className="field" />
+              <input name="notes" placeholder="Notes (optional)" aria-label="Notes" className="field min-w-40 flex-1" />
+              </SaveForm>
+            }
+          >
+            {openTasks.length > 0 && (
+              <div className="flex flex-col gap-2">
+                {openTasks.map((t) => {
+                  const late = t.dueDate != null && dateInputValue(t.dueDate) < today;
+                  return (
+                    <div key={t.id} className="surface flex items-start justify-between gap-3 px-3 py-2 text-sm">
+                      <div className="flex min-w-0 items-start gap-3">
+                        <span className="pt-0.5">
+                          <TaskCheckbox taskId={t.id} done={false} />
+                        </span>
+                        <div className="min-w-0">
+                          <div>{t.title}</div>
+                          {t.dueDate && (
+                            <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+                              <span className={late ? "text-xs font-medium text-red-600 dark:text-red-400" : "muted text-xs"}>
+                                {late ? "Overdue · " : ""}
+                                {formatDateOnly(t.dueDate)}
+                              </span>
+                              <CalendarSyncButton taskId={t.id} synced={!!t.googleEventId} />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <form action={deleteTask.bind(null, t.id)}>
+                        <button type="submit" className="btn-danger-text text-xs">
+                          Remove
+                        </button>
+                      </form>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {doneTasks.length > 0 && (
+              <details className={openTasks.length > 0 ? "mt-2" : ""}>
+                <summary className="link cursor-pointer text-xs font-medium">{doneTasks.length} completed</summary>
+                <div className="mt-2 flex flex-col gap-2">
+                  {doneTasks.map((t) => (
+                    <div key={t.id} className="surface flex items-center justify-between gap-3 px-3 py-2 text-sm">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <TaskCheckbox taskId={t.id} done={true} />
+                        <span className="muted line-through">{t.title}</span>
+                      </div>
+                      <form action={deleteTask.bind(null, t.id)}>
+                        <button type="submit" className="btn-danger-text text-xs">
+                          Remove
+                        </button>
+                      </form>
+                    </div>
+                  ))}
+                </div>
+              </details>
+            )}
           </ToggleSection>
 
           <ToggleSection
@@ -1240,6 +1272,11 @@ function EditPolicyField({
     </div>
   );
 }
+
+// Rows a person wrote, as opposed to ones the CRM logged by itself.
+const WRITTEN = new Set(["note", "call", "service"]);
+// Hides a logged-by-itself row while the timeline shows "Notes and calls".
+const AUTO_ROW = "group-data-[show=talk]/timeline:hidden";
 
 const TIMELINE_LABEL: Record<string, string> = {
   note: "Note",
