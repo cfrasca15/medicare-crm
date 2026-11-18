@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
-import { canonicalCarrier, canonicalPlanName } from "@/lib/carriers";
+import { canonicalCarrier, canonicalPlanName, carrierSaysMedSupp } from "@/lib/carriers";
 
 function refresh() {
   revalidatePath("/settings/plan-names");
@@ -20,6 +20,13 @@ export async function standardizePlanNames() {
     const carrier = canonicalCarrier(r.carrier);
     const planName = canonicalPlanName(carrier, r.planName);
     if (carrier === r.carrier && planName === r.planName) continue;
+    // "Blue Shield Med Supp" becomes Blue Shield; keep the Med Supp part as the plan type.
+    if (carrierSaysMedSupp(r.carrier)) {
+      await prisma.policy.updateMany({
+        where: { carrier: r.carrier, planName: r.planName, OR: [{ planType: null }, { planType: "" }] },
+        data: { planType: "Med Supp" },
+      });
+    }
     const res = await prisma.policy.updateMany({
       where: { carrier: r.carrier, planName: r.planName },
       data: { carrier, planName },
@@ -36,6 +43,12 @@ export async function renamePlan(fromCarrier: string, fromPlan: string, formData
   const carrier = canonicalCarrier(String(formData.get("carrier") ?? fromCarrier));
   const planName = canonicalPlanName(carrier, String(formData.get("planName") ?? ""));
   if (!carrier || !planName) return { error: "Enter the carrier and plan name to change it to." };
+  if (carrierSaysMedSupp(fromCarrier)) {
+    await prisma.policy.updateMany({
+      where: { carrier: fromCarrier, planName: fromPlan, OR: [{ planType: null }, { planType: "" }] },
+      data: { planType: "Med Supp" },
+    });
+  }
   await prisma.policy.updateMany({
     where: { carrier: fromCarrier, planName: fromPlan },
     data: { carrier, planName },

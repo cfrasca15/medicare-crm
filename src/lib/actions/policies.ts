@@ -6,8 +6,12 @@ import { PRE_APPLICATION_STAGES } from "@/lib/constants";
 import { revalidatePath } from "next/cache";
 import { planGroup } from "@/lib/coverage";
 import { todayInputValue } from "@/lib/date";
-import { canonicalCarrier, canonicalPlanName } from "@/lib/carriers";
+import { canonicalCarrier, canonicalPlanName, carrierSaysMedSupp } from "@/lib/carriers";
 import { logStageChanges } from "@/lib/activity";
+
+// A carrier typed as "Blue Shield Med Supp" is saved as Blue Shield, so the
+// Med Supp part goes to a blank plan type.
+const suppType = (formData: FormData) => (carrierSaysMedSupp(String(formData.get("carrier") ?? "")) ? "Med Supp" : undefined);
 
 export async function createPolicy(contactId: string, formData: FormData) {
   // Standard spellings, so the same carrier or plan isn't saved two ways.
@@ -47,7 +51,7 @@ export async function createPolicy(contactId: string, formData: FormData) {
       contactId,
       carrier,
       planName,
-      planType: emptyToNull(formData.get("planType")),
+      planType: emptyToNull(formData.get("planType")) ?? suppType(formData),
       effectiveDate,
       timing,
       submittedAt: timing === "future" ? toDate(formData.get("submittedAt")) ?? toDate(todayInputValue()) : undefined,
@@ -133,7 +137,7 @@ export async function updatePolicy(contactId: string, policyId: string, formData
     data: {
       carrier,
       planName,
-      planType: emptyToNull(formData.get("planType")) ?? null,
+      planType: emptyToNull(formData.get("planType")) ?? suppType(formData) ?? null,
       clientType: clientType === "new" || clientType === "current" ? clientType : null,
       commissionAmount: toFloat(formData.get("commissionAmount")) ?? null,
       doctor: emptyToNull(formData.get("doctor")) ?? null,

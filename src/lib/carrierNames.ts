@@ -40,12 +40,23 @@ export const looseKey = (s: string) =>
 const aliasMap = new Map<string, string>();
 for (const c of CARRIERS) for (const a of [c.name, ...c.aliases]) aliasMap.set(looseKey(a), c.name);
 
+// "Blue Shield Med Supp" is Blue Shield: the plan type says it's a
+// supplement, not the carrier.
+const SUPP_TAIL = / (med supp|medsupp|medicare supp|medicare supplement|supplement|medigap)$/;
+
 // The standard spelling for a carrier, or the text as typed (tidied) if it
 // isn't one we know.
 export function canonicalCarrier(raw: string): string {
   const tidy = raw.trim().replace(/\s+/g, " ");
-  return aliasMap.get(looseKey(tidy)) ?? tidy;
+  const key = looseKey(tidy);
+  return aliasMap.get(key) ?? aliasMap.get(key.replace(SUPP_TAIL, "")) ?? tidy;
 }
+
+// True for a known carrier typed with a Med Supp tag on the end.
+export const carrierSaysMedSupp = (raw: string) => {
+  const key = looseKey(raw);
+  return !aliasMap.has(key) && SUPP_TAIL.test(key) && aliasMap.has(key.replace(SUPP_TAIL, ""));
+};
 
 // Words that say which carrier a plan belongs to, longest first, so a plan
 // name typed with the carrier in front ("Blue Shield Blue Shield Inspire")
